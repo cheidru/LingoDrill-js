@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <audio id="mymusic" src="./assets/Nat King Cole – Orange Coloured Sky (zaycev.net).mp3" preload="metadata"></audio>
+
+    <div class="player">
+        <div id="played-title-wrapper">
+            <div id="played-title" style="overflow: hidden; width:auto;">Song</div>
+        </div>
+
+        <div id="player-progress-bar-wrapper">
+            <div id="player-progress-bar-line"></div>
+            <div id="player-progress-bar-ball"></div>
+        </div>
+
+        <div class="player-control">
+            <img id="play-btn" src="./assets/icons8-play-96.png" alt="play">
+            <img id="pause-btn" src="./assets/icons8-pause-96.png" onclick="document.querySelector('#mymusic').pause()" alt="pause">
+            <img id="stop-btn" src="./assets/icons8-stop-96.png" alt="stop">
+        </div>
+    </div>
+
+
+    <div class="player-preset">
+        <div>Song duration: <span id="duration-field">placeholder</span></div>
+        <div>Current time: <span id="current-time-field">placeholder</span></div>
+        <div>Current loop: <span id="current-loop-field">placeholder</span></div>       
+        <div class="time">
+            <label class="start-time">Start playing at:
+                <input class="inumber" id="start-time-field" type="number" min="0" max="20" value="0"> 
+            </label> 
+        </div>
+         <div class="time">
+            <label class="end-time">Stop playing at:
+                <input class="inumber" id="stop-time-field" type="number" min="0" max="20" value="0"> 
+            </label>
+        </div>
+
+        <div class="time">
+            <label class="loops-number">Number of Loops:
+                <input class="inumber" id="loops" type="number" value="0"> 
+            </label>
+        </div>
+    </div>
+
+    <template id="long-bar-template">
+        <div id="long-bar-wrapper">
+            <div id="long-number"></div>
+            <div id="long-bar"></div>
+        </div>
+    </template>
+
+    <template id="middle-bar-template">
+        <div id="middle-bar"></div>
+    </template>
+
+    <template id="short-bar-template">
+        <div id="short-bar"></div>
+    </template>
+
+    <script>
+        let aFile = document.querySelector('#mymusic');
+        let atitle = document.querySelector('#played-title');
+        let durationField = document.querySelector('#duration-field');
+        let currentTimeField = document.querySelector('#current-time-field');
+
+        let currentLoopField = document.querySelector('#current-loop-field');
+        currentLoopField.textContent = 0;    
+
+        let playBTN = document.querySelector('#play-btn');
+        let stopBTN = document.querySelector('#pause-btn');
+        let startFiled = document.querySelector('#start-time-field');
+        let stopFiled = document.querySelector('#stop-time-field');
+        let loopsField = document.querySelector('#loops');
+
+        let durationRounded = 0;
+
+        let aTest = aFile.addEventListener('loadedmetadata', function() {
+            let songDuration = aFile.duration;
+            durationRounded = Math.round(songDuration);
+            durationField.textContent = durationRounded + " sec";
+            startFiled.setAttribute('max',`${durationRounded}`);
+            stopFiled.setAttribute('max',`${durationRounded}`);
+            // Restore special symbols in audio file URI and get the file name from it
+            atitle.textContent = decodeURI(aFile.src).split('/').pop();
+            // Get file name text length in pixel
+            let titleWidth = atitle.clientWidth;
+            atitle.style.transition = "all 8s";
+            atitle.style.marginLeft = `-${titleWidth}px`;
+            // Make ruler
+
+
+        });
+
+  
+        let currentTime = aFile.currentTime;
+        let currentTimeRounded = Math.round(currentTime);
+        currentTimeField.textContent = currentTimeRounded;
+    
+
+        let loopsNumber = loopsField.value;
+
+
+
+        playBTN.addEventListener('click', playLoops);
+      
+
+        function playLoops() {
+            aFile.currentTime = startFiled.value;
+            let loop = 1;
+            currentLoopField.textContent = loop;
+            aFile.play();
+
+// При передаче методов обьекта (здесь pause) в качестве колбэка в функцию, напр setTimeout,
+// setInterval теряется контекст исходного обьекта (this) и метод возвращает undefined. Метод setTimeout
+// в браузере имеет особенность: он устанавливает this=window для вызова функции. Таким образом, 
+// для this.pause он пытается получить window.pause, которого не существует. Чтобы этого избежать,
+// можно обернуть вызов в анонимную (или стрелочную) функцию, создав замыкание.
+// Этот метод имеет уязвимость если до момента срабатывания setTimeout в переменную aFile будет записано
+// другое значение. Для решения это проблемы в современном JavaScript у функций есть встроенный метод bind, 
+// который позволяет зафиксировать this у метода при копировании его в переменную
+// см. https://learn.javascript.ru/bind#reshenie-2-privyazat-kontekst-s-pomoschyu-bind
+
+            setInterval(() => {currentTimeField.textContent = Math.round(aFile.currentTime)}, 500);
+            let loopsEnacted = setInterval(() => {
+                aFile.currentTime = startFiled.value;
+                loop++;
+                currentLoopField.textContent = loop;
+                aFile.play();},
+                (stopFiled.value-startFiled.value)*1000);
+            
+            // Stop playing loops
+            setTimeout(() => {aFile.pause();
+                aFile.currentTime = 0;
+                currentLoopField.textContent = 0;
+                clearInterval(loopsEnacted)},
+                (stopFiled.value-startFiled.value)*1000*loopsField.value);
+        }
+
+
+
+    </script>
+</body>
+</html>

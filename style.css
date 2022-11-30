@@ -1,0 +1,125 @@
+html, body, p {
+    all: unset;
+}
+
+.player, .player-preset {
+    padding: 5px;
+    margin: auto;    
+    width: 150px;
+ }
+
+.player {
+    background-color: aquamarine;
+}
+
+.player-control {
+    display: flex;
+    padding: 0 3%;
+    margin: 0;    
+}
+
+.player-preset {
+    height: 200px;
+    background-color: tomato;
+}
+
+[id$="-btn"] {
+    height: auto;
+    width: 15%;
+    margin: 5% auto;
+    padding: 4%;
+    cursor: pointer;
+    border-radius: 50%;    
+    background-color: chocolate;
+}
+
+#played-title-wrapper {
+    height: 1.2rem;
+    width: 90%;
+    margin: auto;
+    padding: 0 0.5rem;
+    font-size: 0.9rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background-color: greenyellow;
+}
+
+#played-title {
+
+    
+}
+
+#player-progress-bar-wrapper {
+    position: relative;
+    padding: 3% 5%;
+    width: 90%;
+}
+
+#player-progress-bar-line {
+    height: 0.4rem;
+    margin: auto;
+    border-radius: 0.2rem;
+    background-color: rgb(135, 168, 229);
+}
+
+#player-progress-bar-ball {
+    position: absolute;
+    top: 15%;
+    left: 5%;
+    height: 0.7rem;
+    width: 0.7rem;
+    border-radius: 50%;
+    background-color: rgb(113, 150, 218);
+}
+
+.inumber {
+    outline: none;
+    margin: 0 5px;
+    padding: 0 2px;
+    height: 20px;
+    width: 40px;
+    border: none;
+}
+
+.time {
+    padding-top: 5px;
+    text-align: center;
+}
+
+.sign-style {
+    color: black;
+}
+
+[id$="-bar"] {
+    width: 0.2rem;
+    margin: 1rem 1rem;
+    border-radius: 0.1rem;
+    background-color: lightgray;
+}
+
+#long-bar {
+    height: 3rem;
+    margin-top: 0;
+}
+
+#long-number {
+    font-family: sans-serif;
+    font-size: 0.8rem;
+    width: 2.2rem;
+    text-align: center;
+}
+
+#middle-bar {
+    height: 2rem;
+}
+
+#short-bar {
+    height: 1rem;
+
+}
+
+#long-bar-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
