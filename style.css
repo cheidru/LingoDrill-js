@@ -6,6 +6,7 @@ html, body, p {
     padding: 5px;
     margin: auto;    
     width: 150px;
+    height: auto;
  }
 
 .player {
@@ -38,15 +39,20 @@ html, body, p {
     width: 90%;
     margin: auto;
     padding: 0 0.5rem;
-    font-size: 0.9rem;
     border-radius: 0.5rem;
     overflow: hidden;
     background-color: greenyellow;
 }
 
 #played-title {
+    font-size: 1rem;    
+}
 
-    
+#progress-bar-ruler-wrapper {
+    width: 95%;
+    height: 1rem;
+    margin: 0.2rem auto -0.2rem;
+    background-color: antiquewhite;
 }
 
 #player-progress-bar-wrapper {
@@ -94,7 +100,7 @@ html, body, p {
     width: 0.2rem;
     margin: 1rem 1rem;
     border-radius: 0.1rem;
-    background-color: lightgray;
+    background-color: black;
 }
 
 #long-bar {

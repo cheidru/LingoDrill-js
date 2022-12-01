@@ -12,7 +12,11 @@
 
     <div class="player">
         <div id="played-title-wrapper">
-            <div id="played-title" style="overflow: hidden; width:auto;">Song</div>
+            <div id="played-title" style="overflow: visible;">Song</div>
+        </div>
+
+        <div id="progress-bar-ruler-wrapper">
+            <div id="progress-bar-ruler"></div>
         </div>
 
         <div id="player-progress-bar-wrapper">
@@ -52,13 +56,20 @@
 
     <template id="long-bar-template">
         <div id="long-bar-wrapper">
-            <div id="long-number"></div>
+            <div id="long-number-place"><slot id="long-number"></slot></div>
             <div id="long-bar"></div>
         </div>
     </template>
 
     <template id="middle-bar-template">
         <div id="middle-bar"></div>
+    </template>
+
+    <template id="long-bar-template">
+        <div id="long-bar-wrapper">
+            <div id="long-number">12</div>
+            <div id="long-bar"></div>
+        </div>
     </template>
 
     <template id="short-bar-template">
@@ -80,6 +91,18 @@
         let stopFiled = document.querySelector('#stop-time-field');
         let loopsField = document.querySelector('#loops');
 
+        let rulerHolder = document.querySelector('#progress-bar-ruler');
+        let longBarTemplate = document.querySelector('#long-bar-template');
+        let longBarSlot = document.querySelector('#long-number');
+        let shortBarTemplate = document.querySelector('#short-bar-template');
+        let middleBarTemplate = document.querySelector('#middle-bar-template');
+
+        
+
+        let longBarTemplateClone = longBarTemplate.content.cloneNode(true);
+        let shortBarTemplateClone = shortBarTemplate.content.cloneNode(true);
+        let middleBarTemplateClone = middleBarTemplate.content.cloneNode(true);
+
         let durationRounded = 0;
 
         let aTest = aFile.addEventListener('loadedmetadata', function() {
@@ -89,13 +112,17 @@
             startFiled.setAttribute('max',`${durationRounded}`);
             stopFiled.setAttribute('max',`${durationRounded}`);
             // Restore special symbols in audio file URI and get the file name from it
-            atitle.textContent = decodeURI(aFile.src).split('/').pop();
+            let songName = decodeURI(aFile.src).split('/').pop();
+            atitle.textContent = songName;
             // Get file name text length in pixel
             let titleWidth = atitle.clientWidth;
-            atitle.style.transition = "all 8s";
-            atitle.style.marginLeft = `-${titleWidth}px`;
+            atitle.style.transition = "all 18s";
+            atitle.style.marginLeft = `-${songName.length - 37}rem`;
+            setTimeout(function(){atitle.style.marginLeft = "0rem"}, 18000);
             // Make ruler
 
+            longBarSlot.textContent = 1;
+            rulerHolder.append(longBarTemplateClone);
 
         });
 
