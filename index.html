@@ -56,7 +56,7 @@
 
     <template id="long-bar-template">
         <div id="long-bar-wrapper">
-            <div id="long-number-place"><slot id="long-number"></slot></div>
+            <div id="long-number-place"></div>
             <div id="long-bar"></div>
         </div>
     </template>
@@ -65,18 +65,9 @@
         <div id="middle-bar"></div>
     </template>
 
-    <template id="long-bar-template">
-        <div id="long-bar-wrapper">
-            <div id="long-number">12</div>
-            <div id="long-bar"></div>
-        </div>
-    </template>
-
     <template id="short-bar-template">
         <div id="short-bar"></div>
     </template>
-
-
 
     <script>
         let aFile = document.querySelector('#mymusic');
@@ -94,21 +85,10 @@
         let loopsField = document.querySelector('#loops');
 
         let rulerHolder = document.querySelector('#progress-bar-ruler');
-        let longBarTemplate = document.querySelector('#long-bar-template');
-        let longBarSlot = document.querySelector('#long-number');
-        let shortBarTemplate = document.querySelector('#short-bar-template');
-        let middleBarTemplate = document.querySelector('#middle-bar-template');
-
-        
-
-        let longBarTemplateClone = longBarTemplate.content.cloneNode(true);
-        let shortBarTemplateClone = shortBarTemplate.content.cloneNode(true);
-        let middleBarTemplateClone = middleBarTemplate.content.cloneNode(true);
 
         let durationRounded = 0;
 
-        // Update the screen after mediadata is loaded
-        let aTest = aFile.addEventListener('loadedmetadata', function() {
+        let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
             let songDuration = aFile.duration;
             durationRounded = Math.round(songDuration);
             durationField.textContent = durationRounded + " sec";
@@ -122,12 +102,34 @@
             atitle.style.transition = "all 18s";
             atitle.style.marginLeft = `-${songName.length - 37}rem`;
             setTimeout(function(){atitle.style.marginLeft = "0rem"}, 18000);
+            
             // Make ruler
+            if (durationRounded > 50) {
+                largeScale();
+            } else {
+                smallScale();
+            }
 
-            longBarSlot.textContent = 1;
             rulerHolder.append(longBarTemplateClone);
 
         });
+
+        let longBarTemplate = document.querySelector('#long-bar-template');
+        let longBarNumber = document.querySelector('#long-number-place');
+        let shortBarTemplate = document.querySelector('#short-bar-template');
+        let middleBarTemplate = document.querySelector('#middle-bar-template');       
+
+        // let longBarTemplateClone = longBarTemplate.content.cloneNode(true);
+        // let shortBarTemplateClone = shortBarTemplate.content.cloneNode(true);
+        // let middleBarTemplateClone = middleBarTemplate.content.cloneNode(true);
+
+        function largeScale() {
+            
+        }
+
+        function smallScale() {
+            
+        }
 
   
         let currentTime = aFile.currentTime;
@@ -135,10 +137,8 @@
         currentTimeField.textContent = currentTimeRounded;
     
 
-        let loopsNumber = loopsField.value;
-
-
-
+        let loopsNumber = loopsField.value == 0 ? 1 : loopsField.value;
+    
         playBTN.addEventListener('click', playLoops);
       
 
@@ -158,20 +158,22 @@
 // который позволяет зафиксировать this у метода при копировании его в переменную
 // см. https://learn.javascript.ru/bind#reshenie-2-privyazat-kontekst-s-pomoschyu-bind
 
+            let stopValue = stopFiled.value == 0 ? aFile.duration : stopFiled.value;
+
             setInterval(() => {currentTimeField.textContent = Math.round(aFile.currentTime)}, 500);
             let loopsEnacted = setInterval(() => {
                 aFile.currentTime = startFiled.value;
                 loop++;
                 currentLoopField.textContent = loop;
                 aFile.play();},
-                (stopFiled.value-startFiled.value)*1000);
+                (stopValue - startFiled.value)*1000);
             
             // Stop playing loops
             setTimeout(() => {aFile.pause();
                 aFile.currentTime = 0;
                 currentLoopField.textContent = 0;
                 clearInterval(loopsEnacted)},
-                (stopFiled.value-startFiled.value)*1000*loopsField.value);
+                (stopValue - startFiled.value)*1000*loopsNumber);
         }
 
 
