@@ -7,7 +7,8 @@ let currentLoopField = document.querySelector('#current-loop-field');
 currentLoopField.textContent = 0;    
 
 let playBTN = document.querySelector('#play-btn');
-let stopBTN = document.querySelector('#pause-btn');
+// let pauseBTN = document.querySelector('#pause-btn');
+let stopBTN = document.querySelector('#stop-btn');
 let startFiled = document.querySelector('#start-time-field');
 let stopFiled = document.querySelector('#stop-time-field');
 let loopsField = document.querySelector('#loops');
@@ -38,7 +39,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
         smallScale();
     }
 
-    rulerHolder.append(longBarTemplateClone);
+    // rulerHolder.append(longBarTemplateClone);
 
 });
 
@@ -67,13 +68,20 @@ currentTimeField.textContent = currentTimeRounded;
 
 let loopsNumber = loopsField.value == 0 ? 1 : loopsField.value;
 
+stopBTN.addEventListener('click', () => {
+    aFile.pause();
+    aFile.currentTime = 0;}
+    );
+
 playBTN.addEventListener('click', playLoops);
 
 
 function playLoops() {
-    aFile.currentTime = startFiled.value;
-    let loop = 1;
-    currentLoopField.textContent = loop;
+    if(aFile.paused == false || aFile.currentTime == 0) {
+        aFile.currentTime = startFiled.value;
+        let loop = 1;
+        currentLoopField.textContent = loop;
+    }
     aFile.play();
 
 // При передаче методов обьекта (здесь pause) в качестве колбэка в функцию, напр setTimeout,
@@ -88,7 +96,15 @@ function playLoops() {
 
     let stopValue = stopFiled.value == 0 ? aFile.duration : stopFiled.value;
 
-    setInterval(() => {currentTimeField.textContent = Math.round(aFile.currentTime)}, 500);
+    let progressBarBall = document.querySelector('#player-progress-bar-ball');
+
+    setInterval(() => {
+        // display current play time on screen
+        currentTimeField.textContent = Math.round(aFile.currentTime);
+        // move progress bar ball according to the current play time
+        let progressBarBallPosition = Math.round(aFile.currentTime/aFile.duration);
+        progressBarBall.style.transform = `translate ${progressBarBallPosition * 100}%`
+    }, 500);
     let loopsEnacted = setInterval(() => {
         aFile.currentTime = startFiled.value;
         loop++;
