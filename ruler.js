@@ -97,13 +97,14 @@ function playLoops() {
     let stopValue = stopFiled.value == 0 ? aFile.duration : stopFiled.value;
 
     let progressBarBall = document.querySelector('#player-progress-bar-ball');
-
+    let progressBarLine = document.querySelector('#player-progress-bar-line');
+ 
     setInterval(() => {
         // display current play time on screen
         currentTimeField.textContent = Math.round(aFile.currentTime);
         // move progress bar ball according to the current play time
-        let progressBarBallPosition = Math.round(aFile.currentTime/aFile.duration);
-        progressBarBall.style.transform = `translate ${progressBarBallPosition * 100}%`
+        let progressBarBallPosition = aFile.currentTime/aFile.duration;
+        progressBarBall.style.transform = `translate(${progressBarBallPosition * progressBarLine.clientWidth}px, 0px)`
     }, 500);
     let loopsEnacted = setInterval(() => {
         aFile.currentTime = startFiled.value;
