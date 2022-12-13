@@ -51,9 +51,16 @@ html, body, p {
 
 #progress-bar-ruler-wrapper {
     width: 95%;
-    height: 2rem;
+    height: 3rem;
     margin: 0.2rem auto -0.2rem;
     background-color: antiquewhite;
+}
+
+#progress-bar-ruler {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    margin-top: 10px;
 }
 
 #player-progress-bar-wrapper {
@@ -97,32 +104,39 @@ html, body, p {
     color: black;
 }
 
+.templ-wrapper {
+    display: inline-block;
+    padding: 2px 0px;
+    width: 2px;
+    height: auto;
+  }
+
 [id$="-bar"] {
-    width: 0.2rem;
-    margin: 1rem 1rem;
-    border-radius: 0.1rem;
-    background-color: black;
+    width: 1px;
+    margin: auto;
+    border-radius: 1px;
+    background-color: darkolivegreen;
 }
 
 #long-bar {
-    height: 3rem;
-    margin-top: 0;
+    height: 1rem;
 }
 
 #long-number {
+    width: 1rem;
+    margin: auto;
     font-family: sans-serif;
-    font-size: 0.8rem;
-    width: 2.2rem;
+    font-size: 0.6rem;
     text-align: center;
+    color: darkolivegreen;
 }
 
 #middle-bar {
-    height: 2rem;
+    height: 0.7rem;
 }
 
 #short-bar {
-    height: 1rem;
-
+    height: 0.3rem;
 }
 
 #long-bar-wrapper {
