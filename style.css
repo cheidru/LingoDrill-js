@@ -65,6 +65,7 @@ html, body, p {
 
 #player-progress-bar-wrapper {
     position: relative;
+    height: 0.4rem;
     padding: 3% 5%;
     width: 90%;
 }
@@ -78,7 +79,7 @@ html, body, p {
 
 #player-progress-bar-ball {
     position: absolute;
-    top: 15%;
+    top: 0.15rem;
     left: 5%;
     height: 0.7rem;
     width: 0.7rem;
@@ -144,3 +145,39 @@ html, body, p {
     flex-direction: column;
 }
 
+@media (max-width: 600px) {
+    
+.player, .player-preset {
+    width: 100%;
+ }
+
+ #player-control {
+    display: flex;
+    align-items: center;
+ }
+
+#played-title-wrapper {
+    width: 80%;
+}
+
+#progress-bar-ruler-wrapper {
+    width: 90%;
+}
+
+[id$="-btn"] {
+    width: 10%;
+    margin: 5% auto;
+    padding: 2%;
+}
+
+#player-progress-bar-ball {
+    position: absolute;
+    top: 30%;
+    left: 5%;
+}
+
+.player-preset {
+    text-align: center;
+ }
+
+}
