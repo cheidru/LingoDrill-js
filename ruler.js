@@ -79,6 +79,10 @@ function largeScale() {
 function smallScale() {
     for(let i = 0; i <= durationRoundedTest; i++) {
         if (i%10 == 0) {
+            if (i != 0) {
+                const cloneShort = shortBarTemplate.content.cloneNode(true);
+                ruler.appendChild(cloneShort);
+            }
             const clone = longBarTemplate.content.cloneNode(true);
             let barNumber = clone.querySelector("#long-number");
             barNumber.textContent = i;
