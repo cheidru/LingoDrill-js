@@ -175,12 +175,6 @@ html, body, p {
     padding: 2%;
 }
 
-#player-progress-bar-ball {
-    position: absolute;
-    top: 30%;
-    left: 5%;
-}
-
 .player-preset {
     text-align: center;
  }
