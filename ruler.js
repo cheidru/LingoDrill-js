@@ -141,7 +141,7 @@ function playLoops() {
         currentTimeField.textContent = Math.round(aFile.currentTime);
         // move progress bar ball according to the current play time
         let progressBarBallPosition = aFile.currentTime/aFile.duration;
-        progressBarBall.style.transform = `translate(${progressBarBallPosition * progressBarLine.clientWidth}px, 0px)`
+        if (progressBarBallPosition <= 1) progressBarBall.style.transform = `translate(${progressBarBallPosition * progressBarLine.clientWidth}px, 0px)`;
     }, 500);
     let loopsEnacted = setInterval(() => {
         aFile.currentTime = startFiled.value;
