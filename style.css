@@ -1,6 +1,6 @@
 html, body, p {
     all: unset;
-    --ball-width: 0.7rem;
+    --thumb-width: 0.7rem;
 }
 
 .player, .player-preset {
@@ -83,12 +83,12 @@ html, body, p {
     background-color: rgb(135, 168, 229);
 }
 
-#player-progress-bar-ball {
+#player-progress-bar-thumb {
     position: absolute;
-    top: calc(50% - calc(var(--ball-width)/2));
-    left: calc(var(--ball-width)*-0.01);
-    height: var(--ball-width);
-    width: var(--ball-width);
+    top: calc(50% - calc(var(--thumb-width)/2));
+    left: calc(var(--thumb-width)*-0.01);
+    height: var(--thumb-width);
+    width: var(--thumb-width);
     border-radius: 50%;
     background-color: rgb(113, 150, 218);
 }
