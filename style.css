@@ -4,7 +4,8 @@ html, body, p {
 }
 
 .player, .player-preset {
-    padding: 5px;
+    padding: 1rem 0;
+
     margin: auto;    
     width: 150px;
     height: auto;
@@ -37,7 +38,7 @@ html, body, p {
 
 #played-title-wrapper {
     height: 1.2rem;
-    width: 90%;
+    width: 80%;
     margin: auto;
     padding: 0 0.5rem;
     border-radius: 0.5rem;
@@ -51,9 +52,6 @@ html, body, p {
 }
 
 #progress-bar-ruler-wrapper {
-    width: 100%;
-    height: auto;
-    width: auto;
     padding: 0;
     background-color: antiquewhite;
 }
@@ -63,7 +61,7 @@ html, body, p {
     align-items: flex-end;
     width: auto;
     height: 2rem;
-    padding: 2px 0;
+    padding: 2px 0.5rem;
     margin: 10px 0;
     margin-bottom: 0;
     background-color: LightBlue;
@@ -72,7 +70,7 @@ html, body, p {
 #player-progress-bar-wrapper {
     position: relative;
     height: 0.4rem;
-    padding: 3% 1%;
+    padding: 3% 0.5rem;
     width: auto;
 }
 
@@ -86,7 +84,7 @@ html, body, p {
 #player-progress-bar-thumb {
     position: absolute;
     top: calc(50% - calc(var(--thumb-width)/2));
-    left: calc(var(--thumb-width)*-0.01);
+    left: calc((var(--thumb-width)*-0.01) + 0.5rem);
     height: var(--thumb-width);
     width: var(--thumb-width);
     border-radius: 50%;
@@ -166,9 +164,7 @@ html, body, p {
     width: 80%;
 }
 
-#progress-bar-ruler-wrapper {
-    width: 90%;
-}
+
 
 [id$="-btn"] {
     width: 10%;
