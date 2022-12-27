@@ -109,6 +109,14 @@ stopBTN.addEventListener('click', () => {
 
 playBTN.addEventListener('click', playLoops);
 
+let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
+let progressBarLine = document.querySelector('#player-progress-bar-line');
+    
+document.addEventListener('mousedown', function(event) {
+    // переносим ползунок под курсор
+    atitle.textContent = "двигаю ползунок от " + progressBarThumb.style.Left + " на " + event.pageX;
+    progressBarThumb.style.Left = event.pageX + 'px';
+})
 
 function playLoops() {
     if(aFile.paused == false || aFile.currentTime == 0) {
@@ -130,9 +138,6 @@ function playLoops() {
 
     let stopValue = stopFiled.value == 0 ? aFile.duration : stopFiled.value;
 
-    let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
-    let progressBarLine = document.querySelector('#player-progress-bar-line');
- 
     setInterval(() => {
         // display current play time on screen
         currentTimeField.textContent = Math.round(aFile.currentTime);
