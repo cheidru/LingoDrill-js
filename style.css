@@ -4,8 +4,7 @@ html, body, p {
 }
 
 .player, .player-preset {
-    padding: 1rem 0;
-
+    padding: 0.5rem 0;
     margin: auto;    
     width: 150px;
     height: auto;
@@ -40,6 +39,7 @@ html, body, p {
     height: 1.2rem;
     width: 80%;
     margin: auto;
+    margin-bottom: 0.5rem;
     padding: 0 0.5rem;
     border-radius: 0.5rem;
     overflow: hidden;
@@ -53,6 +53,7 @@ html, body, p {
 
 #progress-bar-ruler-wrapper {
     padding: 0;
+    margin-bottom: 0.5rem;
     background-color: antiquewhite;
 }
 
@@ -93,6 +94,7 @@ html, body, p {
     width: var(--thumb-width);
     border-radius: 50%;
     background-color: rgb(113, 150, 218);
+    transition-duration: 1ms;
 }
 
 #player-time {

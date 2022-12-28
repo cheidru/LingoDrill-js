@@ -111,11 +111,27 @@ playBTN.addEventListener('click', playLoops);
 
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-line');
+let dragThumbOn = false;
     
-document.addEventListener('mousedown', function(event) {
+progressBarThumb.addEventListener('mousedown', function(event) {
+        // переносим ползунок под курсор
+    progressBarThumb.style.left = event.pageX + 'px';
+    dragThumbOn = true;
+})
+
+progressBarLine.addEventListener('click', function(event) {
     // переносим ползунок под курсор
-    atitle.textContent = "двигаю ползунок от " + progressBarThumb.style.Left + " на " + event.pageX;
-    progressBarThumb.style.Left = event.pageX + 'px';
+    // dragThumbOn == true ? dragThumbOn == false : dragThumbOn == true;
+    progressBarThumb.style.left = event.pageX + 'px';
+    dragThumbOn = false;
+})
+
+document.addEventListener('mousemove', function(event) {
+    if (dragThumbOn == true) progressBarThumb.style.left = event.pageX + 'px';
+})
+
+document.addEventListener('mouseup', function(event) {
+    dragThumbOn = false;
 })
 
 function playLoops() {
