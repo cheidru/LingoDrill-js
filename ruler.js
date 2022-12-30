@@ -112,27 +112,33 @@ playBTN.addEventListener('click', playLoops);
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-line');
 let dragThumbOn = false;
+
+
+let progressBarLeftEnd = progressBarLine.pageX;
+let progressBarRightEnd = progressBarLeftEnd + progressBarLine.clientWidth;
     
-progressBarThumb.addEventListener('mousedown', function(event) {
+progressBarThumb.addEventListener('pointerdown', function(event) {
         // переносим ползунок под курсор
+    // progressBarThumb.style.left = event.pageX + 'px';
+    dragThumbOn = true;
+})
+
+progressBarLine.addEventListener('pointerdown', function(event) {
+    // переносим ползунок под курсор
     progressBarThumb.style.left = event.pageX + 'px';
     dragThumbOn = true;
 })
 
-progressBarLine.addEventListener('click', function(event) {
-    // переносим ползунок под курсор
-    // dragThumbOn == true ? dragThumbOn == false : dragThumbOn == true;
-    progressBarThumb.style.left = event.pageX + 'px';
-    dragThumbOn = false;
-})
 
-document.addEventListener('mousemove', function(event) {
+document.addEventListener('pointermove', function(event) {
     if (dragThumbOn == true) progressBarThumb.style.left = event.pageX + 'px';
 })
 
-document.addEventListener('mouseup', function(event) {
+document.addEventListener('pointerup', function(event) {
     dragThumbOn = false;
 })
+
+
 
 function playLoops() {
     if(aFile.paused == false || aFile.currentTime == 0) {

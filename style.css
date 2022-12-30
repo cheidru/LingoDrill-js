@@ -95,6 +95,8 @@ html, body, p {
     border-radius: 50%;
     background-color: rgb(113, 150, 218);
     transition-duration: 1ms;
+    /* Отмена встроенной функции drag'n'drop для мобильных устройств */
+    /* touch-action: none; */
 }
 
 #player-time {
