@@ -31,7 +31,8 @@ html, body, p {
     height: 1rem;
     margin: 0;
     cursor: pointer;
-    border-radius: 50%;    
+    border-radius: 50%;
+    user-select: none;    
     background-color: chocolate;
 }
 
@@ -79,6 +80,7 @@ html, body, p {
 }
 
 #player-progress-bar-line {
+    /* box-sizing: border-box; */
     height: 0.4rem;
     width: 100%;
     margin: auto 0.5rem;
@@ -94,14 +96,16 @@ html, body, p {
     width: var(--thumb-width);
     border-radius: 50%;
     background-color: rgb(113, 150, 218);
-    transition-duration: 1ms;
+    /* transition-duration: 1ms; */
     /* Отмена встроенной функции drag'n'drop для мобильных устройств */
     /* touch-action: none; */
 }
 
 #player-time {
      min-width: fit-content;
+     min-width: 3rem;
      font-size: 0.5rem;
+     user-select: none;
 }
 
 .inumber {
