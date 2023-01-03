@@ -8,43 +8,34 @@
     <title>Document</title>
 </head>
 <body>
-    <header>
-        <a id="home-page" href="http://"></a>
-        <div id="app-name">Lingo Drill</div>
-        <a id="setup-page" href="http://"></a>
-    </header>
-
     <audio id="mymusic" src="./assets/Nat King Cole – Orange Coloured Sky (zaycev.net).mp3" preload="metadata"></audio>
 
     <div class="player">
+        <div id="player-top-menue-wrapper"></div>
 
         <div id="played-title-wrapper">
             <div id="played-title" style="overflow: visible;">Song</div>
         </div>
 
         <div id="progress-bar-ruler-wrapper">
-            <!-- Hidden -->
+            <!-- Removed -->
             <div id="progress-bar-ruler"></div>
 
             <div id="player-progress-bar-wrapper">
-                <div class="play-btn"></div>
+                <img id="play-btn" src="./assets/icons8-play-96.png" alt="play">
                 <div id="player-progress-bar-line"></div>
                 <div id="player-progress-bar-thumb"></div>
                 <div id="player-time">0 / 0</div>
             </div>            
         </div>
 
-        <div id="player-bottom-menue-wrapper">
-            <div id="stop-btn"></div>
-            <div id="rewind-btn"></div>
-            <div id="volume-btn"></div>
-        </div>
+        <div id="player-bottom-menue-wrapper"></div>
 
         <!-- Removed -->
         <div class="player-control">
             <img id="play-btn" src="./assets/icons8-play-96.png" alt="play">
             <img id="pause-btn" src="./assets/icons8-pause-96.png" onclick="document.querySelector('#mymusic').pause()" alt="pause">
-            <!-- <img id="stop-btn" src="./assets/icons8-stop-96.png" alt="stop"> -->
+            <img id="stop-btn" src="./assets/icons8-stop-96.png" alt="stop">
         </div>
     </div>
 
@@ -90,6 +81,6 @@
         </div>
     </template>
 
-<script src="./script.js"></script>
+<script src="./ruler.js"></script>
 </body>
 </html>

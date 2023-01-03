@@ -6,9 +6,8 @@ let currentTimeField = document.querySelector('#current-time-field');
 let currentLoopField = document.querySelector('#current-loop-field');
 currentLoopField.textContent = 0;    
 
-let playBTN = document.querySelector('#play-btn');
-// let pauseBTN = document.querySelector('#pause-btn');
-let stopBTN = document.querySelector('#stop-btn');
+let playBTN = document.querySelector('.play-btn');
+let stopBTN = document.querySelector('.stop-btn');
 let startFiled = document.querySelector('#start-time-field');
 let stopFiled = document.querySelector('#stop-time-field');
 let loopsField = document.querySelector('#loops');
@@ -121,16 +120,13 @@ stopBTN.addEventListener('click', () => {
 
 playBTN.addEventListener('click', playLoops);
 
-
-
-
-
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-line');
 let progressBar = document.querySelector('#player-progress-bar-wrapper');
 
 
 let dragThumbOn = false;
+let draggedFalsy = false;
 let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
 let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
 let lineLeftEnd = progressBarLine.getBoundingClientRect().left;
@@ -145,9 +141,9 @@ progressBarThumb.addEventListener('pointerdown', function(event) {
 
 progressBarLine.addEventListener('pointerdown', function(event) {
     // переносим ползунок под курсор    
-    progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
+    progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';    
     playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
-    dragThumbOn = true;
+    startFiled.value = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
 })
 
 progressBar.addEventListener('pointerdown', function(event) {
@@ -156,7 +152,17 @@ progressBar.addEventListener('pointerdown', function(event) {
     } else if (event.pageX > lineRightEnd) {
         progressBarThumb.style.left = lineRightEnd - originX - thumbOffset + 'px';
     }
+    playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+    startFiled.value = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
 })
+
+// progressBar.addEventListener('drag', function(event) {
+//     let pointerDownEvent = new Event('pointerup');
+//     document.dispatchEvent(pointerDownEvent);
+//     dragThumbOn = true;
+//     draggedFalsy = false;
+//     } 
+// )
 
 
 document.addEventListener('pointermove', function(event) {
@@ -171,19 +177,17 @@ document.addEventListener('pointermove', function(event) {
             progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
             playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
         }
-;
+        aFile.currentTime = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
     }        
 })
 
-
 document.addEventListener('pointerup', function(event) {
-    dragThumbOn = false;})
-
-
+    dragThumbOn = false;
+})
 
 function playLoops() {
     if(aFile.paused == false || aFile.currentTime == 0) {
-        aFile.currentTime = startFiled.value;
+        // aFile.currentTime = startFiled.value;
         let loop = 1;
         currentLoopField.textContent = loop;
     }
@@ -203,22 +207,22 @@ function playLoops() {
 
     setInterval(() => {
         // display current play time on screen
-        currentTimeField.textContent = Math.round(aFile.currentTime);
+        playTime.textContent = `${Math.round(aFile.currentTime)} / ${durationRounded}`;
         // move progress bar Thumb according to the current play time
         let progressBarThumbPosition = aFile.currentTime/aFile.duration;
-        if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${progressBarThumbPosition * progressBarLine.clientWidth}px, 0px)`;
-    }, 500);
+        if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${(progressBarThumbPosition * progressBarLine.clientWidth)}px, 0px)`;
+    }, 50);
     let loopsEnacted = setInterval(() => {
-        aFile.currentTime = startFiled.value;
+        // aFile.currentTime = startFiled.value;
         loop++;
         currentLoopField.textContent = loop;
         aFile.play();},
         (stopValue - startFiled.value)*1000);
     
     // Stop playing loops
-    setTimeout(() => {aFile.pause();
-        aFile.currentTime = 0;
-        currentLoopField.textContent = 0;
-        clearInterval(loopsEnacted)},
-        (stopValue - startFiled.value)*1000*loopsNumber);
+    // setTimeout(() => {aFile.pause();
+    //     aFile.currentTime = 0;
+    //     currentLoopField.textContent = 0;
+    //     clearInterval(loopsEnacted)},
+    //     (stopValue - startFiled.value)*1000*loopsNumber);
 }
