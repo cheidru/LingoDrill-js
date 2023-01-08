@@ -27,48 +27,20 @@
             <div id="progress-bar-ruler"></div>
 
             <div id="player-progress-bar-wrapper">
-                <div class="play-btn"></div>
+                <div id="player-btn" class="play-btn"></div>
                 <div id="player-progress-bar-line"></div>
                 <div id="player-progress-bar-thumb"></div>
                 <div id="player-time">0 / 0</div>
             </div>            
         </div>
 
-        <div id="player-bottom-menue-wrapper">
+        <!-- To Do -->
+        <!-- <div id="player-bottom-menue-wrapper">
             <div id="stop-btn"></div>
             <div id="rewind-btn"></div>
             <div id="volume-btn"></div>
-        </div>
+        </div> -->
 
-        <!-- Removed -->
-        <div class="player-control">
-            <img id="play-btn" src="./assets/icons8-play-96.png" alt="play">
-            <img id="pause-btn" src="./assets/icons8-pause-96.png" onclick="document.querySelector('#mymusic').pause()" alt="pause">
-            <!-- <img id="stop-btn" src="./assets/icons8-stop-96.png" alt="stop"> -->
-        </div>
-    </div>
-
-    <!-- Removed -->
-    <div class="player-preset" class="time">
-        <div>Song duration: <span id="duration-field">placeholder</span></div>
-        <div>Current time: <span id="current-time-field">placeholder</span></div>
-        <div>Current loop: <span id="current-loop-field">placeholder</span></div>       
-        <div class="time">
-            <label class="start-time">Start playing at:
-                <input class="inumber" id="start-time-field" type="number" min="0" max="20" value="0"> 
-            </label> 
-        </div>
-         <div class="time">
-            <label class="end-time">Stop playing at:
-                <input class="inumber" id="stop-time-field" type="number" min="0" max="20" value="0"> 
-            </label>
-        </div>
-
-        <div class="time">
-            <label class="loops-number">Number of Loops:
-                <input class="inumber" id="loops" type="number" value="0"> 
-            </label>
-        </div>
     </div>
 
     <template id="long-bar-template">

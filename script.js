@@ -1,41 +1,45 @@
 let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
 
-let playBTN = document.querySelector('.play-btn');
-let stopBTN = document.querySelector('.stop-btn');
-// let startFiled = document.querySelector('#start-time-field');
-// let stopFiled = document.querySelector('#stop-time-field');
-// let loopsField = document.querySelector('#loops');
+let playBTN = document.querySelector('#player-btn');
+let stopBTN = document.querySelector('#stop-btn');
 let startPlayAt = 0;
-
-let rulerHolder = document.querySelector('#progress-bar-ruler');
-
 let durationRounded = 0;
 let playTime = document.querySelector('#player-time');
+let myA = 0;
 
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
-    // let songDuration = aFile.duration;
-    // durationRounded = Math.round(songDuration);
+    let songDuration = aFile.duration;
+    durationRounded = Math.round(songDuration);
     // startFiled.setAttribute('max',`${durationRounded}`);
     // stopFiled.setAttribute('max',`${durationRounded}`);
+    
     // Restore special symbols in audio file URI and get the file name from it
     let songName = decodeURI(aFile.src).split('/').pop();
 
     aTitle.textContent = songName;
-    aTitle.style.transition = "all 18s";
-    aTitle.style.marginLeft = `-${songName.length - 37}rem`;    
-    setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
+
+
+
+
+    // aTitle.style.transition = "all 18s";
+    // aTitle.style.marginLeft = `-${songName.length - 37}rem`;    
+    // setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
+
+
+
     playTime.textContent = `0 / ${durationRounded}`;
 
     // Make ruler
+    let rulerHolder = document.querySelector('#progress-bar-ruler');
     if (durationRounded > 50) {
         largeScale();
     } else {
         smallScale();
     }
-});
+})
 
 let longBarTemplate = document.querySelector('#long-bar-template');
 let longBarNumber = document.querySelector('#long-number-place');
@@ -96,7 +100,8 @@ let currentTime = aFile.currentTime;
 //     aFile.currentTime = 0;}
 //     );
 
-playBTN.addEventListener('click', playLoops);
+playBTN.addEventListener('click', () => {
+    aFile.paused ? playLoops() : stopPlaying()});
 
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-line');
@@ -113,26 +118,32 @@ let originX = progressBar.getBoundingClientRect().left;
 let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
     
 progressBarThumb.addEventListener('pointerdown', function(event) {
-    // переносим ползунок под курсор
+    // разрешено перемещение ползунка
     dragThumbOn = true;
 })
 
 progressBarLine.addEventListener('pointerdown', function(event) {
+    if (!aFile.paused & event.target != playBTN) stopPlaying();
     // переносим ползунок под курсор    
-    progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';    
-    playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
-    startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
+    startPlayAt = (event.pageX - originX - thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
 })
 
-progressBar.addEventListener('pointerdown', function(event) {
-    if (event.pageX < lineLeftEnd) {
-        progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
-    } else if (event.pageX > lineRightEnd) {
-        progressBarThumb.style.left = lineRightEnd - originX - thumbOffset + 'px';
-    }
-    playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
-    startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-})
+// progressBar.addEventListener('pointerdown', function(event) {
+//     if (event.pageX < lineLeftEnd) {
+//         progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
+//         playTime.textContent = `${Math.round((thumbInitialPosition - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+//     } else if (event.pageX > lineRightEnd) {
+//         progressBarThumb.style.left = lineRightEnd - originX - thumbOffset + 'px';
+//         playTime.textContent = `${Math.round((lineRightEnd - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+//     } else {
+//         progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
+//         playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+//     }
+//     aFile.currentTime = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+// })
 
 // progressBar.addEventListener('drag', function(event) {
 //     let pointerDownEvent = new Event('pointerup');
@@ -145,17 +156,21 @@ progressBar.addEventListener('pointerdown', function(event) {
 
 document.addEventListener('pointermove', function(event) {
     if (dragThumbOn == true) {
+        if (!aFile.paused & event.target != playBTN) stopPlaying();
         if (event.pageX < lineLeftEnd) {
             progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
-            playTime.textContent = `${Math.round((thumbInitialPosition - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+            startPlayAt = (thumbInitialPosition - originX - (lineLeftEnd - originX - thumbOffset)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
         } else if (event.pageX > lineRightEnd) {
             progressBarThumb.style.left = lineRightEnd - originX - thumbOffset + 'px';
-            playTime.textContent = `${Math.round((lineRightEnd - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+            startPlayAt = (lineRightEnd - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         } else {
             progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
-            playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
+            startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         }
-        aFile.currentTime = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+        
     }        
 })
 
@@ -163,15 +178,24 @@ document.addEventListener('pointerup', function(event) {
     dragThumbOn = false;
 })
 
-function playLoops() {
-    if(aFile.paused == false || aFile.currentTime == 0) {
-        aFile.currentTime = startPlayAt;
-        let loop = 1;
-        currentLoopField.textContent = loop;
-    }
-    aFile.play();
+function stopPlaying() {    
+    aFile.pause();
+    startPlayAt = aFile.currentTime;
+    aTitle.textContent = "durationRounded = " + durationRounded;
+    playBTN.classList.remove('pause-btn');
+    playBTN.classList.add('play-btn');
 
-// При передаче методов обьекта (здесь pause) в качестве колбэка в функцию, напр setTimeout,
+}
+
+function playLoops() {
+    aTitle.textContent = "durationRounded = " + durationRounded;
+    aFile.currentTime = startPlayAt;
+    playBTN.classList.remove('play-btn');
+    playBTN.classList.add('pause-btn');
+
+ 
+
+// При передаче методов обьекта в качестве колбэка в функцию, напр setTimeout,
 // setInterval теряется контекст исходного обьекта (this) и метод возвращает undefined. Метод setTimeout
 // в браузере имеет особенность: он устанавливает this=window для вызова функции. Таким образом, 
 // для this.pause он пытается получить window.pause, которого не существует. Чтобы этого избежать,
@@ -183,6 +207,7 @@ function playLoops() {
 
     // let stopValue = stopFiled.value == 0 ? aFile.duration : stopFiled.value;
     let stopValue = aFile.duration;
+    aFile.play();
 
     setInterval(() => {
         // display current play time on screen
@@ -191,13 +216,17 @@ function playLoops() {
         let progressBarThumbPosition = aFile.currentTime/aFile.duration;
         if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${(progressBarThumbPosition * progressBarLine.clientWidth)}px, 0px)`;
     }, 50);
-    let loopsEnacted = setInterval(() => {
-        aFile.currentTime = startPlayAt;
-        loop++;
-        currentLoopField.textContent = loop;
-        aFile.play();},
-        (stopValue - startPlayAt)*1000);
     
+    // let loopsEnacted = setInterval(() => {
+    //     aFile.currentTime = startPlayAt;
+    //     loop++;
+    //     currentLoopField.textContent = loop;
+    //     aFile.play();},
+    //     (stopValue - startPlayAt)*1000);
+
+        
+
+
     // Stop playing loops
     // setTimeout(() => {aFile.pause();
     //     aFile.currentTime = 0;
