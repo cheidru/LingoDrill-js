@@ -6,7 +6,7 @@ let stopBTN = document.querySelector('#stop-btn');
 let startPlayAt = 0;
 let durationRounded = 0;
 let playTime = document.querySelector('#player-time');
-let myA = 0;
+let intervalsId = 0;
 
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
@@ -18,7 +18,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     // Restore special symbols in audio file URI and get the file name from it
     let songName = decodeURI(aFile.src).split('/').pop();
 
-    aTitle.textContent = songName;
+    // aTitle.textContent = songName;
 
 
 
@@ -112,9 +112,9 @@ let dragThumbOn = false;
 let draggedFalse = false;
 let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
 let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
-let lineLeftEnd = progressBarLine.getBoundingClientRect().left;
+let lineLeftEnd = progressBarLine.getBoundingClientRect().x;
 let lineRightEnd = progressBarLine.getBoundingClientRect().right;
-let originX = progressBar.getBoundingClientRect().left;
+let originX = progressBar.getBoundingClientRect().x;
 let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
     
 progressBarThumb.addEventListener('pointerdown', function(event) {
@@ -126,9 +126,11 @@ progressBarLine.addEventListener('pointerdown', function(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
     // переносим ползунок под курсор    
     progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
-    startPlayAt = (event.pageX - originX - thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    startPlayAt = (event.pageX- originX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
     // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
     playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+    aTitle.textContent = event.pageX;
+    aFile.currentTime = startPlayAt;
 })
 
 // progressBar.addEventListener('pointerdown', function(event) {
@@ -159,18 +161,18 @@ document.addEventListener('pointermove', function(event) {
         if (!aFile.paused & event.target != playBTN) stopPlaying();
         if (event.pageX < lineLeftEnd) {
             progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
-            startPlayAt = (thumbInitialPosition - originX - (lineLeftEnd - originX - thumbOffset)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            startPlayAt = (thumbInitialPosition - originX - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
             playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
         } else if (event.pageX > lineRightEnd) {
             progressBarThumb.style.left = lineRightEnd - originX - thumbOffset + 'px';
-            startPlayAt = (lineRightEnd - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            startPlayAt = (lineRightEnd - originX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
             playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         } else {
             progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
-            startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            startPlayAt = (event.pageX - originX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
             playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         }
-        
+        aFile.currentTime = startPlayAt;
     }        
 })
 
@@ -180,6 +182,7 @@ document.addEventListener('pointerup', function(event) {
 
 function stopPlaying() {    
     aFile.pause();
+    clearInterval(intervalsId);
     startPlayAt = aFile.currentTime;
     aTitle.textContent = "durationRounded = " + durationRounded;
     playBTN.classList.remove('pause-btn');
@@ -208,15 +211,24 @@ function playLoops() {
     // let stopValue = stopFiled.value == 0 ? aFile.duration : stopFiled.value;
     let stopValue = aFile.duration;
     aFile.play();
-
-    setInterval(() => {
+    // progressBarThumb.style.left = '';
+    intervalsId = setInterval(() => {
         // display current play time on screen
         playTime.textContent = `${Math.round(aFile.currentTime)} / ${durationRounded}`;
         // move progress bar Thumb according to the current play time
         let progressBarThumbPosition = aFile.currentTime/aFile.duration;
-        if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${(progressBarThumbPosition * progressBarLine.clientWidth)}px, 0px)`;
+        if (progressBarThumbPosition < 1) progressBarThumb.style.left = (progressBarThumbPosition * progressBarLine.clientWidth) + originX - thumbOffset + 'px';
+        // if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${(progressBarThumbPosition * progressBarLine.clientWidth)}px, 0px)`;
+        else {
+            clearInterval(intervalsId);
+            playBTN.classList.remove('pause-btn');
+            playBTN.classList.add('play-btn');
+            progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
+            startPlayAt = (thumbInitialPosition - originX - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+        }
     }, 50);
-    
+
     // let loopsEnacted = setInterval(() => {
     //     aFile.currentTime = startPlayAt;
     //     loop++;
