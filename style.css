@@ -42,7 +42,6 @@ header {
 }
 
 .pause-btn {
-
     background-image:  url(./assets/icons8-pause-96.png);
     background-size: 90%;
     background-position: center;
@@ -126,7 +125,30 @@ header {
 
 #player-bottom-menue-wrapper {
     display: flex;
-    align-items: flex-start;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 1rem;
+}
+
+
+#stop-btn {
+    height: 0.5rem;
+    width: 0.5rem;
+    background-color: black;
+    border-radius: 0.05rem;
+}
+
+#repeat-btn {
+    height: 0.7rem;
+    width: 0.8rem;
+    padding: 0 0.3rem 0 0.5rem;
+}
+
+#volume-btn {
+    height: 0.8rem;
+    width: 0.8rem;
+    background-image:  url(./assets/icons8-volume-200-96.png);
+    background-size: contain;
 }
 
 .inumber {
