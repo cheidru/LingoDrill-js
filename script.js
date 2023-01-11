@@ -13,20 +13,14 @@ let intervalsId = 0;
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     let songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);
-    // startFiled.setAttribute('max',`${durationRounded}`);
-    // stopFiled.setAttribute('max',`${durationRounded}`);
     
     // Restore special symbols in audio file URI and get the file name from it
     let songName = decodeURI(aFile.src).split('/').pop();
 
-    // aTitle.textContent = songName;
-
-
-
-
-    // aTitle.style.transition = "all 18s";
-    // aTitle.style.marginLeft = `-${songName.length - 37}rem`;    
-    // setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
+    aTitle.textContent = songName;
+    aTitle.style.transition = "all 18s";
+    aTitle.style.marginLeft = `-${songName.length - 37}rem`;    
+    setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
 
 
@@ -89,17 +83,7 @@ function smallScale() {
       }
 }
 
-
 let currentTime = aFile.currentTime;
-// let currentTimeRounded = Math.round(currentTime);
-
-
-// let loopsNumber = loopsField.value == 0 ? 1 : loopsField.value;
-
-// stopBTN.addEventListener('click', () => {
-//     aFile.pause();
-//     aFile.currentTime = 0;}
-//     );
 
 playBTN.addEventListener('click', () => {
     aFile.paused ? playLoops() : stopPlaying()});
@@ -110,7 +94,7 @@ let progressBar = document.querySelector('#player-progress-bar-wrapper');
 
 
 let dragThumbOn = false;
-let draggedFalse = false;
+
 let playerLeftEnd = playerWrapper.getBoundingClientRect().left;
 let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
 let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
@@ -134,29 +118,6 @@ progressBarLine.addEventListener('pointerdown', function(event) {
     aTitle.textContent = event.pageX;
     aFile.currentTime = startPlayAt;
 })
-
-// progressBar.addEventListener('pointerdown', function(event) {
-//     if (event.pageX < lineLeftEnd) {
-//         progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
-//         playTime.textContent = `${Math.round((thumbInitialPosition - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
-//     } else if (event.pageX > lineRightEnd) {
-//         progressBarThumb.style.left = lineRightEnd - originX - thumbOffset + 'px';
-//         playTime.textContent = `${Math.round((lineRightEnd - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
-//     } else {
-//         progressBarThumb.style.left = event.pageX - originX - thumbOffset + 'px';
-//         playTime.textContent = `${Math.round((event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width))} / ${durationRounded}`;
-//     }
-//     aFile.currentTime = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-// })
-
-// progressBar.addEventListener('drag', function(event) {
-//     let pointerDownEvent = new Event('pointerup');
-//     document.dispatchEvent(pointerDownEvent);
-//     dragThumbOn = true;
-//     draggedFalse = false;
-//     } 
-// )
-
 
 document.addEventListener('pointermove', function(event) {
     if (dragThumbOn == true) {
@@ -189,7 +150,6 @@ function stopPlaying() {
     aTitle.textContent = "durationRounded = " + durationRounded;
     playBTN.classList.remove('pause-btn');
     playBTN.classList.add('play-btn');
-
 }
 
 function playLoops() {
@@ -198,9 +158,7 @@ function playLoops() {
     playBTN.classList.remove('play-btn');
     playBTN.classList.add('pause-btn');
 
- 
-
-// При передаче методов обьекта в качестве колбэка в функцию, напр setTimeout,
+ // При передаче методов обьекта в качестве колбэка в функцию, напр setTimeout,
 // setInterval теряется контекст исходного обьекта (this) и метод возвращает undefined. Метод setTimeout
 // в браузере имеет особенность: он устанавливает this=window для вызова функции. Таким образом, 
 // для this.pause он пытается получить window.pause, которого не существует. Чтобы этого избежать,
@@ -238,13 +196,58 @@ function playLoops() {
     //     aFile.play();},
     //     (stopValue - startPlayAt)*1000);
 
-        
-
-
     // Stop playing loops
     // setTimeout(() => {aFile.pause();
     //     aFile.currentTime = 0;
     //     currentLoopField.textContent = 0;
     //     clearInterval(loopsEnacted)},
     //     (stopValue - startFiled.value)*1000*loopsNumber);
+}
+
+function sliderThumbControl(trackObject, thumbObject) {
+    let dragThumbOn = false;
+    let draggedFalse = false;
+    let playerLeftEnd = playerWrapper.getBoundingClientRect().left;
+    let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
+    let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
+    let lineLeftEnd = progressBarLine.getBoundingClientRect().x;
+    let lineRightEnd = progressBarLine.getBoundingClientRect().right;
+    let originX = progressBar.getBoundingClientRect().x;
+    let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
+
+    thumbObject.addEventListener('pointerdown', function(event) {
+        // разрешено перемещение ползунка
+        dragThumbOn = true;
+    })
+    
+    trackObject.addEventListener('pointerdown', function(event) {
+        if (!aFile.paused & event.target != playBTN) stopPlaying();
+        // переносим ползунок под курсор    
+        thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
+        startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+        // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+        playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+        aFile.currentTime = startPlayAt;
+    })
+
+    
+    document.addEventListener('pointermove', function(event) {
+        if (dragThumbOn == true) {
+            if (!aFile.paused & event.target != playBTN) stopPlaying();
+            if (event.pageX < lineLeftEnd) {
+                thumbObject.style.left = thumbInitialPosition - originX + 'px';
+                startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+                playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
+            } else if (event.pageX > lineRightEnd) {
+                thumbObject.style.left = lineRightEnd - originX - thumbOffset + 'px';
+                startPlayAt = (lineRightEnd - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+                playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+            } else {
+                thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
+                startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+                playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+            }
+            aFile.currentTime = startPlayAt;
+        }        
+    })
 }
