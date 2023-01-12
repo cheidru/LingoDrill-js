@@ -89,7 +89,7 @@ playBTN.addEventListener('click', () => {
     aFile.paused ? playLoops() : stopPlaying()});
 
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
-let progressBarLine = document.querySelector('#player-progress-bar-line');
+let progressBarLine = document.querySelector('#player-progress-bar-track');
 let progressBar = document.querySelector('#player-progress-bar-wrapper');
 
 

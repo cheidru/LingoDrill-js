@@ -94,7 +94,7 @@ header {
     width: auto;
 }
 
-#player-progress-bar-line {
+#player-progress-bar-track {
     /* box-sizing: border-box; */
     height: 0.4rem;
     width: 100%;
@@ -131,24 +131,49 @@ header {
 }
 
 
-#stop-btn {
-    height: 0.5rem;
-    width: 0.5rem;
-    background-color: black;
-    border-radius: 0.05rem;
+#stop-btn, #repeat-btn, #volume-btn {
+    height: 0.9rem;
+    width: 0.9rem;
+    /* background-color: black;
+    border-radius: 0.05rem; */
+}
+
+#stop-svg {
+    fill: gray;
 }
 
 #repeat-btn {
-    height: 0.7rem;
-    width: 0.8rem;
-    padding: 0 0.3rem 0 0.5rem;
+    padding: 0 0.3rem;
 }
 
-#volume-btn {
-    height: 0.8rem;
-    width: 0.8rem;
-    background-image:  url(./assets/icons8-volume-200-96.png);
-    background-size: contain;
+#volume-slider-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0.2rem 0;
+    padding-left: calc(var(--thumb-width)/4);;
+    width: 4rem;
+}
+
+#volume-slider-track {
+    height: 0.2rem;
+    width: 100%;
+    margin: auto 0.1rem;
+    border-radius: 0.1rem;
+    background-color: rgb(135, 168, 229);
+}
+
+#volume-slider-thumb {
+    position: absolute;
+    top: calc(50% - calc(var(--thumb-width)/4));
+    left: calc((var(--thumb-width)*-1/8) + 0.1rem);
+    height: calc(var(--thumb-width)/2);
+    width: calc(var(--thumb-width)/2);
+    border-radius: 50%;
+    background-color: rgb(113, 150, 218);
+    transition-duration: 10ms;
+    /* Отмена встроенной функции drag'n'drop для мобильных устройств */
+    touch-action: none;
 }
 
 .inumber {
