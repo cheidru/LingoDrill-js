@@ -22,9 +22,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     aTitle.style.marginLeft = `-${songName.length - 37}rem`;    
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
-
-
-
     playTime.textContent = `0 / ${durationRounded}`;
 
     // Make ruler
@@ -90,7 +87,13 @@ playBTN.addEventListener('click', () => {
 
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-track');
-let progressBar = document.querySelector('#player-progress-bar-wrapper');
+let progressBarWrapper = document.querySelector('#player-progress-bar-wrapper');
+
+let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
+let volumeSliderTrack = document.querySelector('#volume-slider-track');
+let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
+
+
 
 
 let dragThumbOn = false;
@@ -119,7 +122,7 @@ progressBarLine.addEventListener('pointerdown', function(event) {
     aFile.currentTime = startPlayAt;
 })
 
-document.addEventListener('pointermove', function(event) {
+progressBarWrapper.addEventListener('pointermove', function(event) {
     if (dragThumbOn == true) {
         if (!aFile.paused & event.target != playBTN) stopPlaying();
         if (event.pageX < lineLeftEnd) {
@@ -139,9 +142,12 @@ document.addEventListener('pointermove', function(event) {
     }        
 })
 
-document.addEventListener('pointerup', function(event) {
+progressBarWrapper.addEventListener('pointerup', function(event) {
     dragThumbOn = false;
 })
+
+
+
 
 function stopPlaying() {    
     aFile.pause();
@@ -204,50 +210,52 @@ function playLoops() {
     //     (stopValue - startFiled.value)*1000*loopsNumber);
 }
 
-function sliderThumbControl(trackObject, thumbObject) {
-    let dragThumbOn = false;
-    let draggedFalse = false;
-    let playerLeftEnd = playerWrapper.getBoundingClientRect().left;
-    let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
-    let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
-    let lineLeftEnd = progressBarLine.getBoundingClientRect().x;
-    let lineRightEnd = progressBarLine.getBoundingClientRect().right;
-    let originX = progressBar.getBoundingClientRect().x;
-    let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
+// function sliderThumbControl(trackObject, thumbObject, wrapperObject) {
+//     let dragThumbOn = false;
+//     let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
+//     let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
+//     let lineLeftEnd = progressBarLine.getBoundingClientRect().x;
+//     let lineRightEnd = progressBarLine.getBoundingClientRect().right;
+//     let originX = progressBar.getBoundingClientRect().x;
 
-    thumbObject.addEventListener('pointerdown', function(event) {
-        // разрешено перемещение ползунка
-        dragThumbOn = true;
-    })
+
+//     thumbObject.addEventListener('pointerdown', function(event) {
+//         // разрешено перемещение ползунка
+//         dragThumbOn = true;
+//     })
     
-    trackObject.addEventListener('pointerdown', function(event) {
-        if (!aFile.paused & event.target != playBTN) stopPlaying();
-        // переносим ползунок под курсор    
-        thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
-        startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-        // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-        playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-        aFile.currentTime = startPlayAt;
-    })
+//     trackObject.addEventListener('pointerdown', function(event) {
+//         if (!aFile.paused & event.target != playBTN) stopPlaying();
+//         // переносим ползунок под курсор    
+//         thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
+//         startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+//         // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+//         playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+//         aFile.currentTime = startPlayAt;
+//     })
 
     
-    document.addEventListener('pointermove', function(event) {
-        if (dragThumbOn == true) {
-            if (!aFile.paused & event.target != playBTN) stopPlaying();
-            if (event.pageX < lineLeftEnd) {
-                thumbObject.style.left = thumbInitialPosition - originX + 'px';
-                startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-                playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
-            } else if (event.pageX > lineRightEnd) {
-                thumbObject.style.left = lineRightEnd - originX - thumbOffset + 'px';
-                startPlayAt = (lineRightEnd - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-                playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-            } else {
-                thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
-                startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-                playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-            }
-            aFile.currentTime = startPlayAt;
-        }        
-    })
-}
+//     wrapperObject.addEventListener('pointermove', function(event) {
+//         if (dragThumbOn == true) {
+//             if (!aFile.paused & event.target != playBTN) stopPlaying();
+//             if (event.pageX < lineLeftEnd) {
+//                 thumbObject.style.left = thumbInitialPosition - originX + 'px';
+//                 startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+//                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
+//             } else if (event.pageX > lineRightEnd) {
+//                 thumbObject.style.left = lineRightEnd - originX - thumbOffset + 'px';
+//                 startPlayAt = (lineRightEnd - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+//                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+//             } else {
+//                 thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
+//                 startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+//                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+//             }
+//             aFile.currentTime = startPlayAt;
+//         }        
+//     })
+
+//     wrapperObject.addEventListener('pointerup', function(event) {
+//         dragThumbOn = false;
+//     })
+// }

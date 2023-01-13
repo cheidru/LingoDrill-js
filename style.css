@@ -55,7 +55,6 @@ header {
     height: 1.2rem;
     width: 80%;
     margin: auto;
-    margin-bottom: 0.5rem;
     padding: 0 0.5rem;
     border-radius: 0.5rem;
     overflow: hidden;
@@ -68,13 +67,13 @@ header {
 }
 
 #progress-bar-ruler-wrapper {
+    display: none;
     padding: 0;
     margin-bottom: 0.5rem;
     background-color: antiquewhite;
 }
 
 #progress-bar-ruler {
-    display: none;
     /* display: flex; */
     align-items: flex-end;
     width: auto;
@@ -90,7 +89,7 @@ header {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0.2rem 0.5rem;
+    padding: 0.5rem;
     width: auto;
 }
 
@@ -138,8 +137,17 @@ header {
     border-radius: 0.05rem; */
 }
 
-#stop-svg {
+[id$="-svg"]:not(#volume-svg) {
     fill: gray;
+}
+
+#volume-svg {
+    stroke: gray;
+}
+
+[id$="-svg"]:hover {
+    transform: scale(0.9);
+    transition-duration: 100ms;
 }
 
 #repeat-btn {
@@ -147,6 +155,7 @@ header {
 }
 
 #volume-slider-wrapper {
+    visibility: hidden;
     position: relative;
     display: flex;
     align-items: center;
