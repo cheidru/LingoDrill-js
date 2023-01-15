@@ -3,7 +3,15 @@ let aTitle = document.querySelector('#played-title');
 
 let playBTN = document.querySelector('#player-btn');
 let playerWrapper = document.querySelector('.player');
-let stopBTN = document.querySelector('#stop-btn');
+let stopBTN = document.querySelector('#stop-svg-btn');
+let repeatBTN = document.querySelector('#repeat-svg-btn');
+let volumeBTN = document.querySelector('#volume-svg-btn');
+let volumeMaxBTN = document.querySelector('#volume-max-svg-btn');
+let volumeOffBTN = document.querySelector('#volume-off-svg-btn');
+let volumeSlider = document.querySelector('#volume-slider-wrapper');
+
+let volumeSliderOn = false;
+
 let startPlayAt = 0;
 let durationRounded = 0;
 let playTime = document.querySelector('#player-time');
@@ -85,6 +93,42 @@ let currentTime = aFile.currentTime;
 playBTN.addEventListener('click', () => {
     aFile.paused ? playLoops() : stopPlaying()});
 
+volumeBTN.addEventListener('click', () => {
+    if (volumeSlider.style.visibility == 'hidden') {
+        volumeSlider.style.visibility = 'visible';
+    } else {
+        volumeSlider.style.visibility = 'hidden';
+    }
+});
+
+repeatBTN.addEventListener('click', () => {
+    if(aFile.loop == true) {
+        aFile.loop = false;
+        repeatBTN.style.fill = "gray";
+    } else {
+        aFile.loop = true;
+        repeatBTN.style.fill = "rgb(113, 150, 218)";
+    };
+});
+
+stopBTN.addEventListener('click', () => {
+    stopPlaying();
+    clearInterval(intervalsId);
+    playBTN.classList.remove('pause-btn');
+    playBTN.classList.add('play-btn');
+    progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
+    startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+})
+
+function volumeSliderShow() {
+    volumeSliderWrapper.style.visibility = "visible";
+};
+
+function volumeSliderHide() {   
+    volumeSliderWrapper.style.visibility = "hidden"; 
+};
+
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-track');
 let progressBarWrapper = document.querySelector('#player-progress-bar-wrapper');
@@ -93,23 +137,32 @@ let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
 let volumeSliderTrack = document.querySelector('#volume-slider-track');
 let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
 
+let progressBarDragThumbOn = false;
+let volumeSliderDragThumbOn = false;
 
-
-
-let dragThumbOn = false;
-
+// Progress bar coordinates
 let playerLeftEnd = playerWrapper.getBoundingClientRect().left;
 let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
 let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
 let lineLeftEnd = progressBarLine.getBoundingClientRect().x;
 let lineRightEnd = progressBarLine.getBoundingClientRect().right;
-let originX = progressBar.getBoundingClientRect().x;
+let originX = progressBarWrapper.getBoundingClientRect().x;
 let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
+
+// Volume slider coordinates
+let volumeSliderLeftEnd = volumeSliderWrapper.getBoundingClientRect().left;
+let vsThumbInitialPosition = volumeSliderThumb.getBoundingClientRect().left;
+let vsThumbOffset = volumeSliderThumb.getBoundingClientRect().width / 2;
+let vsTrackLeftEnd = volumeSliderTrack.getBoundingClientRect().x;
+let vsTrackRightEnd = volumeSliderTrack.getBoundingClientRect().right;
+let vsOriginX = volumeSliderWrapper.getBoundingClientRect().x;
+let vsTimeRatio = 1 / volumeSliderTrack.getBoundingClientRect().width;
+
     
 progressBarThumb.addEventListener('pointerdown', function(event) {
     // разрешено перемещение ползунка
-    dragThumbOn = true;
-})
+    progressBarDragThumbOn = true;
+});
 
 progressBarLine.addEventListener('pointerdown', function(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
@@ -118,12 +171,11 @@ progressBarLine.addEventListener('pointerdown', function(event) {
     startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
     // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
     playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-    aTitle.textContent = event.pageX;
     aFile.currentTime = startPlayAt;
-})
+});
 
 progressBarWrapper.addEventListener('pointermove', function(event) {
-    if (dragThumbOn == true) {
+    if (progressBarDragThumbOn == true) {
         if (!aFile.paused & event.target != playBTN) stopPlaying();
         if (event.pageX < lineLeftEnd) {
             progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
@@ -143,9 +195,8 @@ progressBarWrapper.addEventListener('pointermove', function(event) {
 })
 
 progressBarWrapper.addEventListener('pointerup', function(event) {
-    dragThumbOn = false;
+    progressBarDragThumbOn = false;
 })
-
 
 
 
@@ -153,13 +204,11 @@ function stopPlaying() {
     aFile.pause();
     clearInterval(intervalsId);
     startPlayAt = aFile.currentTime;
-    aTitle.textContent = "durationRounded = " + durationRounded;
     playBTN.classList.remove('pause-btn');
     playBTN.classList.add('play-btn');
 }
 
 function playLoops() {
-    aTitle.textContent = "durationRounded = " + durationRounded;
     aFile.currentTime = startPlayAt;
     playBTN.classList.remove('play-btn');
     playBTN.classList.add('pause-btn');
@@ -194,68 +243,5 @@ function playLoops() {
             playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         }
     }, 50);
-
-    // let loopsEnacted = setInterval(() => {
-    //     aFile.currentTime = startPlayAt;
-    //     loop++;
-    //     currentLoopField.textContent = loop;
-    //     aFile.play();},
-    //     (stopValue - startPlayAt)*1000);
-
-    // Stop playing loops
-    // setTimeout(() => {aFile.pause();
-    //     aFile.currentTime = 0;
-    //     currentLoopField.textContent = 0;
-    //     clearInterval(loopsEnacted)},
-    //     (stopValue - startFiled.value)*1000*loopsNumber);
 }
 
-// function sliderThumbControl(trackObject, thumbObject, wrapperObject) {
-//     let dragThumbOn = false;
-//     let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
-//     let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
-//     let lineLeftEnd = progressBarLine.getBoundingClientRect().x;
-//     let lineRightEnd = progressBarLine.getBoundingClientRect().right;
-//     let originX = progressBar.getBoundingClientRect().x;
-
-
-//     thumbObject.addEventListener('pointerdown', function(event) {
-//         // разрешено перемещение ползунка
-//         dragThumbOn = true;
-//     })
-    
-//     trackObject.addEventListener('pointerdown', function(event) {
-//         if (!aFile.paused & event.target != playBTN) stopPlaying();
-//         // переносим ползунок под курсор    
-//         thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
-//         startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-//         // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-//         playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-//         aFile.currentTime = startPlayAt;
-//     })
-
-    
-//     wrapperObject.addEventListener('pointermove', function(event) {
-//         if (dragThumbOn == true) {
-//             if (!aFile.paused & event.target != playBTN) stopPlaying();
-//             if (event.pageX < lineLeftEnd) {
-//                 thumbObject.style.left = thumbInitialPosition - originX + 'px';
-//                 startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-//                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
-//             } else if (event.pageX > lineRightEnd) {
-//                 thumbObject.style.left = lineRightEnd - originX - thumbOffset + 'px';
-//                 startPlayAt = (lineRightEnd - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-//                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-//             } else {
-//                 thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
-//                 startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
-//                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
-//             }
-//             aFile.currentTime = startPlayAt;
-//         }        
-//     })
-
-//     wrapperObject.addEventListener('pointerup', function(event) {
-//         dragThumbOn = false;
-//     })
-// }
