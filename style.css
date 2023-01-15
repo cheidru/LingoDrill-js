@@ -186,7 +186,7 @@ header {
     width: 100%;
     margin: auto 0.1rem;
     border-radius: 0.1rem;
-    background-color: rgb(135, 168, 229);
+    background-color: rgb(101, 130, 219);
 }
 
 #volume-slider-thumb {
@@ -196,7 +196,7 @@ header {
     height: calc(var(--thumb-width)/2);
     width: calc(var(--thumb-width)/2);
     border-radius: 50%;
-    background-color: rgb(113, 150, 218);
+    background-color: rgb(65, 105, 225);
     transition-duration: 10ms;
     /* Отмена встроенной функции drag'n'drop для мобильных устройств */
     touch-action: none;

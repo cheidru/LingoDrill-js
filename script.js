@@ -11,6 +11,8 @@ let volumeOffBTN = document.querySelector('#volume-off-svg-btn');
 let volumeSlider = document.querySelector('#volume-slider-wrapper');
 
 let volumeSliderOn = false;
+const volumeDefaultLevel = 0.5;
+let volumeActualLevel = volumeDefaultLevel;
 
 let startPlayAt = 0;
 let durationRounded = 0;
@@ -93,24 +95,6 @@ let currentTime = aFile.currentTime;
 playBTN.addEventListener('click', () => {
     aFile.paused ? playLoops() : stopPlaying()});
 
-volumeBTN.addEventListener('click', () => {
-    if (volumeSlider.style.visibility == 'hidden') {
-        volumeSlider.style.visibility = 'visible';
-    } else {
-        volumeSlider.style.visibility = 'hidden';
-    }
-});
-
-repeatBTN.addEventListener('click', () => {
-    if(aFile.loop == true) {
-        aFile.loop = false;
-        repeatBTN.style.fill = "gray";
-    } else {
-        aFile.loop = true;
-        repeatBTN.style.fill = "rgb(113, 150, 218)";
-    };
-});
-
 stopBTN.addEventListener('click', () => {
     stopPlaying();
     clearInterval(intervalsId);
@@ -121,24 +105,29 @@ stopBTN.addEventListener('click', () => {
     playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
 })
 
-function volumeSliderShow() {
-    volumeSliderWrapper.style.visibility = "visible";
-};
+repeatBTN.addEventListener('click', () => {
+    if(aFile.loop == true) {
+        aFile.loop = false;
+        repeatBTN.style.fill = "gray";
+    } else {
+        aFile.loop = true;
+        repeatBTN.style.fill = "rgb(65, 105, 225)";
+    };
+});
 
-function volumeSliderHide() {   
-    volumeSliderWrapper.style.visibility = "hidden"; 
-};
+volumeBTN.addEventListener('click', () => {
+    if (volumeSlider.style.visibility == 'hidden') {
+        volumeSlider.style.visibility = 'visible';
+    } else {
+        volumeSlider.style.visibility = 'hidden';
+    }
+});
 
+// Progress bar elements
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-track');
 let progressBarWrapper = document.querySelector('#player-progress-bar-wrapper');
-
-let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
-let volumeSliderTrack = document.querySelector('#volume-slider-track');
-let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
-
 let progressBarDragThumbOn = false;
-let volumeSliderDragThumbOn = false;
 
 // Progress bar coordinates
 let playerLeftEnd = playerWrapper.getBoundingClientRect().left;
@@ -149,16 +138,7 @@ let lineRightEnd = progressBarLine.getBoundingClientRect().right;
 let originX = progressBarWrapper.getBoundingClientRect().x;
 let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
 
-// Volume slider coordinates
-let volumeSliderLeftEnd = volumeSliderWrapper.getBoundingClientRect().left;
-let vsThumbInitialPosition = volumeSliderThumb.getBoundingClientRect().left;
-let vsThumbOffset = volumeSliderThumb.getBoundingClientRect().width / 2;
-let vsTrackLeftEnd = volumeSliderTrack.getBoundingClientRect().x;
-let vsTrackRightEnd = volumeSliderTrack.getBoundingClientRect().right;
-let vsOriginX = volumeSliderWrapper.getBoundingClientRect().x;
-let vsTimeRatio = 1 / volumeSliderTrack.getBoundingClientRect().width;
-
-    
+// Listeners to control player thumb position when it is changed manually
 progressBarThumb.addEventListener('pointerdown', function(event) {
     // разрешено перемещение ползунка
     progressBarDragThumbOn = true;
@@ -197,6 +177,67 @@ progressBarWrapper.addEventListener('pointermove', function(event) {
 progressBarWrapper.addEventListener('pointerup', function(event) {
     progressBarDragThumbOn = false;
 })
+
+// Volume slider elements
+let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
+let volumeSliderTrack = document.querySelector('#volume-slider-track');
+let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
+let volumeSliderDragThumbOn = false;
+
+volumeSliderThumb.style.left = volumeActualLevel * vsTimeRatio + 'px';
+aFile.volume = volumeActualLevel;
+
+// Volume slider coordinates
+let volumeSliderLeftEnd = volumeSliderWrapper.getBoundingClientRect().left;
+let vsThumbInitialPosition = volumeSliderThumb.getBoundingClientRect().left;
+let vsThumbOffset = volumeSliderThumb.getBoundingClientRect().width / 2;
+let vsTrackLeftEnd = volumeSliderTrack.getBoundingClientRect().x;
+let vsTrackRightEnd = volumeSliderTrack.getBoundingClientRect().right;
+let vsOriginX = volumeSliderWrapper.getBoundingClientRect().x;
+let vsTimeRatio = 1 / volumeSliderTrack.getBoundingClientRect().width;
+
+// Listeners to control volume slider thumb position when it is changed manually
+volumeSliderThumb.addEventListener('pointerdown', function(event) {
+    // разрешено перемещение ползунка
+    volumeSliderDragThumbOn = true;
+});
+
+volumeSliderTrack.addEventListener('pointerdown', function(event) {
+    // переносим ползунок под курсор    
+    volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
+    volumeActualLevel = (event.pageX - vsTrackLeftEnd) * vsTimeRatio;
+    // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    aFile.volume = volumeActualLevel;
+});
+
+volumeSliderWrapper.addEventListener('pointermove', function(event) {
+    if (progressBarDragThumbOn == true) {
+        if (!aFile.paused & event.target != playBTN) stopPlaying();
+        if (event.pageX < lineLeftEnd) {
+            volumeSliderThumb.style.left = thumbInitialPosition - vsOriginX + 'px';
+            volumeActualLevel = (event.pageX - vsTrackLeftEnd) * vsTimeRatio;
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
+        } else if (event.pageX > vsTrackRightEnd) {
+            volumeSliderThumb.style.left = vsTrackRightEnd - vsOriginX - vsThumbOffset + 'px';
+            volumeActualLevel = (vsTrackRightEnd - lineLeftEnd) * vsTimeRatio;
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+        } else {
+            volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
+            volumeActualLevel = (event.pageX - lineLeftEnd) * vsTimeRatio;
+            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+        }
+        aFile.currentTime = startPlayAt;
+    }        
+})
+
+volumeSliderWrapper.addEventListener('pointerup', function(event) {
+    progressBarDragThumbOn = false;
+})
+
+
+
+
+
 
 
 
