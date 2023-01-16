@@ -1,275 +1,52 @@
 html, body, p {
     all: unset;
-    --thumb-width: 0.7rem;
+    box-sizing: border-box;
 }
+
+header, section {
+    width: 150px;
+    margin: auto;
+    font-size: 0.5rem;
+}
+
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 150px;
     height: 1rem;
-    margin: auto;
-    font-size: 0.5rem;
     background-color: lightgrey
 }
 
-.player, .player-preset {
-    padding: 0.5rem 0;
-    margin: auto;    
-    width: 150px;
-    height: auto;
- }
-
-.player {
-    background-color: aquamarine;
+section {
+    height: 100vh;
+    background-color: lemonchiffon;
 }
 
-.play-btn, .pause-btn, .stop-btn {
-    display: inline-block;
-    min-height: 1rem;
-    min-width: 1rem;
-    margin: 0;
-    cursor: pointer;
-    border-radius: 50%;
-    user-select: none;    
-    background-color: chocolate;
-    background-size: contain;
+#file-list-wrapper {
+    text-align: center;
+    padding: 0.1rem 0.2rem;
+
 }
 
-.play-btn {
-    background-image:  url(./assets/icons8-play-96.png);
-}
-
-.pause-btn {
-    background-image:  url(./assets/icons8-pause-96.png);
-    background-size: 90%;
-    background-position: center;
-}
-
-.stop-btn {
-    background-image:  url(./assets/icons8-stop-96.png);
-}
-
-#played-title-wrapper {
-    height: 1.2rem;
-    width: 80%;
-    margin: auto;
-    padding: 0 0.5rem;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    background-color: greenyellow;
-}
-
-#played-title {
-    font-size: 1rem;
-    white-space: nowrap;
-}
-
-#progress-bar-ruler-wrapper {
-    display: none;
-    padding: 0;
-    margin-bottom: 0.5rem;
-    background-color: antiquewhite;
-}
-
-#progress-bar-ruler {
-    /* display: flex; */
-    align-items: flex-end;
-    width: auto;
-    height: 2rem;
-    padding: 2px 0.5rem;
-    margin: 10px 0;
-    margin-bottom: 0;
-    background-color: LightBlue;
-}
-
-#player-progress-bar-wrapper {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0.5rem;
-    width: auto;
-}
-
-#player-progress-bar-track {
-    /* box-sizing: border-box; */
-    height: 0.4rem;
-    width: 100%;
-    margin: auto 0.5rem;
-    border-radius: 0.2rem;
-    background-color: rgb(135, 168, 229);
-}
-
-#player-progress-bar-thumb {
-    position: absolute;
-    top: calc(50% - calc(var(--thumb-width)/2));
-    left: calc((var(--thumb-width)*-1/2) + 2rem);
-    height: var(--thumb-width);
-    width: var(--thumb-width);
-    border-radius: 50%;
-    background-color: rgb(113, 150, 218);
-    transition-duration: 10ms;
-    /* Отмена встроенной функции drag'n'drop для мобильных устройств */
-    touch-action: none;
-}
-
-#player-time {
-     min-width: fit-content;
-     min-width: 3rem;
-     font-size: 0.5rem;
-     user-select: none;
-}
-
-#player-bottom-menu-wrapper {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    padding: 0 1rem;
-}
-
-[id*="volume-svg-btn"], #repeat-svg-btn {
-    height: 0.9rem;
-    width: 0.9rem;
-}
-
-#stop-svg-btn {
-    display: flex;
-    height: 0.7rem;
-    width: 0.7rem;
-    margin-right: 0.15rem;
-    border: 1.5px solid gray;
-    border-radius: 50%;
-}
-
-#stop-svg-btn::before {
-    content: '';
-    height: 0.3rem;
-    width: 0.3rem;
-    align-items: center;
-    margin: auto;
-    background: gray;
-}
-
-#repeat-svg-btn {
-    padding: 0 0.3rem;
-    fill: gray;
-}
-
-#volume-svg-btn-off {
+#add-file-dialogue {
     display: none;
 }
 
-#volume-svg {
-    stroke: gray;
+#add-file-dialogue-label {
+    padding: 0.1rem 0.2rem;
+    border: 0.5px black dashed;
+    border-radius: 2px;
 }
 
-[id$="-svg-btn"]:hover {
-    transform: scale(0.9);
-    transition-duration: 100ms;
-}
-
-
-#volume-slider-wrapper {
-    visibility: hidden;
-    position: relative;
-    display: flex;
-    align-items: center;
-    padding: 0.2rem 0;
-    padding-left: calc(var(--thumb-width)/4);;
-    width: 4rem;
-}
-
-#volume-slider-track {
-    height: 0.2rem;
-    width: 100%;
-    margin: auto 0.1rem;
-    border-radius: 0.1rem;
-    background-color: rgb(101, 130, 219);
-}
-
-#volume-slider-thumb {
-    position: absolute;
-    top: calc(50% - calc(var(--thumb-width)/4));
-    left: calc((var(--thumb-width)*-1/8) + 0.1rem);
-    height: calc(var(--thumb-width)/2);
-    width: calc(var(--thumb-width)/2);
-    border-radius: 50%;
-    background-color: rgb(65, 105, 225);
-    transition-duration: 10ms;
-    /* Отмена встроенной функции drag'n'drop для мобильных устройств */
-    touch-action: none;
-}
-
-.inumber {
-    outline: none;
-    margin: 0 5px;
-    padding: 0 2px;
-    height: 20px;
-    width: 40px;
-    border: none;
-}
-
-.time {
-    padding-top: 5px;
-    text-align: center;
-}
-
-.sign-style {
-    color: black;
-}
-
-.templ-wrapper {
-    display: inline-block;
-    margin: 0 auto;
-    padding: 2px 0px;
-    width: 2px;
-    height: auto;
-  }
-
-[id$="-bar"] {
-    width: 1px;
-    margin: auto;
-    border-radius: 1px;
-    background-color: darkolivegreen;
-}
-
-#long-bar {
-    height: 1rem;
-}
-
-#long-number {
-    margin: 0 -5rem;
-    text-align: center;
-    font-family: sans-serif;
-    font-size: 0.6rem;
-    color: darkolivegreen;
-}
-
-#middle-bar {
-    height: 0.7rem;
-}
-
-#short-bar {
-    height: 0.3rem;
-}
-
-#long-bar-wrapper {
-    display: flex;
-    flex-direction: column;
-}
 
 @media (max-width: 600px) {
-    
-.player, header {
-    width: 100%;
- }
 
+    header, section {
+        width: 100%;
+     }
 
-#played-title-wrapper {
-    width: 80%;
-}
-
-
+     #file-list {
+        width: 100%;
+    }
 }
