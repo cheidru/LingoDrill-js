@@ -6,9 +6,11 @@ let playerWrapper = document.querySelector('.player');
 let stopBTN = document.querySelector('#stop-svg-btn');
 let repeatBTN = document.querySelector('#repeat-svg-btn');
 let volumeBTN = document.querySelector('#volume-svg-btn');
-let volumeMaxBTN = document.querySelector('#volume-max-svg-btn');
-let volumeOffBTN = document.querySelector('#volume-off-svg-btn');
+let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
 let volumeSlider = document.querySelector('#volume-slider-wrapper');
+// CSS style property is void before being checked
+// Assign property to variable to get its value
+volumeSlider.style.visibility = 'hidden';
 
 let volumeSliderOn = false;
 const volumeDefaultLevel = 0.5;
@@ -123,6 +125,14 @@ volumeBTN.addEventListener('click', () => {
     }
 });
 
+volumeOffBTN.addEventListener('click', () => {
+    if (volumeSlider.style.visibility == 'hidden') {
+        volumeSlider.style.visibility = 'visible';
+    } else {
+        volumeSlider.style.visibility = 'hidden';
+    }
+});
+
 // Progress bar elements
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-track');
@@ -182,10 +192,9 @@ progressBarWrapper.addEventListener('pointerup', function(event) {
 let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
 let volumeSliderTrack = document.querySelector('#volume-slider-track');
 let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
-let volumeSliderDragThumbOn = false;
+let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrapper');
 
-volumeSliderThumb.style.left = volumeActualLevel * vsTimeRatio + 'px';
-aFile.volume = volumeActualLevel;
+let volumeSliderDragThumbOn = false;
 
 // Volume slider coordinates
 let volumeSliderLeftEnd = volumeSliderWrapper.getBoundingClientRect().left;
@@ -194,7 +203,11 @@ let vsThumbOffset = volumeSliderThumb.getBoundingClientRect().width / 2;
 let vsTrackLeftEnd = volumeSliderTrack.getBoundingClientRect().x;
 let vsTrackRightEnd = volumeSliderTrack.getBoundingClientRect().right;
 let vsOriginX = volumeSliderWrapper.getBoundingClientRect().x;
-let vsTimeRatio = 1 / volumeSliderTrack.getBoundingClientRect().width;
+let vsTrackSpan = volumeSliderTrack.getBoundingClientRect().width;
+
+// Initial volume slider thumb position
+volumeSliderThumb.style.left = volumeActualLevel * volumeSliderTrack.getBoundingClientRect().width + 'px';
+aFile.volume = volumeActualLevel;
 
 // Listeners to control volume slider thumb position when it is changed manually
 volumeSliderThumb.addEventListener('pointerdown', function(event) {
@@ -205,33 +218,34 @@ volumeSliderThumb.addEventListener('pointerdown', function(event) {
 volumeSliderTrack.addEventListener('pointerdown', function(event) {
     // переносим ползунок под курсор    
     volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
-    volumeActualLevel = (event.pageX - vsTrackLeftEnd) * vsTimeRatio;
+    volumeActualLevel = (event.pageX - vsTrackLeftEnd) / vsTrackSpan;
     // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
     aFile.volume = volumeActualLevel;
 });
 
 volumeSliderWrapper.addEventListener('pointermove', function(event) {
-    if (progressBarDragThumbOn == true) {
-        if (!aFile.paused & event.target != playBTN) stopPlaying();
-        if (event.pageX < lineLeftEnd) {
-            volumeSliderThumb.style.left = thumbInitialPosition - vsOriginX + 'px';
-            volumeActualLevel = (event.pageX - vsTrackLeftEnd) * vsTimeRatio;
-            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
-        } else if (event.pageX > vsTrackRightEnd) {
+
+    if (volumeSliderDragThumbOn == true) {
+        if (event.pageX <= vsTrackLeftEnd) {
+            volumeSliderThumb.style.left = vsThumbInitialPosition - vsOriginX + 'px';
+            volumeActualLevel = 0;
+            volumeBTN.style.display = "none";
+            volumeOffBTN.style.display = "block";
+        } else if (event.pageX >= vsTrackRightEnd) {
             volumeSliderThumb.style.left = vsTrackRightEnd - vsOriginX - vsThumbOffset + 'px';
-            volumeActualLevel = (vsTrackRightEnd - lineLeftEnd) * vsTimeRatio;
-            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+            volumeActualLevel = 1;
         } else {
+            volumeBTN.style.display = "block";
+            volumeOffBTN.style.display = "none";
             volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
-            volumeActualLevel = (event.pageX - lineLeftEnd) * vsTimeRatio;
-            playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+            volumeActualLevel = (event.pageX - vsTrackLeftEnd) / vsTrackSpan;
         }
-        aFile.currentTime = startPlayAt;
+        aFile.volume = volumeActualLevel;
     }        
 })
 
-volumeSliderWrapper.addEventListener('pointerup', function(event) {
-    progressBarDragThumbOn = false;
+playerBottomMenuWrapper.addEventListener('pointerup', function(event) {
+    volumeSliderDragThumbOn = false;
 })
 
 

@@ -129,7 +129,7 @@ header {
     padding: 0 1rem;
 }
 
-#volume-svg-btn, #repeat-svg-btn {
+[id*="volume-svg-btn"], #repeat-svg-btn {
     height: 0.9rem;
     width: 0.9rem;
 }
@@ -157,7 +157,7 @@ header {
     fill: gray;
 }
 
-#volume-max-svg-btn, #volume-off-svg-btn {
+#volume-svg-btn-off {
     display: none;
 }
 
