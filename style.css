@@ -23,14 +23,18 @@ section {
     background-color: lemonchiffon;
 }
 
-#file-list-wrapper {
-    text-align: center;
-    padding: 0.1rem 0.2rem;
-
+#file-list {
+    display: none;
+    margin: 0;
+    padding: 0.2rem;
 }
 
 #add-file-dialogue {
     display: none;
+}
+
+#add-new-file-menu {
+    padding: 0.2rem;
 }
 
 #add-file-dialogue-label {
@@ -62,8 +66,8 @@ section {
     header, section {
         width: 100%;
      }
-
+/* 
      #file-list {
         width: 100%;
-    }
+    } */
 }
