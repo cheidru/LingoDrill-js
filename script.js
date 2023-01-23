@@ -2,40 +2,114 @@
 // Generate list of files in DB
 
 let dbExist = true;
+let dbFalter = false;
 
-function listFilesFromDB() {        
+
+
+function readFileDataFromDBtoScreen() {        
         // Try to open DB
         let openDB = indexedDB.open("audioBase", 1);
 
-        openDB.onsuccess = function() {
-                let db = openDB.result;
-                let readFliesTransaction = db.transaction('audio', 'readonly');
-                let audioIndex = readFliesTransaction.index("date");
-                let aList = audioIndex.getAll();
-
-                // Read audio file names from DB object to li elements
-                for(let aObject of aList) {
-                        let newLi = document.createElement("li");
-                        newLi.textContent = aObject.aName;
-                        newLi.dataset.audioIndex = aObject.id;
-                        ul.append(newLi);
-                }
-        };
-
+        // openDB.onsuccess = makeListFromDB(openDB);
+        openDB.onsuccess = () => dbExist = false;
         openDB.onerror = console.error; // Show error message        
-        openDB.onupgradeneeded = () => dbExist = false;
+        openDB.onupgradeneeded = (e) => {
+                console.log("upgradeneeded");
+                switch(e.oldVersion) {
+                        case 0: dbExist = false;
+                        case 1: console.log("Upgrade DB");
+                }
+        }
 }
 
+readFileDataFromDBtoScreen();
 
-// Function to open or create DB and return it to callback function
-function withDB (callback) {
-        openDB.onupgradeneeded = function(e) {
-                switch(e.oldVersion) {
-                        case 0: // DB doesn't exist. Create DB structure
-                                let audioStore = db.createObjectStore('audio', {keyPath: 'id'}, {autoIncrement: 'true'});
-                                let rangesStore = db.createObjectStore('ranges', {keyPath: 'id'}, {autoIncrement: 'true'});
-                                let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id'}, {autoIncrement: 'true'});
-                };
+function makeListFromDB(iDB) {
+        let db = iDB.result;
+        let readFliesTransaction = db.transaction('audio', 'readonly');
+        let audioIndex = readFliesTransaction.index("date");
+        let aList = audioIndex.getAll();
+
+        // Read audio file names from DB object to li elements
+        for(let aObject of aList) {
+                let newLi = document.createElement("li");
+                newLi.textContent = aObject.aName;
+                newLi.dataset.audioIndex = aObject.id;
+                ul.append(newLi);
+        }
+}
+
+// Select an audio file from local file system
+let addFileDialogue = document.querySelector("#add-file-dialogue");
+
+addFileDialogue.addEventListener('change', function() {
+        let file = this.files[0];
+
+        // Create DB if it doesn't exist
+        if (dbExist == false) {
+                let db = indexedDB.open("audioBase", 1);
+                // Create stores
+                let audioStore = db.createObjectStore('audio', {keyPath: 'id'}, {autoIncrement: 'true'});
+                let rangesStore = db.createObjectStore('ranges', {keyPath: 'id'}, {autoIncrement: 'true'});
+                let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id'}, {autoIncrement: 'true'});
+                let languageStore = db.createObjectStore('language', {keyPath: 'id'}, {autoIncrement: 'true'});
+
+                // Store object structure
+
+                // audio
+                // {
+                //      id,
+                //      languageID // optional
+                //      aFile // audio file itself                   
+                //      aName // by default the same as fileName
+                //      aDuration
+                //      fileName                  
+                //      date // date of addition
+                //      prio // optional, default 0                        
+                // }
+                
+                // ranges
+                // {
+                //      id,                       
+                //      audioID
+                //      startTime
+                //      endTime
+                //      loopNo // number of repetitions, 0 - infinite repetition                 
+                //      gap // pause between repetitions
+                //      prio // by default running number
+                //      subID-1
+                //      startSub-1
+                //      endSub-1
+                //      subID-2
+                //      startSub-2
+                //      endSub-2
+                //      subID-3
+                //      startSub-3
+                //      endSub-3
+                //      subID-4
+                //      startSub-4
+                //      endSub-4
+                //      subID-5
+                //      startSub-5
+                //      endSub-5
+                // }
+                
+                // subtitles
+                // {
+                //      id,
+                //      subFile // subtitle file itself
+                //      fileName  
+                //      languageID
+                //      date // date of addition
+                // }
+
+                // language
+                // {
+                //      id,
+                //      langNameEnglish
+                //      langNameOriginal
+                // }
+
                 // Create additional indexes to stores
 
                 // Index on file addition date to range the list of files
@@ -46,21 +120,42 @@ function withDB (callback) {
                 rangesStore.createIndex('rangePrioIndex', 'prio', {unique: false});
                 // Index to link subtitle fragment to range ID in rangeStore
                 subtitlesStore.createIndex("rangeIndex", "rangeID", {unique: true});
-        };
+
+                let newAudioFile = {
+                        languageID: '',
+                        aFile: file,
+                        aName: file.name,
+                        aDuration: 0,
+                        fileName: file.webkitRelativePath,
+                        date: Date.now(),
+                        prio: 0
+                }
+        
+                console.log("aName: " + newAudioFile.aName);
+                console.log("fileName: " + newAudioFile.fileName);
+                console.log("date: " + newAudioFile.date);
+        
+                // Add file data to DB
+                let writeFliesTransaction = db.transaction('audio', 'readwrite');
+                let trasactionStore = writeFliesTransaction.objectStore('audio');
+                let request = trasactionStore.add(newAudioFile);
+        
+                request.onsuccess = (event) => console.log("Addition complete. Event is " + event);
+        }
     
+
+
+        // add BLOB
+        readFileDataFromDBtoScreen;
         // ToDo:
         // Fetch file and metadata from input into blob
         // Create transaction
         // Get data into DB
-}
+        // Read db data to ul
 
-
-// Select an audio file from local file system
-let addFileDialogue = document.querySelector("#add-file-dialogue");
-let fileOpen = addFileDialogue.addEventListener('change', function() {
-        let file = this.files[0];
-        console.log(file.name);
 })
 
 // ToDo:
-// Handle opening of the selected file from the list
+
+
+
