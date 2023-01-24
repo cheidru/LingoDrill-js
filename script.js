@@ -2,22 +2,53 @@
 // Generate list of files in DB
 
 let dbExist = true;
-let dbFalter = false;
+let dbError = false;
+let OpenDB = null;
+let db = null;
 
 
 
 function readFileDataFromDBtoScreen() {        
         // Try to open DB
-        let openDB = indexedDB.open("audioBase", 1);
+        OpenDB = indexedDB.open("audioBase", 1);
 
         // openDB.onsuccess = makeListFromDB(openDB);
-        openDB.onsuccess = () => dbExist = false;
-        openDB.onerror = console.error; // Show error message        
-        openDB.onupgradeneeded = (e) => {
-                console.log("upgradeneeded");
-                switch(e.oldVersion) {
-                        case 0: dbExist = false;
-                        case 1: console.log("Upgrade DB");
+        OpenDB.onsuccess = (e) => {
+                db = e.target.result;
+                console.log("DB successfuly opened", db);
+
+                if (db.objectStoreNames.contains('audio')) {
+                        console.log("Read from", db);
+                        makeListFromDB(db);
+                } else {
+                        console.log("Audio Store doesn't exist", db);
+                }
+        }
+
+        OpenDB.onerror = (err) => {
+                console.warn(err); // Show error message
+        }
+
+        OpenDB.onupgradeneeded = (e) => {
+                db = e.target.result;
+                console.log("DB upgrade needed");
+                if (!db.objectStoreNames.contains('audio')) {
+                        // Create stores
+                        let audioStore = db.createObjectStore('audio', {keyPath: 'id'}, {autoIncrement: 'true'});
+                        let rangesStore = db.createObjectStore('ranges', {keyPath: 'id'}, {autoIncrement: 'true'});
+                        let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id'}, {autoIncrement: 'true'});
+                        let languageStore = db.createObjectStore('language', {keyPath: 'id'}, {autoIncrement: 'true'});
+
+                        // Create additional indexes to stores
+
+                        // Index on file addition date to range the list of files
+                        audioStore.createIndex('dateIndex', 'date', {unique: false});
+                        // Index to link to audio ID in audioStore
+                        rangesStore.createIndex('audioIndex', 'audio', {unique: false});
+                        // Index to show a range priority
+                        rangesStore.createIndex('rangePrioIndex', 'prio', {unique: false});
+                        // Index to link subtitle fragment to range ID in rangeStore
+                        subtitlesStore.createIndex("rangeIndex", "rangeID", {unique: true});
                 }
         }
 }
@@ -45,14 +76,30 @@ let addFileDialogue = document.querySelector("#add-file-dialogue");
 addFileDialogue.addEventListener('change', function() {
         let file = this.files[0];
 
-        // Create DB if it doesn't exist
-        if (dbExist == false) {
-                let db = indexedDB.open("audioBase", 1);
-                // Create stores
-                let audioStore = db.createObjectStore('audio', {keyPath: 'id'}, {autoIncrement: 'true'});
-                let rangesStore = db.createObjectStore('ranges', {keyPath: 'id'}, {autoIncrement: 'true'});
-                let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id'}, {autoIncrement: 'true'});
-                let languageStore = db.createObjectStore('language', {keyPath: 'id'}, {autoIncrement: 'true'});
+        // https://www.youtube.com/watch?v=gb5ovg7YCig
+
+
+        let newAudioFile = {
+                languageID: '',
+                aFile: file,
+                aName: file.name,
+                aDuration: 0,
+                fileName: file.webkitRelativePath,
+                date: Date.now(),
+                prio: 0
+        }
+
+        console.log("aName: " + newAudioFile.aName);
+        console.log("fileName: " + newAudioFile.fileName);
+        console.log("date: " + newAudioFile.date);
+
+        // Add file data to DB
+        let writeFliesTransaction = db.transaction('audio', 'readwrite');
+        let trasactionStore = writeFliesTransaction.objectStore('audio');
+        let request = trasactionStore.add(newAudioFile);
+
+        request.onsuccess = (event) => console.log("Addition complete. Event is " + event);
+
 
                 // Store object structure
 
@@ -110,38 +157,7 @@ addFileDialogue.addEventListener('change', function() {
                 //      langNameOriginal
                 // }
 
-                // Create additional indexes to stores
 
-                // Index on file addition date to range the list of files
-                audioStore.createIndex('dateIndex', 'date', {unique: false});
-                // Index to link to audio ID in audioStore
-                rangesStore.createIndex('audioIndex', 'audio', {unique: false});
-                // Index to show a range priority
-                rangesStore.createIndex('rangePrioIndex', 'prio', {unique: false});
-                // Index to link subtitle fragment to range ID in rangeStore
-                subtitlesStore.createIndex("rangeIndex", "rangeID", {unique: true});
-
-                let newAudioFile = {
-                        languageID: '',
-                        aFile: file,
-                        aName: file.name,
-                        aDuration: 0,
-                        fileName: file.webkitRelativePath,
-                        date: Date.now(),
-                        prio: 0
-                }
-        
-                console.log("aName: " + newAudioFile.aName);
-                console.log("fileName: " + newAudioFile.fileName);
-                console.log("date: " + newAudioFile.date);
-        
-                // Add file data to DB
-                let writeFliesTransaction = db.transaction('audio', 'readwrite');
-                let trasactionStore = writeFliesTransaction.objectStore('audio');
-                let request = trasactionStore.add(newAudioFile);
-        
-                request.onsuccess = (event) => console.log("Addition complete. Event is " + event);
-        }
     
 
 
