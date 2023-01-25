@@ -1,7 +1,6 @@
 // ToDo:
 // Generate list of files in DB
 
-let dbExist = true;
 let dbError = false;
 let OpenDB = null;
 let db = null;
@@ -16,13 +15,19 @@ function readFileDataFromDBtoScreen() {
         OpenDB.onsuccess = (e) => {
                 db = e.target.result;
                 console.log("DB successfuly opened", db);
-
-                if (db.objectStoreNames.contains('audio')) {
-                        console.log("Read from", db);
-                        makeListFromDB(db);
-                } else {
-                        console.log("Audio Store doesn't exist", db);
-                }
+                // Check if the DB exists
+                if (db.objectStoreNames.length > 0) {
+                        // Double check by existing of the store
+                        if (db.objectStoreNames.contains('audio')) {
+                                console.log("Read from", db);
+                                makeULfromDB(db);
+                        } else {
+                                console.log("Audio Store doesn't exist", db);
+                        };
+                } 
+                
+                //         // Delete the empty DB unless an audio file is selected
+                //         if (db.objectStoreNames.length == 0) indexedDB.deleteDatabase("audioBase");
         }
 
         OpenDB.onerror = (err) => {
@@ -32,8 +37,10 @@ function readFileDataFromDBtoScreen() {
         OpenDB.onupgradeneeded = (e) => {
                 db = e.target.result;
                 console.log("DB upgrade needed");
+                
                 if (!db.objectStoreNames.contains('audio')) {
                         // Create stores
+                        console.log("Create Stores");
                         let audioStore = db.createObjectStore('audio', {keyPath: 'id'}, {autoIncrement: 'true'});
                         let rangesStore = db.createObjectStore('ranges', {keyPath: 'id'}, {autoIncrement: 'true'});
                         let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id'}, {autoIncrement: 'true'});
@@ -55,8 +62,8 @@ function readFileDataFromDBtoScreen() {
 
 readFileDataFromDBtoScreen();
 
-function makeListFromDB(iDB) {
-        let db = iDB.result;
+function makeULfromDB(iDB) {
+        // let db = iDB.result;
         let readFliesTransaction = db.transaction('audio', 'readonly');
         let audioIndex = readFliesTransaction.index("date");
         let aList = audioIndex.getAll();
@@ -76,8 +83,7 @@ let addFileDialogue = document.querySelector("#add-file-dialogue");
 addFileDialogue.addEventListener('change', function() {
         let file = this.files[0];
 
-        // https://www.youtube.com/watch?v=gb5ovg7YCig
-
+        // https://www.youtube.com/watch?v=PqqkL_Lg41k 5/30
 
         let newAudioFile = {
                 languageID: '',
@@ -87,7 +93,7 @@ addFileDialogue.addEventListener('change', function() {
                 fileName: file.webkitRelativePath,
                 date: Date.now(),
                 prio: 0
-        }
+        };
 
         console.log("aName: " + newAudioFile.aName);
         console.log("fileName: " + newAudioFile.fileName);
@@ -157,10 +163,6 @@ addFileDialogue.addEventListener('change', function() {
                 //      langNameOriginal
                 // }
 
-
-    
-
-
         // add BLOB
         readFileDataFromDBtoScreen;
         // ToDo:
@@ -170,8 +172,3 @@ addFileDialogue.addEventListener('change', function() {
         // Read db data to ul
 
 })
-
-// ToDo:
-
-
-
