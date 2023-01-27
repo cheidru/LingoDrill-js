@@ -9,7 +9,7 @@ let volumeBTN = document.querySelector('#volume-svg-btn');
 let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
 let volumeSlider = document.querySelector('#volume-slider-wrapper');
 // CSS style property is void before being checked
-// Assign property to variable to get its value
+// Assign property a value to get it set
 volumeSlider.style.visibility = 'hidden';
 
 let volumeSliderOn = false;
@@ -20,6 +20,31 @@ let startPlayAt = 0;
 let durationRounded = 0;
 let playTime = document.querySelector('#player-time');
 let intervalsId = 0;
+
+
+
+    // Read audio file data from DB
+    let audioFileID = localStorage.getItem('aFileID');
+    let openDB = indexedDB.open("audioBase", 1);
+    openDB.onsuccess = (e) => {
+        let db = e.target.result;
+        let transAct = db.transaction('audio', 'readonly');
+        let trasactionStore = transAct.objectStore('audio');
+        let request = trasactionStore.get(audioFileID);
+        
+        request.onsuccess = (e) => {
+            let request = e.target;
+            // aFile.src = URL.createObjectURL(e.request.result.audioFile);
+            console.log(request);
+            }
+        }
+
+
+
+
+
+
+
 
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
@@ -35,6 +60,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
     playTime.textContent = `0 / ${durationRounded}`;
+
 
     // Make ruler
     let rulerHolder = document.querySelector('#progress-bar-ruler');

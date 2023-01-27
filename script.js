@@ -2,18 +2,15 @@
 // Generate list of files in DB
 
 let dbError = false;
-let OpenDB = null;
+let openDB = null;
 let db = null;
-let id = 0;
-
-
+let listOfAudio = document.querySelector("#file-list");
 
 function readFileDataFromDBtoScreen() {        
         // Try to open DB
-        OpenDB = indexedDB.open("audioBase", 1);
+        openDB = indexedDB.open("audioBase", 1);
 
-        // openDB.onsuccess = makeListFromDB(openDB);
-        OpenDB.onsuccess = (e) => {
+        openDB.onsuccess = (e) => {
                 db = e.target.result;
                 console.log("DB successfuly opened", db);
                 // Check if the DB exists
@@ -22,20 +19,18 @@ function readFileDataFromDBtoScreen() {
                         if (db.objectStoreNames.contains('audio')) {
                                 console.log("Read from", db);
                                 makeULfromDB(db);
+                                console.log("display changed to block");
                         } else {
                                 console.log("Audio Store doesn't exist", db);
                         }
-                } 
-                
-                //         // Delete the empty DB unless an audio file is selected
-                //         if (db.objectStoreNames.length == 0) indexedDB.deleteDatabase("audioBase");
+                }
         }
 
-        OpenDB.onerror = (err) => {
+        openDB.onerror = (err) => {
                 console.warn(err); // Show error message
         }
 
-        OpenDB.onupgradeneeded = (e) => {
+        openDB.onupgradeneeded = (e) => {
                 db = e.target.result;
                 console.log("DB upgrade needed");
                 
@@ -43,10 +38,10 @@ function readFileDataFromDBtoScreen() {
                         // Create stores
                         console.log("Create Stores");
                         // let audioStore = db.createObjectStore('audio', {keyPath: 'id'}, {autoIncrement: 'true'});
-                        let audioStore = db.createObjectStore('audio', {keyPath: 'id'});
-                        let rangesStore = db.createObjectStore('ranges', {keyPath: 'id'}, {autoIncrement: 'true'});
-                        let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id'}, {autoIncrement: 'true'});
-                        let languageStore = db.createObjectStore('language', {keyPath: 'id'}, {autoIncrement: 'true'});
+                        let audioStore = db.createObjectStore('audio', {keyPath: 'id', autoIncrement: 'true'});
+                        let rangesStore = db.createObjectStore('ranges', {keyPath: 'id', autoIncrement: 'true'});
+                        let subtitlesStore = db.createObjectStore('subtitles', {keyPath: 'id', autoIncrement: 'true'});
+                        let languageStore = db.createObjectStore('language', {keyPath: 'id', autoIncrement: 'true'});
 
                         // Create additional indexes to stores
 
@@ -64,36 +59,21 @@ function readFileDataFromDBtoScreen() {
 
 readFileDataFromDBtoScreen();
 
-function idx() {
-        return id++;
-}
-
 function makeULfromDB(iDB) {
-        // let dbRes = iDB.result;
-        // let readFliesTransaction = dbRes.transaction('audio', 'readonly');
-        // let audioIndex = readFliesTransaction.index("date");
-        // let aList = audioIndex.getAll();
+        let transAct = iDB.transaction('audio', 'readonly');
+        let trasactionStore = transAct.objectStore('audio');
+        let getReq = trasactionStore.getAll();
 
-
-
-
-
-
-        // dbRes.oncomplete = (e) => {
-        //         console.log(e);
-        // }
-
-        // dbRes.onerror = (err) => {
-        //         console.warn(err);
-        // }
-
-        // // Read audio file names from DB object to li elements
-        // for(let aObject of aList) {
-        //         let newLi = document.createElement("li");
-        //         newLi.textContent = aObject.aName;
-        //         newLi.dataset.audioIndex = aObject.id;
-        //         ul.append(newLi);
-        // }
+        // With the same result as handlind when request is successful,
+        // it can be handled when transaction is complete under
+        // trasactionStore.oncomplete = (evnt) => { ... etc.
+        getReq.onsuccess = (evnt) => {
+                let request = evnt.target // request === getReq
+                listOfAudio.innerHTML = request.result
+                        .map((aRecordFromDB) => {
+                                return `<li data-id="${aRecordFromDB.id}"><span>${aRecordFromDB.aName}</span></li>`
+                }).join('\n'); // join <li>s with '\n' inbetween for better appearance in DevTool
+        }
 }
 
 // Select an audio file from local file system
@@ -105,12 +85,10 @@ addFileDialogue.addEventListener('change', function() {
         // https://www.youtube.com/watch?v=y--Rjq6QV_o 9.37, 11.23, 13.05, 14.00
 
         let newAudioFile = {
-                id: idx(),
                 languageID: '',
-                aFile: file,
+                audioFile: file,
                 aName: file.name,
                 aDuration: 0,
-                fileName: file.name,
                 date: Date.now(),
                 prio: 0
         }
@@ -186,11 +164,18 @@ addFileDialogue.addEventListener('change', function() {
                 // }
 
         // add BLOB
-        readFileDataFromDBtoScreen;
+        readFileDataFromDBtoScreen();
         // ToDo:
         // Fetch file and metadata from input into blob
         // Create transaction
         // Get data into DB
         // Read db data to ul
 
+})
+
+// Open a list item in player page
+listOfAudio.addEventListener('click', (e) => {
+        let itemID = e.target.dataset.id;
+        localStorage.setItem('aFileID', itemID);
+        window.open('player.html');
 })

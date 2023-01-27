@@ -24,9 +24,18 @@ section {
 }
 
 #file-list {
-    display: none;
     margin: 0;
+    padding: 0 0.2rem;
+}
+
+#file-list li {
     padding: 0.2rem;
+    padding-top: 0;
+    cursor: pointer;    
+}
+
+#file-list:first-child {
+    padding-top: 0.2rem;
 }
 
 #add-file-dialogue {
@@ -35,6 +44,7 @@ section {
 
 #add-new-file-menu {
     padding: 0.2rem;
+
 }
 
 #add-file-dialogue-label {
@@ -44,6 +54,7 @@ section {
     justify-content: center;
     gap: 1%;
     align-items: center;
+    cursor: pointer; 
     padding: 0.1rem 0.2rem;
     border: 0.5px black dashed;
     border-radius: 2px;
