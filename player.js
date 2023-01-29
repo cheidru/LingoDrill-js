@@ -12,6 +12,10 @@ let volumeSlider = document.querySelector('#volume-slider-wrapper');
 // Assign property a value to get it set
 volumeSlider.style.visibility = 'hidden';
 
+let songName = '';
+// Restore special symbols in audio file URI and get the file name from it
+// let songName = decodeURI(aFile.src).split('/').pop();
+
 let volumeSliderOn = false;
 const volumeDefaultLevel = 0.5;
 let volumeActualLevel = volumeDefaultLevel;
@@ -21,38 +25,35 @@ let durationRounded = 0;
 let playTime = document.querySelector('#player-time');
 let intervalsId = 0;
 
+// SEGMENT: Read audio file data from DB
+let audioFileID = localStorage.getItem('aFileID');
+console.log("DB recoed ID: ", audioFileID, typeof audioFileID);
+let openDB = indexedDB.open("audioBase", 1);
 
-
-    // Read audio file data from DB
-    let audioFileID = localStorage.getItem('aFileID');
-    let openDB = indexedDB.open("audioBase", 1);
-    openDB.onsuccess = (e) => {
-        let db = e.target.result;
-        let transAct = db.transaction('audio', 'readonly');
-        let trasactionStore = transAct.objectStore('audio');
-        let request = trasactionStore.get(audioFileID);
-        
-        request.onsuccess = (e) => {
-            let request = e.target;
-            // aFile.src = URL.createObjectURL(e.request.result.audioFile);
-            console.log(request);
-            }
-        }
-
-
-
-
-
-
-
-
+openDB.onsuccess = (e) => {
+    let db = e.target.result;
+    let transAct = db.transaction('audio', 'readonly');
+    let trasactionStore = transAct.objectStore('audio');
+    let aFileRequest = trasactionStore.get(Number(audioFileID));
+    
+    aFileRequest.onsuccess = (e) => {
+        let reQ = e.target;
+        let reQres = reQ.result;
+        aFile.src = URL.createObjectURL(reQres.audioFile);
+        songName = reQres.aName;
+    }
+    aFileRequest.onerror = (err) => {
+        console.warn(err);
+    }
+}
+openDB.onerror = (err) => {
+    console.warn(err);
+}
+// SEGMENT END: Read audio file data from DB 
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     let songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);
-    
-    // Restore special symbols in audio file URI and get the file name from it
-    let songName = decodeURI(aFile.src).split('/').pop();
 
     aTitle.textContent = songName;
     aTitle.style.transition = "all 18s";

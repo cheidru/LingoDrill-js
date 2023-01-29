@@ -17,9 +17,8 @@ function readFileDataFromDBtoScreen() {
                 if (db.objectStoreNames.length > 0) {
                         // Double check by existing of the store
                         if (db.objectStoreNames.contains('audio')) {
-                                console.log("Read from", db);
+                                console.log("Initial read from: ", db);
                                 makeULfromDB(db);
-                                console.log("display changed to block");
                         } else {
                                 console.log("Audio Store doesn't exist", db);
                         }
@@ -69,17 +68,16 @@ function makeULfromDB(iDB) {
         // trasactionStore.oncomplete = (evnt) => { ... etc.
         getReq.onsuccess = (evnt) => {
                 let request = evnt.target // request === getReq
+                console.log("request: ", request);
                 listOfAudio.innerHTML = request.result
                         .map((aRecordFromDB) => {
-                                return `<li data-id="${aRecordFromDB.id}"><span>${aRecordFromDB.aName}</span></li>`
+                                return `<li data-id="${aRecordFromDB.id}">${aRecordFromDB.aName}</li>`
                 }).join('\n'); // join <li>s with '\n' inbetween for better appearance in DevTool
         }
 }
 
 // Select an audio file from local file system
-let addFileDialogue = document.querySelector("#add-file-dialogue");
-
-addFileDialogue.addEventListener('change', function() {
+document.querySelector("#add-file-dialogue").addEventListener('change', function() {
         let file = this.files[0];
         console.log(file);
         // https://www.youtube.com/watch?v=y--Rjq6QV_o 9.37, 11.23, 13.05, 14.00
@@ -175,7 +173,9 @@ addFileDialogue.addEventListener('change', function() {
 
 // Open a list item in player page
 listOfAudio.addEventListener('click', (e) => {
-        let itemID = e.target.dataset.id;
+        let li = e.target;
+        let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
+        console.log("Show target", e, itemID)
         localStorage.setItem('aFileID', itemID);
         window.open('player.html');
 })
