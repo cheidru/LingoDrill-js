@@ -3,7 +3,7 @@ html, body, p {
     box-sizing: border-box;
 }
 
-header, section {
+header, main {
     width: 150px;
     margin: auto;
     font-size: 0.5rem;
@@ -18,7 +18,7 @@ header {
     background-color: lightgrey
 }
 
-section {
+main {
     height: 100vh;
     background-color: lemonchiffon;
 }
@@ -75,11 +75,7 @@ section {
 
 @media (max-width: 600px) {
 
-    header, section {
+    header, main {
         width: 100%;
      }
-/* 
-     #file-list {
-        width: 100%;
-    } */
 }

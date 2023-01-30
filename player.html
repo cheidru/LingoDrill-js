@@ -15,73 +15,64 @@
         <a id="setup-page" href="http://"></a>
     </header>
 
-    <div class="player">
+    <main>
 
-        <div id="played-title-wrapper">
-            <div id="played-title" style="overflow: visible;">Song</div>
-        </div>
-
-        <audio id="mymusic" src=""></audio>
-
-        <div id="progress-bar-ruler-wrapper">
-            <!-- Hidden -->
-            <div id="progress-bar-ruler"></div>
-        </div>
-
-        <div id="player-progress-bar-wrapper">
-            <div id="player-btn" class="play-btn"></div>
-            <div id="player-progress-bar-track"></div>
-            <div id="player-progress-bar-thumb"></div>
-            <div id="player-time">0 / 0</div>
-        </div>            
-
-
-        <!-- To Do -->
-        <div id="player-bottom-menu-wrapper">
-            <div id="stop-svg-btn"></div>
-            <svg id="repeat-svg-btn" width="800px" height="800px" viewBox="-2 -3 24 24" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin" class="jam jam-repeat"><path d='M11.774 15l1.176 1.176a1 1 0 0 1-1.414 1.414l-2.829-2.828a1 1 0 0 1 0-1.414l2.829-2.829a1 1 0 0 1 1.414 1.415L11.883 13H14a4 4 0 1 0 0-8 1 1 0 0 1 0-2 6 6 0 1 1 0 12h-2.226zM8.273 3L7.176 1.904A1 1 0 0 1 8.591.489l2.828 2.829a1 1 0 0 1 0 1.414L8.591 7.56a1 1 0 0 1-1.415-1.414L8.323 5H6a4 4 0 1 0 0 8 1 1 0 0 1 0 2A6 6 0 1 1 6 3h2.273z' /></svg>
-            
-            <svg id="volume-svg-btn" width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
-                <g stroke="#000000" stroke-width="2" id="volume-svg">
-                    <path stroke-linejoin="round" d="M8 9H5v6h3l5 4V5L8 9z"/>
-                    <path stroke-linecap="round" d="M17 8a5.657 5.657 0 010 8"/>
-                </g>
-            </svg>
-
-            <svg id="volume-svg-btn-off" width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
-                <g id="volume-svg" stroke="#000000" stroke-width="2">
-                  <path stroke-linejoin="round" d="M7 9H4v6h3l5 4V5L7 9z"/>
-                  <path stroke-linecap="round" d="M16 9.5l5 5"/>
-                  <path stroke-linecap="round" d="M21 9.5l-5 5"/>
-                </g>
-            </svg>
-
-            <div id="volume-slider-wrapper">
-                <div id="volume-slider-track"></div>
-                <div id="volume-slider-thumb"></div>
+        <section class="player">
+            <div id="played-title-wrapper">
+                <div id="played-title" style="overflow: visible;">Song</div>
             </div>
-        </div>
 
-    </div>
+            <audio id="mymusic" src=""></audio>
 
-    <template id="long-bar-template">
-        <div class="templ-wrapper">
-            <div id="long-number"></div>
-            <div id="long-bar"></div>
-        </div>
-    </template>
+            <div id="player-progress-bar-wrapper">
+                <div id="player-btn" class="play-btn"></div>
+                <div id="player-progress-bar-track"></div>
+                <div id="player-progress-bar-thumb"></div>
+                <div id="player-time">0 / 0</div>
+            </div>            
 
-    <template id="middle-bar-template">
-        <div class="templ-wrapper">
-            <div id="middle-bar"></div>
-        </div>
-    </template>
+            <div id="player-bottom-menu-wrapper">
+                <div id="stop-svg-btn"></div>
+                <svg id="repeat-svg-btn" width="800px" height="800px" viewBox="-2 -3 24 24" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin" class="jam jam-repeat"><path d='M11.774 15l1.176 1.176a1 1 0 0 1-1.414 1.414l-2.829-2.828a1 1 0 0 1 0-1.414l2.829-2.829a1 1 0 0 1 1.414 1.415L11.883 13H14a4 4 0 1 0 0-8 1 1 0 0 1 0-2 6 6 0 1 1 0 12h-2.226zM8.273 3L7.176 1.904A1 1 0 0 1 8.591.489l2.828 2.829a1 1 0 0 1 0 1.414L8.591 7.56a1 1 0 0 1-1.415-1.414L8.323 5H6a4 4 0 1 0 0 8 1 1 0 0 1 0 2A6 6 0 1 1 6 3h2.273z' /></svg>
+                
+                <svg id="volume-svg-btn" width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
+                    <g stroke="#000000" stroke-width="2" id="volume-svg">
+                        <path stroke-linejoin="round" d="M8 9H5v6h3l5 4V5L8 9z"/>
+                        <path stroke-linecap="round" d="M17 8a5.657 5.657 0 010 8"/>
+                    </g>
+                </svg>
 
-    <template id="short-bar-template">
-        <div class="templ-wrapper">
-            <div id="short-bar"></div>
-        </div>
-    </template>
+                <svg id="volume-svg-btn-off" width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
+                    <g id="volume-svg" stroke="#000000" stroke-width="2">
+                    <path stroke-linejoin="round" d="M7 9H4v6h3l5 4V5L7 9z"/>
+                    <path stroke-linecap="round" d="M16 9.5l5 5"/>
+                    <path stroke-linecap="round" d="M21 9.5l-5 5"/>
+                    </g>
+                </svg>
+
+                <div id="volume-slider-wrapper">
+                    <div id="volume-slider-track"></div>
+                    <div id="volume-slider-thumb"></div>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="ranges">
+
+            <div id="add-new-range-menu">
+                    <object type="image/svg+xml" id="add-range-icon" data="./assets/list-add-svgrepo-com.svg"></object>
+                    <div>Click here to add ranges to audio file</div>                    
+            </div>
+
+            <div id="range-list-wrapper">
+                <ul id="range-list">
+                </ul>
+            </div>
+
+        </section>
+
+    </main>
 
 <script src="./player.js"></script>
 </body>
