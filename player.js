@@ -25,6 +25,7 @@ let durationRounded = 0;
 let playTime = document.querySelector('#player-time');
 let intervalsId = 0;
 
+
 // SEGMENT: Read audio file data from DB
 let audioFileID = localStorage.getItem('aFileID');
 console.log("DB recoed ID: ", audioFileID, typeof audioFileID);
@@ -51,6 +52,7 @@ openDB.onerror = (err) => {
 }
 // SEGMENT END: Read audio file data from DB 
 
+
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     let songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);
@@ -61,63 +63,8 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
     playTime.textContent = `0 / ${durationRounded}`;
-
-
-    // Make ruler
-    let rulerHolder = document.querySelector('#progress-bar-ruler');
-    if (durationRounded > 50) {
-        largeScale();
-    } else {
-        smallScale();
-    }
 })
 
-let longBarTemplate = document.querySelector('#long-bar-template');
-let longBarNumber = document.querySelector('#long-number-place');
-let shortBarTemplate = document.querySelector('#short-bar-template');
-let middleBarTemplate = document.querySelector('#middle-bar-template');
-const ruler = document.querySelector("#progress-bar-ruler");       
-
-function largeScale() {
-    for(let i = 0; i <= durationRounded; i += 10) {
-        if (i%50 == 0) {
-            if(i > 0) {
-                const cloneShort = shortBarTemplate.content.cloneNode(true);
-                ruler.appendChild(cloneShort);
-            }
-            const clone = longBarTemplate.content.cloneNode(true);
-            let barNumber = clone.querySelector("#long-number");
-            barNumber.textContent = i;
-            ruler.appendChild(clone);
-        } else {
-            const cloneShort = shortBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneShort);
-            const cloneMiddle = middleBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneMiddle);
-       }  
-      }    
-}
-
-function smallScale() {
-    for(let i = 0; i <= durationRounded; i++) {
-        if (i%10 == 0) {
-            if (i != 0) {
-                const cloneShort = shortBarTemplate.content.cloneNode(true);
-                ruler.appendChild(cloneShort);
-            }
-            const clone = longBarTemplate.content.cloneNode(true);
-            let barNumber = clone.querySelector("#long-number");
-            barNumber.textContent = i;
-            ruler.appendChild(clone);
-        } else if (i%5 == 0) {
-            const cloneMiddle = middleBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneMiddle);
-        } else {
-            const cloneShort = shortBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneShort);
-       }  
-      }
-}
 
 let currentTime = aFile.currentTime;
 
@@ -275,13 +222,6 @@ playerBottomMenuWrapper.addEventListener('pointerup', function(event) {
     volumeSliderDragThumbOn = false;
 })
 
-
-
-
-
-
-
-
 function stopPlaying() {    
     aFile.pause();
     clearInterval(intervalsId);
@@ -327,3 +267,4 @@ function playLoops() {
     }, 50);
 }
 
+document.querySelector('#add-new-range-menu').addEventListener('click', () => window.open('ranges.html'));
