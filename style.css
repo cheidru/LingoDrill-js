@@ -23,55 +23,6 @@ main {
     background-color: lemonchiffon;
 }
 
-#file-list {
-    margin: 0;
-    padding: 0 0.2rem;
-    list-style-type:none;
-}
-
-#file-list li {
-    padding: 0.2rem;
-    padding-top: 0;
-    cursor: pointer;    
-}
-
-#file-list:first-child {
-    padding-top: 0.2rem;
-}
-
-#add-file-dialogue {
-    display: none;
-}
-
-#add-new-file-menu {
-    padding: 0.2rem;
-
-}
-
-#add-file-dialogue-label {
-    display: flex;
-    width: auto;
-    margin: auto;
-    justify-content: center;
-    gap: 1%;
-    align-items: center;
-    cursor: pointer; 
-    padding: 0.1rem 0.2rem;
-    border: 0.5px black dashed;
-    border-radius: 2px;
-}
-
-#download-icon {
-    width: 0.5rem;
-    height: 0.5rem;
-    background-size: cover;
-}
-
-#download-svg {
-    stroke: black;
-}
-
-
 
 @media (max-width: 600px) {
 

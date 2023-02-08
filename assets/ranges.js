@@ -1,5 +1,6 @@
 let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
+let songName = 
 
 aTitle.textContent = songName;
 aTitle.style.transition = "all 18s";

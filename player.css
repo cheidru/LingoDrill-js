@@ -1,22 +1,10 @@
 html, body, p {
-    all: unset;
     --thumb-width: 0.7rem;
 }
 
 main {
     height: 100vh;
     background-color: lemonchiffon;
-}
-
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 150px;
-    height: 1rem;
-    margin: auto;
-    font-size: 0.5rem;
-    background-color: lightgrey
 }
 
 .player, .player-preset {
@@ -296,7 +284,7 @@ header {
 
 
 @media (max-width: 600px) {    
-.player, header {
+.player {
     width: 100%;
  }
 
@@ -304,6 +292,5 @@ header {
 #played-title-wrapper {
     width: 80%;
 }
-
 
 }
