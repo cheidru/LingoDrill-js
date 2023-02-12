@@ -1,5 +1,4 @@
 html, body, p {
-    all: unset;
     --thumb-width: 0.7rem;
 }
 
@@ -63,7 +62,7 @@ header {
     padding: 0 0.5rem;
     border-radius: 0.5rem;
     overflow: hidden;
-    background-color: greenyellow;
+    background-color: rgb(164, 169, 218);
 }
 
 #played-title {
@@ -71,11 +70,10 @@ header {
     white-space: nowrap;
 }
 
-#progress-bar-ruler-wrapper {
+#progress-bar-ruler-wrapper, 
+#player-progress-bar-thumb, 
+#player-btn, #player-time {
     display: none;
-    padding: 0;
-    margin-bottom: 0.5rem;
-    background-color: antiquewhite;
 }
 
 #progress-bar-ruler {
@@ -103,21 +101,8 @@ header {
     height: 0.4rem;
     width: 100%;
     margin: auto 0.5rem;
-    border-radius: 0.2rem;
+    /* border-radius: 0.2rem; */
     background-color: rgb(135, 168, 229);
-}
-
-#player-progress-bar-thumb {
-    position: absolute;
-    top: calc(50% - calc(var(--thumb-width)/2));
-    left: calc((var(--thumb-width)*-1/2) + 2rem);
-    height: var(--thumb-width);
-    width: var(--thumb-width);
-    border-radius: 50%;
-    background-color: rgb(113, 150, 218);
-    transition-duration: 10ms;
-    /* Отмена встроенной функции drag'n'drop для мобильных устройств */
-    touch-action: none;
 }
 
 #player-time {
@@ -134,12 +119,16 @@ header {
     padding: 0 1rem;
 }
 
+#stop-svg-btn, #repeat-svg-btn {
+    display: none;
+}
+
 [id*="volume-svg-btn"], #repeat-svg-btn {
     height: 0.9rem;
     width: 0.9rem;
 }
 
-#stop-svg-btn {
+/* #stop-svg-btn {
     display: flex;
     height: 0.7rem;
     width: 0.7rem;
@@ -160,6 +149,16 @@ header {
 #repeat-svg-btn {
     padding: 0 0.3rem;
     fill: gray;
+} */
+
+#bottom-menu-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#bottom-menu-player-btn {
+    margin-right: 0.2rem;
 }
 
 #volume-svg-btn-off {
@@ -167,7 +166,8 @@ header {
 }
 
 #volume-svg {
-    stroke: gray;
+    stroke: black;
+
 }
 
 [id$="-svg-btn"]:hover {
@@ -263,10 +263,6 @@ header {
 #long-bar-wrapper {
     display: flex;
     flex-direction: column;
-}
-
-#ranges {
-    padding: 0.2rem 0.2rem;
 }
 
 #add-new-range-menu {

@@ -54,6 +54,10 @@ main {
     background-color: greenyellow;
 }
 
+#bottom-menu-player-btn {
+    display: none;
+}
+
 #played-title {
     font-size: 1rem;
     white-space: nowrap;
@@ -151,19 +155,20 @@ main {
     fill: gray;
 }
 
-#volume-svg-btn-off {
-    display: none;
-}
-
 #volume-svg {
     stroke: gray;
 }
+
+
 
 [id$="-svg-btn"]:hover {
     transform: scale(0.9);
     transition-duration: 100ms;
 }
 
+#volume-svg-btn-off{
+    display: none;
+}
 
 #volume-slider-wrapper {
     visibility: hidden;
