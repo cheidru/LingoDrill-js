@@ -52,7 +52,6 @@ openDB.onerror = (err) => {
 }
 // SEGMENT END: Read audio file data from DB 
 
-
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     let songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);

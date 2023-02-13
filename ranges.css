@@ -70,21 +70,21 @@ header {
     white-space: nowrap;
 }
 
-#progress-bar-ruler-wrapper, 
 #player-progress-bar-thumb, 
 #player-btn, #player-time {
     display: none;
 }
 
+
 #progress-bar-ruler {
-    /* display: flex; */
+    display: flex;
     align-items: flex-end;
     width: auto;
     height: 2rem;
     padding: 2px 0.5rem;
-    margin: 10px 0;
+    margin-top: 10px;
     margin-bottom: 0;
-    background-color: LightBlue;
+    /* background-color: LightBlue; */
 }
 
 #player-progress-bar-wrapper {
@@ -237,7 +237,7 @@ header {
     width: 1px;
     margin: auto;
     border-radius: 1px;
-    background-color: darkolivegreen;
+    background-color: white;
 }
 
 #long-bar {
@@ -248,8 +248,8 @@ header {
     margin: 0 -5rem;
     text-align: center;
     font-family: sans-serif;
-    font-size: 0.6rem;
-    color: darkolivegreen;
+    font-size: 0.4rem;
+    color: white;
 }
 
 #middle-bar {

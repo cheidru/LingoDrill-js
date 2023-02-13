@@ -28,7 +28,7 @@ let intervalsId = 0;
 
 // SEGMENT: Read audio file data from DB
 let audioFileID = localStorage.getItem('aFileID');
-console.log("DB recoed ID: ", audioFileID, typeof audioFileID);
+console.log("DB record ID: ", audioFileID, typeof audioFileID);
 let openDB = indexedDB.open("audioBase", 1);
 
 openDB.onsuccess = (e) => {
@@ -50,89 +50,6 @@ openDB.onsuccess = (e) => {
 openDB.onerror = (err) => {
     console.warn(err);
 }
-// SEGMENT END: Read audio file data from DB
-
-
-// SEGMENT: Create Ruler
-
-
-const ruler = document.querySelector("#progress-bar-ruler");
-const template = document.querySelector("#long-bar-template");
-const templateMiddle = document.querySelector("#middle-bar-template");
-const templateShort = document.querySelector("#short-bar-template");
-const head = document.querySelector("#plain-text");
-const sampleText = document.querySelector("#headline-text");
-const shiftNumber = document.querySelector("#k-num");
-const rulerLengthInput = document.querySelector("#ruler-length");
-
-// template doesn't have textContent
-let myText = sampleText.innerHTML;
-head.textContent = myText;
-
-// ruler generator
-let rulerLen = 30;
-
-if (rulerLen <= 50) {
-  // for(let i = 0; i <= Number(rulerLengthInput.value); i++) {
-  for(let i = 0; i <= 20; i++) {
-    if (i%10 == 0) {
-        const clone = templateLong.content.cloneNode(true);
-        let barNumber = clone.querySelector("#sample-num");
-        barNumber.textContent = i;
-        ruler.appendChild(clone);
-    } else if (i%5 == 0) {
-        const cloneMiddle = templateMiddle.content.cloneNode(true);
-        ruler.appendChild(cloneMiddle);
-    } else {
-        const cloneShort = templateShort.content.cloneNode(true);
-        ruler.appendChild(cloneShort);
-   }  
-  }
-} else {
-    for(let i = 0; i <= Number(rulerLengthInput.value); i += 10) {
-    if (i%50 == 0) {
-        const clone = templateLong.content.cloneNode(true);
-        let barNumber = clone.querySelector("#sample-num");
-        barNumber.textContent = i;
-        ruler.appendChild(clone);
-    } else {
-        const cloneShort = templateShort.content.cloneNode(true);
-        ruler.appendChild(cloneShort);
-        const cloneMiddle = templateMiddle.content.cloneNode(true);
-        ruler.appendChild(cloneMiddle);
-   }  
-  }
-}
-
-// for (let i=1; i<13; i++){
-//   const clone = template.content.cloneNode(true);
-//   let barNumber = clone.querySelector("#sample-num");
-//   barNumber.textContent = i;
-//   ruler.appendChild(clone);
-// }
-
-// running line module
-head.onclick = () => {
-let k = 1;
-let stopInterval = setInterval(function(){
-  head.style.marginLeft =`-${k}rem`;
-  k=k+0.03;
-  shiftNumber.textContent = k;
-  if (k >= myText.length) stopIt();
-}, 2);
-
-function stopIt() {
-  clearInterval(stopInterval)
-}
-  
-}
-
-
-
-
-// SEGMENT END: Create Ruler 
-
-
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     let songDuration = aFile.duration;
@@ -144,7 +61,80 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
     playTime.textContent = `0 / ${durationRounded}`;
+
+
+
+
+// SEGMENT: Create Ruler
+
+let longBarTemplate = document.querySelector('#long-bar-template');
+let longBarNumber = document.querySelector('#long-number-place');
+let shortBarTemplate = document.querySelector('#short-bar-template');
+let middleBarTemplate = document.querySelector('#middle-bar-template');
+const ruler = document.querySelector("#progress-bar-ruler");      
+
+if (durationRounded > 50) {
+    console.log("Make Large ruler");
+    largeScale();
+} else {
+    smallScale();
+}
+
+function largeScale() {
+    for(let i = 0; i <= durationRounded; i += 10) {
+        console.log("Ingex i is " + i);
+        if (i%50 == 0) {
+            if(i > 0) { // other than first one, LongBar is preceded by ShortBar
+                const cloneShort = shortBarTemplate.content.cloneNode(true);
+                ruler.appendChild(cloneShort);
+            }
+            const cloneLong = longBarTemplate.content.cloneNode(true);
+            let barNumber = cloneLong.querySelector("#long-number");
+            barNumber.textContent = i;
+            ruler.appendChild(cloneLong);
+        } else {
+            const cloneShort = shortBarTemplate.content.cloneNode(true);
+            ruler.appendChild(cloneShort);
+            const cloneMiddle = middleBarTemplate.content.cloneNode(true);
+            ruler.appendChild(cloneMiddle);
+       }
+       console.log(i);
+      }
+    
+}
+
+function smallScale() {
+    for(let i = 0; i <= durationRounded; i++) {
+        if (i%10 == 0) {
+            if (i != 0) {
+                const cloneShort = shortBarTemplate.content.cloneNode(true);
+                ruler.appendChild(cloneShort);
+            }
+            const clone = longBarTemplate.content.cloneNode(true);
+            let barNumber = clone.querySelector("#long-number");
+            barNumber.textContent = i;
+            ruler.appendChild(clone);
+        } else if (i%5 == 0) {
+            const cloneMiddle = middleBarTemplate.content.cloneNode(true);
+            ruler.appendChild(cloneMiddle);
+        } else {
+            const cloneShort = shortBarTemplate.content.cloneNode(true);
+            ruler.appendChild(cloneShort);
+       }  
+      }
+}
+
+// SEGMENT END: Create Ruler 
+
+
+
+
+
+    
 })
+// SEGMENT END: Read audio file data from DB
+
+
 
 let currentTime = aFile.currentTime;
 
