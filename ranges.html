@@ -32,6 +32,10 @@
                 <div id="player-progress-bar-track"></div>
                 <div id="player-progress-bar-thumb"></div>
                 <div id="player-time">0 / 0</div>
+                <div id="range-border-wrapper">
+                    <div id="range-border-line"></div>
+                    <div id="range-border-pointer"></div>
+                </div>
             </div>            
 
             <div id="bottom-menu-wrapper">
@@ -61,10 +65,10 @@
                     </div>
                 </div>
                 <div id="zoom-menu">
-                    <div id="zoom-minus"></div>
+                    <object id="zoom-minus-svg-btn" type="image/svg+xml" data="./assets/zoom-out-2-svgrepo-com.svg"></object>
                     <div id="zoom-track"></div>
-                    <div id="zoom-thumb"></div>
-                    <div id="zoom-plus"></div>
+                    <div id="zoom-thumb-svg-btn"></div>
+                    <object id="zoom-plus-svg-btn" type="image/svg+xml" data="./assets/zoom-in-2-svgrepo-com.svg"></object>
                 </div>                
             </div>
         </div>
@@ -88,6 +92,13 @@
     <template id="short-bar-template">
         <div class="templ-wrapper">
             <div id="short-bar"></div>
+        </div>
+    </template>
+
+    <template id="range-border">
+        <div id="range-border-wrapper">
+            <div id="range-border-line"></div>
+            <div id="range-border-pointer"></div>
         </div>
     </template>
     <!-- End of templates section -->

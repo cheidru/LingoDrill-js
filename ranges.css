@@ -75,7 +75,6 @@ header {
     display: none;
 }
 
-
 #progress-bar-ruler {
     display: flex;
     align-items: flex-end;
@@ -84,6 +83,11 @@ header {
     padding: 2px 0.5rem;
     margin-top: 10px;
     margin-bottom: 0;
+    /* background-color: LightBlue; */
+}
+
+#progress-bar-ruler:first-child {
+    padding: 0;
     /* background-color: LightBlue; */
 }
 
@@ -100,7 +104,7 @@ header {
     /* box-sizing: border-box; */
     height: 0.4rem;
     width: 100%;
-    margin: auto 0.5rem;
+    margin: auto;
     /* border-radius: 0.2rem; */
     background-color: rgb(135, 168, 229);
 }
@@ -112,11 +116,18 @@ header {
      user-select: none;
 }
 
+#bottom-menu-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
 #player-bottom-menu-wrapper {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    padding: 0 1rem;
+    flex-grow: 1;
 }
 
 #stop-svg-btn, #repeat-svg-btn {
@@ -126,35 +137,6 @@ header {
 [id*="volume-svg-btn"], #repeat-svg-btn {
     height: 0.9rem;
     width: 0.9rem;
-}
-
-/* #stop-svg-btn {
-    display: flex;
-    height: 0.7rem;
-    width: 0.7rem;
-    margin-right: 0.15rem;
-    border: 1.5px solid gray;
-    border-radius: 50%;
-}
-
-#stop-svg-btn::before {
-    content: '';
-    height: 0.3rem;
-    width: 0.3rem;
-    align-items: center;
-    margin: auto;
-    background: gray;
-}
-
-#repeat-svg-btn {
-    padding: 0 0.3rem;
-    fill: gray;
-} */
-
-#bottom-menu-wrapper {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
 #bottom-menu-player-btn {
@@ -167,7 +149,6 @@ header {
 
 #volume-svg {
     stroke: black;
-
 }
 
 [id$="-svg-btn"]:hover {
@@ -177,8 +158,10 @@ header {
 
 
 #volume-slider-wrapper {
-    visibility: hidden;
-    position: relative;
+    display: none;
+    position: absolute;
+    /* visibility: hidden; */
+    /* position: relative; */
     display: flex;
     align-items: center;
     padding: 0.2rem 0;
@@ -205,6 +188,56 @@ header {
     transition-duration: 10ms;
     /* Отмена встроенной функции drag'n'drop для мобильных устройств */
     touch-action: none;
+}
+
+#zoom-menu {
+    display: flex;
+    flex-grow: 2;    
+    justify-content: space-between;
+    align-items: center;
+    width: 5rem;
+    max-width: 50%;
+}
+
+
+#zoom-minus-svg-btn, #zoom-plus-svg-btn {
+    height: 0.9rem;
+    width: 0.9rem;
+}
+
+#zoom-track {
+    height: 1px;
+    width: 100%;
+    background-color: black;
+}
+
+#zoom-thumb-svg-btn {
+    position: absolute;
+    left: 16rem;
+    height: 0.5rem;
+    width: 0.5rem;
+    background-color: rgb(101, 116, 160);
+    border: 1.5px solid black;
+    border-radius: 50%;
+}
+
+#range-border-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+#range-border-pointer {
+    width: 0;
+    height: 0;
+    border-left: 1rem solid red;
+    border-top: 0.7rem solid transparent;
+    border-bottom: 0.7rem solid transparent;
+}
+
+#range-border-line {
+    width: 0.1rem;
+    height: 3rem;
+    background-color: black;
 }
 
 .inumber {

@@ -68,7 +68,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
 // SEGMENT: Create Ruler
 
 let longBarTemplate = document.querySelector('#long-bar-template');
-let longBarNumber = document.querySelector('#long-number-place');
 let shortBarTemplate = document.querySelector('#short-bar-template');
 let middleBarTemplate = document.querySelector('#middle-bar-template');
 const ruler = document.querySelector("#progress-bar-ruler");      
@@ -79,6 +78,9 @@ if (durationRounded > 50) {
 } else {
     smallScale();
 }
+
+
+
 
 function largeScale() {
     for(let i = 0; i <= durationRounded; i += 10) {
@@ -100,7 +102,6 @@ function largeScale() {
        }
        console.log(i);
       }
-    
 }
 
 function smallScale() {
@@ -124,9 +125,18 @@ function smallScale() {
       }
 }
 
+// Move the first ruler notch to the very left
+// and the right ruler notch to the very right
+
+// appendChild in largeScale and smallScale functions
+// adds CarretReturn text node before child element
+// and therefore firstChild will refer to it
+// firstElementChild refers to div correctly
+
+ruler.firstElementChild.style.marginLeft = 0;
+ruler.lastElementChild.style.marginRight = 0;
+
 // SEGMENT END: Create Ruler 
-
-
 
 
 
