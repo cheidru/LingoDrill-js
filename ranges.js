@@ -72,7 +72,7 @@ let shortBarTemplate = document.querySelector('#short-bar-template');
 let middleBarTemplate = document.querySelector('#middle-bar-template');
 const ruler = document.querySelector("#progress-bar-ruler");      
 
-if (durationRounded > 50) {
+if (durationRounded > 70) {
     console.log("Make Large ruler");
     largeScale();
 } else {
