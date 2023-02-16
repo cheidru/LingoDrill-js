@@ -91,8 +91,6 @@ document.querySelector("#add-file-dialogue").addEventListener('change', function
                 prio: 0
         }
 
-        console.log(file);
-
         // Add file data to DB
         let transAct = db.transaction('audio', 'readwrite');
         let trasactionStore = transAct.objectStore('audio');

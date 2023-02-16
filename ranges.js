@@ -28,7 +28,7 @@ let intervalsId = 0;
 
 // SEGMENT: Read audio file data from DB
 let audioFileID = localStorage.getItem('aFileID');
-console.log("DB record ID: ", audioFileID, typeof audioFileID);
+// console.log("DB record ID: ", audioFileID, typeof audioFileID);
 let openDB = indexedDB.open("audioBase", 1);
 
 openDB.onsuccess = (e) => {
@@ -61,10 +61,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
     playTime.textContent = `0 / ${durationRounded}`;
-
-
-
-
 // SEGMENT: Create Ruler
 
 let longBarTemplate = document.querySelector('#long-bar-template');
@@ -78,9 +74,6 @@ if (durationRounded > 70) {
 } else {
     smallScale();
 }
-
-
-
 
 function largeScale() {
     for(let i = 0; i <= durationRounded; i += 10) {

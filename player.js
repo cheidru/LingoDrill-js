@@ -221,6 +221,18 @@ playerBottomMenuWrapper.addEventListener('pointerup', function(event) {
     volumeSliderDragThumbOn = false;
 })
 
+
+
+// Global function to handle slider thumb dragging
+
+function sliderMoveHandler(thumbObject, leftBorder, rightBorder, handler) {
+    // ToDo
+}
+
+
+// End of Global function
+
+
 function stopPlaying() {    
     aFile.pause();
     clearInterval(intervalsId);
