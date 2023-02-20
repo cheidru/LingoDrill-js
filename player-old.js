@@ -136,18 +136,14 @@ startPlayAt = (lineRightEnd - lineLeftEnd) * (aFile.duration / progressBarLine.g
 startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
 //
 
-function stopPlayerWhenSliderClicked(event) {
-    if (!aFile.paused & event.target != playBTN) stopPlaying();
-}
-
 // Handle thumb movement
 // Return thumb position relative to track start
-sliderMoveHandler(progressBarThumb, progressBarLine, playerWrapper, stopPlayerWhenSliderClicked)
+sliderMoveHandler(progressBarThumb, progressBarLine)
 
 
 // Global function to handle slider thumb dragging
 
-function sliderMoveHandler(thumbObject, trackObject, wrapperObject, playerHandlerFoo, rangesHandlerFoo) {
+function sliderMoveHandler(thumbObject, trackObject, wrapperObject, ShandlerFoo) {
     let dragThumbOn = false; // Thumb movement is allowed
 
     // Initialise objects coordinates
@@ -156,7 +152,7 @@ function sliderMoveHandler(thumbObject, trackObject, wrapperObject, playerHandle
     let thumbOffset = thumbObject.getBoundingClientRect().width / 2;
     let lineLeftEnd = trackObject.getBoundingClientRect().left;
     let lineRightEnd = trackObject.getBoundingClientRect().right;
-    let wrapperLeftEnd = wrapperObject.getBoundingClientRect().left;
+    let originX = wrapperObject.getBoundingClientRect().x;
     // let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
 
     // Listeners to control player thumb position when it is changed manually
@@ -165,10 +161,10 @@ function sliderMoveHandler(thumbObject, trackObject, wrapperObject, playerHandle
         dragThumbOn = true;
     });
 
-    trackObject.addEventListener('pointerdown', function(event) {
-        if (typeof playerHandlerFoo !== 'undefined') playerHandlerFoo(event);
+    progressBarLine.addEventListener('pointerdown', function(event) {
+        if (!aFile.paused & event.target != playBTN) stopPlaying();
         // переносим ползунок под курсор    
-        thumbObject.style.left = event.pageX - wrapperLeftEnd - thumbOffset + 'px';
+        thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
         // startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
         playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         aFile.currentTime = startPlayAt;
@@ -177,26 +173,18 @@ function sliderMoveHandler(thumbObject, trackObject, wrapperObject, playerHandle
     progressBarWrapper.addEventListener('pointermove', function(event) {
         if (dragThumbOn == true) {
             // ??
-            if (typeof playerHandlerFoo !== 'undefined') playerHandlerFoo(event);
+            if (!aFile.paused & event.target != playBTN) stopPlaying();
 
             if (event.pageX < lineLeftEnd) {
-                thumbObject.style.left = thumbInitialPosition - wrapperLeftEnd + 'px';
-
-
-
-
-                startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+                thumbObject.style.left = thumbInitialPosition - originX + 'px';
+                // startPlayAt = (thumbInitialPosition - lineLeftEnd + thumbOffset) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;            
-
-
-
-
             } else if (event.pageX > lineRightEnd) {
-                thumbObject.style.left = lineRightEnd - wrapperLeftEnd - thumbOffset + 'px';
+                thumbObject.style.left = lineRightEnd - originX - thumbOffset + 'px';
                 // startPlayAt = (lineRightEnd - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
             } else {
-                thumbObject.style.left = event.pageX - wrapperLeftEnd - thumbOffset + 'px';
+                thumbObject.style.left = event.pageX - originX - thumbOffset + 'px';
                 // startPlayAt = (event.pageX - lineLeftEnd) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
                 playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
             }
