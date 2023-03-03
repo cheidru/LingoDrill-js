@@ -308,7 +308,7 @@ function playLoops() {
     playBTN.classList.remove('play-btn');
     playBTN.classList.add('pause-btn');
 
- // При передаче методов обьекта в качестве колбэка в функцию, напр setTimeout,
+ // При передаче методов обьекта (напр. aFile.pause) в качестве колбэка в функцию, напр setTimeout,
 // setInterval теряется контекст исходного обьекта (this) и метод возвращает undefined. Метод setTimeout
 // в браузере имеет особенность: он устанавливает this=window для вызова функции. Таким образом, 
 // для this.pause он пытается получить window.pause, которого не существует. Чтобы этого избежать,
