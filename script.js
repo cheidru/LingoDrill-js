@@ -79,7 +79,11 @@ function makeULfromDB(iDB) {
 // Select an audio file from local file system
 document.querySelector("#add-file-dialogue").addEventListener('change', function() {
         let file = this.files[0];
-        console.log(file);
+
+        // ToDo
+        // 1. check for duplicate in DB when select a new audio
+        // 2. add possibility to delete or change name of audio in DB
+
         // https://www.youtube.com/watch?v=y--Rjq6QV_o 9.37, 11.23, 13.05, 14.00
 
         let newAudioFile = {
