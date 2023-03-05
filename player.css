@@ -31,8 +31,15 @@ main {
 }
 
 .play-btn {
+    margin-right: 0.5rem;
     background-image:  url(./assets/icons8-play-96.png);
 }
+
+
+#player-btn {
+    margin-right: 0.5rem;
+}
+
 
 .pause-btn {
     background-image:  url(./assets/icons8-pause-96.png);
@@ -94,7 +101,7 @@ main {
     position: relative;
     height: 0.4rem;
     width: 100%;
-    margin: auto 0.5rem;
+    margin: auto 0;
     border-radius: 0.2rem;
     background-color: rgb(135, 168, 229);
 }
@@ -117,6 +124,7 @@ main {
      flex-basis: content;
      text-align: right;
      font-size: 0.5rem;
+     margin-left: 0.5rem;
      user-select: none;
 }
 
