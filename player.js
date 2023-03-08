@@ -102,7 +102,6 @@ aFile.volume = volumeActualLevel;
 //     // переносим ползунок под курсор    
 //     volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
 //     volumeActualLevel = (event.pageX - vsTrackLeftEnd) / vsTrackSpan;
-//     // startPlayAt = (event.pageX - originX - (lineLeftEnd - originX)) * (aFile.duration / progressBarLine.getBoundingClientRect().width);
 //     aFile.volume = volumeActualLevel;
 // });
 
@@ -223,7 +222,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
     let originX = trackObject.getBoundingClientRect().x;
 
     let trackPosition = 0;
-    let trackToDurationRatio = sliderMaxValue/trackObject.getBoundingClientRect().width;
     let sliderMaxValueRounded = Math.round(sliderMaxValue);
 
     // prevent default brauser action for drag'n'drop operation
@@ -255,9 +253,9 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     trackPosition = durationRounded;
                 } else {
                     thumbObject.style.left = event.pageX - startPosition + 'px';
-                    trackPosition = (event.pageX - startPosition) * trackToDurationRatio;
+                    trackPosition = (event.pageX - startPosition) * (sliderMaxValue / trackObject.getBoundingClientRect().width);
                 }
-                console.log("thumbPosition:", (event.pageX - startPosition));
+                console.log("trackObject.getBoundingClientRect().width:", trackObject.getBoundingClientRect().width);
                 thumbPosition.position = trackPosition;
                 valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
@@ -284,10 +282,9 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
             trackPosition = durationRounded;
         } else {
             thumbObject.style.left = event.pageX - startPosition + 'px';
-            trackPosition = (event.pageX - startPosition) * trackToDurationRatio;
+            trackPosition = (event.pageX - startPosition) * (sliderMaxValue / trackObject.getBoundingClientRect().width);
         }
-        //     let trackToDurationRatio = sliderMaxValue/trackObject.getBoundingClientRect().width;
-        console.log("thumbPosition, width:", (event.pageX - startPosition), trackObject.getBoundingClientRect().width);
+        console.log("trackObject.getBoundingClientRect().width:", trackObject.getBoundingClientRect().width);
         valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         // aFile.currentTime = startPlayAt;
         thumbPosition.position = trackPosition;
@@ -310,7 +307,6 @@ function stopPlaying() {
 }
 
 function playLoops() {
-    let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
     startPlayAt = playAtObject.position;
     aFile.currentTime = startPlayAt;
     playBTN.classList.remove('play-btn');
@@ -335,9 +331,8 @@ function playLoops() {
         playTime.textContent = `${Math.round(aFile.currentTime)} / ${durationRounded}`;
         // move progress bar Thumb according to the current play time
         let progressBarThumbPosition = aFile.currentTime/aFile.duration;
-        //     let playTimeRatio = aFile.duration / progressBarLine.getBoundingClientRect().width;
-        console.log("widthP, trackPositionP:", progressBarLine.getBoundingClientRect().width, aFile.currentTime);
-        if (progressBarThumbPosition < 1) progressBarThumb.style.left = (startPlayAt / playTimeRatio) + 'px';
+          console.log("aFile.duration, progressBarLine.getBoundingClientRect().width:", aFile.duration, progressBarLine.getBoundingClientRect().width);
+        if (progressBarThumbPosition < 1) progressBarThumb.style.left = (startPlayAt / (aFile.duration / progressBarLine.getBoundingClientRect().width)) + 'px';
         // if (progressBarThumbPosition < 1) progressBarThumb.style.left = (progressBarThumbPosition * progressBarLine.getBoundingClientRect().width) + 'px';
         // if (progressBarThumbPosition < 1) progressBarThumb.style.left = (progressBarThumbPosition * progressBarLine.clientWidth) + 'px';
         // if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${(progressBarThumbPosition * progressBarLine.clientWidth)}px, 0px)`;
