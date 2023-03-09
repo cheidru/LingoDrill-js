@@ -1,5 +1,6 @@
 html, body, p {
     --thumb-width: 0.7rem;
+    --bottom-menu-color: gray;
 }
 
 main {
@@ -53,9 +54,8 @@ main {
 
 #played-title-wrapper {
     height: 1.2rem;
-    width: 80%;
     margin: auto;
-    padding: 0 0.5rem;
+    padding: 0;
     border-radius: 0.5rem;
     overflow: hidden;
     background-color: greenyellow;
@@ -119,20 +119,22 @@ main {
     touch-action: none;
 }
 
-#player-time {
-     min-width: fit-content;
-     flex-basis: content;
-     text-align: right;
-     font-size: 0.5rem;
-     margin-left: 0.5rem;
-     user-select: none;
-}
 
 #player-bottom-menu-wrapper {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 0.5rem;
+}
+
+#player-time {
+    min-width: fit-content;
+    text-align: right;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 0.45rem;
+    color: var(--bottom-menu-color);
+    margin-left: 0.5rem;
+    user-select: none;
 }
 
 [id*="volume-svg-btn"], #repeat-svg-btn {
@@ -145,7 +147,7 @@ main {
     height: 0.7rem;
     width: 0.7rem;
     margin-right: 0.15rem;
-    border: 1.5px solid gray;
+    border: 1.5px solid var(--bottom-menu-color);
     border-radius: 50%;
 }
 
@@ -155,16 +157,16 @@ main {
     width: 0.3rem;
     align-items: center;
     margin: auto;
-    background: gray;
+    background: var(--bottom-menu-color);
 }
 
 #repeat-svg-btn {
     padding: 0 0.3rem;
-    fill: gray;
+    fill: var(--bottom-menu-color);
 }
 
 #volume-svg {
-    stroke: gray;
+    stroke: var(--bottom-menu-color);
 }
 
 
@@ -176,30 +178,33 @@ main {
 
 #volume-svg-btn-off{
     display: none;
+    stroke: var(--bottom-menu-color);
 }
 
-#volume-slider-wrapper {
+/* #volume-slider-wrapper {
     visibility: hidden;
     position: relative;
     display: flex;
     align-items: center;
     padding: 0.2rem 0;
-    padding-left: calc(var(--thumb-width)/4);;
+    padding-left: calc(var(--thumb-width)/4);
     width: 4rem;
-}
+} */
 
 #volume-slider-track {
+    display: none;
+    position: relative;
     height: 0.2rem;
-    width: 100%;
+    width: 4rem;
     margin: auto 0.1rem;
     border-radius: 0.1rem;
     background-color: rgb(101, 130, 219);
 }
 
 #volume-slider-thumb {
-    position: absolute;
+    position: relative;
     top: calc(50% - calc(var(--thumb-width)/4));
-    left: calc((var(--thumb-width)*-1/8) + 0.1rem);
+    left: calc(var(--thumb-width)*-0.1);
     height: calc(var(--thumb-width)/2);
     width: calc(var(--thumb-width)/2);
     border-radius: 50%;

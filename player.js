@@ -7,7 +7,7 @@ let playBTN = document.querySelector('#player-btn');
 let playerWrapper = document.querySelector('.player');
 let stopBTN = document.querySelector('#stop-svg-btn');
 let repeatBTN = document.querySelector('#repeat-svg-btn');
-let volumeBTN = document.querySelector('#volume-svg-btn');
+
 
 let songName = '';
 
@@ -54,9 +54,6 @@ let thumbInitialPosition = 0;
 // let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
 let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
 let lineRightEnd = progressBarLine.getBoundingClientRect().right;
-let originX = progressBarWrapper.getBoundingClientRect().x;
-
-
 
 let playAtObject = {
     position: startPlayAt
@@ -69,66 +66,29 @@ let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
 let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrapper');
 
 // Volume slider coordinates
-let volumeSliderLeftEnd = volumeSliderWrapper.getBoundingClientRect().left;
 let vsThumbInitialPosition = volumeSliderThumb.getBoundingClientRect().left;
 let vsThumbOffset = volumeSliderThumb.getBoundingClientRect().width / 2;
 let vsTrackLeftEnd = volumeSliderTrack.getBoundingClientRect().x;
 let vsTrackRightEnd = volumeSliderTrack.getBoundingClientRect().right;
-let vsOriginX = volumeSliderWrapper.getBoundingClientRect().x;
-
 let vsTrackSpan = volumeSliderTrack.getBoundingClientRect().width;
 
+let volumeBTN = document.querySelector('#volume-svg-btn');
 let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
-let volumeSlider = document.querySelector('#volume-slider-wrapper');
+let volumeSlider = document.querySelector('#volume-slider-track');
 let volumeSliderOn = false;
 const volumeDefaultLevel = 0.5;
-let volumeActualLevel = volumeDefaultLevel;
+
+let volumeActualLevel = {
+    position: volumeDefaultLevel
+}
 
 // CSS style property is void before being checked
 // Assign property a value to get it set
-volumeSlider.style.visibility = 'hidden';
+volumeSlider.style.display = 'none';
 
 // Initial volume slider thumb position
-volumeSliderThumb.style.left = volumeActualLevel * volumeSliderTrack.getBoundingClientRect().width + 'px';
-aFile.volume = volumeActualLevel;
-
-// // Listeners to control volume slider thumb position when it is changed manually
-// volumeSliderThumb.addEventListener('pointerdown', function(event) {
-//     // разрешено перемещение ползунка
-//     volumeSliderDragThumbOn = true;
-// });
-
-// volumeSliderTrack.addEventListener('pointerdown', function(event) {
-//     // переносим ползунок под курсор    
-//     volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
-//     volumeActualLevel = (event.pageX - vsTrackLeftEnd) / vsTrackSpan;
-//     aFile.volume = volumeActualLevel;
-// });
-
-// volumeSliderWrapper.addEventListener('pointermove', function(event) {
-
-//     if (volumeSliderDragThumbOn == true) {
-//         if (event.pageX <= vsTrackLeftEnd) {
-//             volumeSliderThumb.style.left = vsThumbInitialPosition - vsOriginX + 'px';
-//             volumeActualLevel = 0;
-//             volumeBTN.style.display = "none";
-//             volumeOffBTN.style.display = "block";
-//         } else if (event.pageX >= vsTrackRightEnd) {
-//             volumeSliderThumb.style.left = vsTrackRightEnd - vsOriginX - vsThumbOffset + 'px';
-//             volumeActualLevel = 1;
-//         } else {
-//             volumeBTN.style.display = "block";
-//             volumeOffBTN.style.display = "none";
-//             volumeSliderThumb.style.left = event.pageX - vsOriginX - vsThumbOffset + 'px';
-//             volumeActualLevel = (event.pageX - vsTrackLeftEnd) / vsTrackSpan;
-//         }
-//         aFile.volume = volumeActualLevel;
-//     }        
-// })
-
-
-
-
+volumeSliderThumb.style.left = volumeActualLevel.position * volumeSliderTrack.getBoundingClientRect().width + 'px';
+aFile.volume = volumeActualLevel.position;
 
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
@@ -154,7 +114,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     // sliderMoveHandler(progressBarThumb, progressBarLine, songDuration, playerWrapper, stopPlayerWhenSliderClicked,
     //     playTime, playTimeFormat);
 
-    volumeActualLevel = sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, null, null, null);
+    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
 })
 
 let currentTime = aFile.currentTime;
@@ -163,13 +123,10 @@ playBTN.addEventListener('click', () => {
     aFile.paused ? playLoops() : stopPlaying()});
 
 stopBTN.addEventListener('click', () => {
-    stopPlaying();
-    clearInterval(intervalsId);
-    playBTN.classList.remove('pause-btn');
-    playBTN.classList.add('play-btn');
-    progressBarThumb.style.left = thumbInitialPosition + 'px';
-    startPlayAt = thumbInitialPosition * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+    progressBarThumb.style.left = thumbInitialPosition - thumbOffset + 'px';
     playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
+    aFile.currentTime = 0;
+    stopPlaying();    
 })
 
 repeatBTN.addEventListener('click', () => {
@@ -183,23 +140,33 @@ repeatBTN.addEventListener('click', () => {
 });
 
 volumeBTN.addEventListener('click', () => {
-    if (volumeSlider.style.visibility == 'hidden') {
-        volumeSlider.style.visibility = 'visible';
+    if (volumeSlider.style.display == 'none') {
+        volumeSlider.style.display = 'block';
     } else {
-        volumeSlider.style.visibility = 'hidden';
+        volumeSlider.style.display = 'none';
     }
 });
 
 volumeOffBTN.addEventListener('click', () => {
-    if (volumeSlider.style.visibility == 'hidden') {
-        volumeSlider.style.visibility = 'visible';
+    if (volumeSlider.style.display == 'none') {
+        volumeSlider.style.display = 'block';
     } else {
-        volumeSlider.style.visibility = 'hidden';
+        volumeSlider.style.display = 'none';
     }
 });
 
 function stopPlayerWhenSliderClicked(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
+}
+
+function showMute(event) {
+    if (event.pageX <= volumeSliderThumb.getBoundingClientRect().width / 2) {
+        volumeBTN.style.display = "none";
+        volumeOffBTN.style.display = "block";
+    } else {
+        volumeBTN.style.display = "block";
+        volumeOffBTN.style.display = "none"; 
+    }
 }
 
 // Template literals can't be directly passed as an argument to a function to be used inside it
@@ -243,21 +210,21 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                 if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
 
                 let lineRightEnd = trackObject.getBoundingClientRect().right;
-                let startPosition = originX + thumbOffset;
+                let startPosition = originX;
     
                 if (event.pageX < startPosition) {
                     thumbObject.style.left = 0 - thumbOffset + 'px';
                     trackPosition = 0;
-                } else if (event.pageX > (lineRightEnd)) {
-                    thumbObject.style.left = lineRightEnd - startPosition  + 'px';
+                } else if (event.pageX > lineRightEnd) {
+                    console.log("event.pageX, startPosition, lineRightEnd", event.pageX, startPosition, lineRightEnd);
+                    thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
                     trackPosition = durationRounded;
                 } else {
-                    thumbObject.style.left = event.pageX - startPosition + 'px';
+                    thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
                     trackPosition = (event.pageX - startPosition) * (sliderMaxValue / trackObject.getBoundingClientRect().width);
                 }
-                console.log("trackObject.getBoundingClientRect().width:", trackObject.getBoundingClientRect().width);
                 thumbPosition.position = trackPosition;
-                valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
+                if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
 
         thumbObject.onpointerup = () => {
@@ -272,20 +239,20 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
         if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
 
         let lineRightEnd = trackObject.getBoundingClientRect().right;
-        let startPosition = originX + thumbOffset;
+        let startPosition = originX;
 
         if (event.pageX < startPosition) {
-            thumbObject.style.left = 0 - thumbOffset + 'px';
+            thumbObject.style.left = originX - thumbOffset + 'px';
             trackPosition = 0;
-        } else if (event.pageX > (lineRightEnd)) {
+        } else if (event.pageX > lineRightEnd) {
             thumbObject.style.left = lineRightEnd - startPosition  + 'px';
             trackPosition = durationRounded;
         } else {
-            thumbObject.style.left = event.pageX - startPosition + 'px';
+            thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
             trackPosition = (event.pageX - startPosition) * (sliderMaxValue / trackObject.getBoundingClientRect().width);
         }
-        console.log("trackObject.getBoundingClientRect().width:", trackObject.getBoundingClientRect().width);
-        valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
+        console.log("event.pageX, startPosition, originX, lineRightEnd", event.pageX, startPosition, originX, lineRightEnd);
+        if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         // aFile.currentTime = startPlayAt;
         thumbPosition.position = trackPosition;
     })
@@ -302,6 +269,7 @@ function stopPlaying() {
     aFile.pause();
     clearInterval(intervalsId);
     startPlayAt = aFile.currentTime;
+    playAtObject.position = aFile.currentTime;
     playBTN.classList.remove('pause-btn');
     playBTN.classList.add('play-btn');
 }
@@ -331,18 +299,17 @@ function playLoops() {
         playTime.textContent = `${Math.round(aFile.currentTime)} / ${durationRounded}`;
         // move progress bar Thumb according to the current play time
         let progressBarThumbPosition = aFile.currentTime/aFile.duration;
-          console.log("aFile.duration, progressBarLine.getBoundingClientRect().width:", aFile.duration, progressBarLine.getBoundingClientRect().width);
-        if (progressBarThumbPosition < 1) progressBarThumb.style.left = (startPlayAt / (aFile.duration / progressBarLine.getBoundingClientRect().width)) + 'px';
-        // if (progressBarThumbPosition < 1) progressBarThumb.style.left = (progressBarThumbPosition * progressBarLine.getBoundingClientRect().width) + 'px';
-        // if (progressBarThumbPosition < 1) progressBarThumb.style.left = (progressBarThumbPosition * progressBarLine.clientWidth) + 'px';
-        // if (progressBarThumbPosition <= 1) progressBarThumb.style.transform = `translate(${(progressBarThumbPosition * progressBarLine.clientWidth)}px, 0px)`;
+          console.log("startPlayAt:", startPlayAt);
+        if (progressBarThumbPosition < 1) progressBarThumb.style.left = (aFile.currentTime / (aFile.duration / progressBarLine.getBoundingClientRect().width)) - thumbOffset + 'px';
         else {
             clearInterval(intervalsId);
             playBTN.classList.remove('pause-btn');
             playBTN.classList.add('play-btn');
-            progressBarThumb.style.left = 0 - originX - thumbOffset + 'px';
+            progressBarThumb.style.left = 0 - thumbOffset + 'px';
             // progressBarThumb.style.left = thumbInitialPosition - originX + 'px';
-            startPlayAt = thumbInitialPosition * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            // startPlayAt = thumbInitialPosition * (aFile.duration / progressBarLine.getBoundingClientRect().width);
+            startPlayAt = 0;
+            playAtObject.position = 0;
             playTime.textContent = `${Math.round(startPlayAt)} / ${durationRounded}`;
         }
 
