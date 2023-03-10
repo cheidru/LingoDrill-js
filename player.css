@@ -176,27 +176,20 @@ main {
     transition-duration: 100ms;
 }
 
+[id^="volume-svg-btn"]{
+    margin-right: 0.15rem;
+}
+
 #volume-svg-btn-off{
     display: none;
     stroke: var(--bottom-menu-color);
 }
 
-/* #volume-slider-wrapper {
-    visibility: hidden;
-    position: relative;
-    display: flex;
-    align-items: center;
-    padding: 0.2rem 0;
-    padding-left: calc(var(--thumb-width)/4);
-    width: 4rem;
-} */
-
 #volume-slider-track {
-    display: none;
     position: relative;
     height: 0.2rem;
     width: 4rem;
-    margin: auto 0.1rem;
+    margin: auto 0;
     border-radius: 0.1rem;
     background-color: rgb(101, 130, 219);
 }
