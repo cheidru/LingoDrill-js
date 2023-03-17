@@ -15,12 +15,30 @@ header {
     justify-content: space-between;
     align-items: center;
     height: 1rem;
-    background-color: lightgrey
+    background-color: lightgrey;
 }
 
 main {
     height: 100vh;
     background-color: lemonchiffon;
+}
+
+#pop-up-wrapper{
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    width: 150px;
+    height: 100vh;
+    margin: 0 auto;
+}
+
+#such-file-exists-in-DB {
+    display: none;
+    height: fit-content;
+    width: 80%;
+    padding: 10px;
+    text-align: center;
+    background-color: lightgrey;
 }
 
 
@@ -29,4 +47,8 @@ main {
     header, main {
         width: 100%;
      }
+
+    #pop-up-wrapper{
+        width: 80%;
+    }
 }
