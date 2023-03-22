@@ -14,16 +14,15 @@
     padding-top: 0.2rem;
 }
 
-#add-file-dialogue {
+#add-file-dialog {
     display: none;
 }
 
 #add-new-file-menu {
     padding: 0.2rem;
-
 }
 
-#add-file-dialogue-label {
+#add-file-dialog-label {
     display: flex;
     width: auto;
     margin: auto;

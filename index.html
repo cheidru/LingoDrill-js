@@ -21,17 +21,20 @@
             </ul>
         </div>
         <div id="add-new-file-menu">
-            <input type="file" name="file" accept=".mp3" id="add-file-dialogue">
-            <label for="add-file-dialogue" id="add-file-dialogue-label">
+            <input type="file" name="file" accept=".mp3" id="add-file-dialog">
+            <label for="add-file-dialog" id="add-file-dialog-label">
                 <object type="image/svg+xml" id="download-icon" data="./assets/download-alt-4-svgrepo-com.svg"></object>
                 <div>Click here to add a new MP3 audio file</div>                    
             </label>
         </div>
-        <div id="pop-up-wrapper">
-            <div id="such-file-exists-in-DB" onclick='style.display="none"'></div>
-        </div>
+
+        <dialog id="file-exist-pop-up">
+            <p>The Selectd file alteady exists in the list!</p>
+        </dialog>
+      
 
     </main>
+
     
     <script src="./script.js"></script>
 </body>

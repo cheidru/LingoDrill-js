@@ -4,9 +4,13 @@
 let dbError = false;
 let openDB = null;
 let db = null;
+let pageBody =  document.querySelector('body');
+let fileDialog = document.querySelector("#add-file-dialog");
 let listOfAudio = document.querySelector("#file-list");
 let listOfStoredAudio = [];
 let popUpWarning = document.querySelector('#such-file-exists-in-DB');
+let modalFileExists = document.querySelector('#file-exist-pop-up');
+
 
 function readFileDataFromDBtoScreen() {        
         // Try to open DB
@@ -80,18 +84,46 @@ function makeULfromDB(iDB) {
         }
 }
 
-// Select an audio file from local file system
-document.querySelector("#add-file-dialogue").addEventListener('change', function() {
-        let file = this.files[0];
-        console.log("Read file");
 
+// не работает
+fileDialog.addEventListener('click', function() {        
+        if (fileDialog.value.length == 0) return;
+
+        console.log("Douplicate clicked", modalFileExists.getAttribute('open'));
+        modalFileExists.setAttribute('open', true);
+        console.log("Модальное окно", modalFileExists.getAttribute('open'));
+        // modalFileExists.showModal();
+        // // default modal dialog doesn't freese the background (maybe a bug)
+        // pageBody.style.overflow = "hidden";
+        // pageBody.onclick = () => {
+        //         // if (modalFileExists.attributes.open) {
+        //         //         modalFileExists.close();
+        //         //         pageBody.style.overflow = "visible";
+        //         // }
+        // }
+})
+
+// Select an audio file from local file system
+fileDialog.addEventListener('change', function() {
+        console.log("File dialog changed");      
+
+        let file = this.files[0];
+        console.log("File received from file dialog");
         // ToDo
         // 1. check for duplicate in DB when select a new audio
 
         if (listOfStoredAudio.includes(file.name)) {
                 console.log("Douplicate");
-                popUpWarning.textContent = "This file already exists in DB";
-                popUpWarning.style.display = "block";
+                modalFileExists.showModal();
+                // default modal dialog doesn't freese the background (maybe a bug)
+                pageBody.style.overflow = "hidden";
+                pageBody.onclick = () => {
+                        if (modalFileExists.attributes.open) {
+                                modalFileExists.close();
+                                pageBody.style.overflow = "visible";
+                        }
+                }
+
         } else {
                 // 2. add possibility to delete or change name of audio in DB
 
@@ -174,7 +206,8 @@ document.querySelector("#add-file-dialogue").addEventListener('change', function
                         //      langNameOriginal
                         // }
 
-                // Update info on screen and check-for-douplicate array with the new added file        
+                // Update info on screen and check-for-douplicate array with the new added file
+                listOfStoredAudio = [];        
                 readFileDataFromDBtoScreen();
         }
 })
