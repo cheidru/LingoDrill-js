@@ -8,8 +8,7 @@ let pageBody =  document.querySelector('body');
 let fileDialog = document.querySelector("#add-file-dialog");
 let listOfAudio = document.querySelector("#file-list");
 let listOfStoredAudio = [];
-let popUpWarning = document.querySelector('#such-file-exists-in-DB');
-let modalFileExists = document.querySelector('#file-exist-pop-up');
+let popUpWarning = document.querySelector('#file-exist-pop-up');
 
 
 function readFileDataFromDBtoScreen() {        
@@ -84,42 +83,23 @@ function makeULfromDB(iDB) {
         }
 }
 
-
-// не работает
-fileDialog.addEventListener('click', function() {        
-        if (fileDialog.value.length == 0) return;
-
-        console.log("Douplicate clicked", modalFileExists.getAttribute('open'));
-        modalFileExists.setAttribute('open', true);
-        console.log("Модальное окно", modalFileExists.getAttribute('open'));
-        // modalFileExists.showModal();
-        // // default modal dialog doesn't freese the background (maybe a bug)
-        // pageBody.style.overflow = "hidden";
-        // pageBody.onclick = () => {
-        //         // if (modalFileExists.attributes.open) {
-        //         //         modalFileExists.close();
-        //         //         pageBody.style.overflow = "visible";
-        //         // }
-        // }
-})
-
 // Select an audio file from local file system
 fileDialog.addEventListener('change', function() {
-        console.log("File dialog changed");      
 
         let file = this.files[0];
-        console.log("File received from file dialog");
-        // ToDo
-        // 1. check for duplicate in DB when select a new audio
 
         if (listOfStoredAudio.includes(file.name)) {
                 console.log("Douplicate");
-                modalFileExists.showModal();
+                popUpWarning.showModal();
+                // delete HTMLInputElement FileList entirely to anable 'change' event of File Input
+                // if the same file is clicked in FileDialog next time 
+                // https://stackoverflow.com/questions/3144419/how-do-i-remove-a-file-from-the-filelist
+                fileDialog.value = '';
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
-                        if (modalFileExists.attributes.open) {
-                                modalFileExists.close();
+                        if (popUpWarning.attributes.open) {
+                                popUpWarning.close();
                                 pageBody.style.overflow = "visible";
                         }
                 }
@@ -207,6 +187,7 @@ fileDialog.addEventListener('change', function() {
                         // }
 
                 // Update info on screen and check-for-douplicate array with the new added file
+                fileDialog.value = '';
                 listOfStoredAudio = [];        
                 readFileDataFromDBtoScreen();
         }
