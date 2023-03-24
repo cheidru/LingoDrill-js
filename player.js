@@ -43,30 +43,27 @@ openDB.onerror = (err) => {
 // SEGMENT END: Read audio file data from DB
 
 
-// Progress bar elements
+// Progress bar elements and initial state
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-track');
 
-// Progress bar coordinates
 let thumbInitialPosition = 0;
 let playAtObject = {
     position: startPlayAt
 }
 
-// Volume slider elements
-let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
-let volumeSliderTrack = document.querySelector('#volume-slider-track');
 let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrapper');
+// Volume slider elements and initial state
+let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
+let volumeSlider = document.querySelector('#volume-slider-track');
 let volumeBTN = document.querySelector('#volume-svg-btn');
 let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
-let volumeSlider = document.querySelector('#volume-slider-track');
 
-volumeSlider.style.display = 'none';
 const volumeDefaultLevel = 0.5;
-
 let volumeActualLevel = {
     position: volumeDefaultLevel
 }
+volumeSlider.style.display = 'none';
 
 // CSS style property is void before being checked
 // Assign property a value to get it set
@@ -74,7 +71,7 @@ let volumeActualLevel = {
 // Initial volume slider thumb position
 aFile.volume = volumeActualLevel.position;
 
-
+// Do all job after audiofile metadata is loaded
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);
@@ -90,14 +87,13 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     
     playTime.textContent = `0 / ${durationRounded}`;
 
-
     // Slider for audio player
     sliderMoveHandler(progressBarThumb, progressBarLine, songDuration, playAtObject, stopPlayerWhenSliderClicked,
         playTime, playTimeFormat);
     
-    // Slider for volume slider
+    // Slider for volume
     volumeSlider.style.display = 'block';
-    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
+    sliderMoveHandler(volumeSliderThumb, volumeSlider, 1, volumeActualLevel, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 })
 

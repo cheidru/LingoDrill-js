@@ -56,18 +56,11 @@ header {
 }
 
 #played-title-wrapper {
-    height: 1.2rem;
-    width: 80%;
+    /* height: 1rem; */
     margin: auto;
-    padding: 0 0.5rem;
-    border-radius: 0.5rem;
+    padding: 0;
     overflow: hidden;
     background-color: rgb(164, 169, 218);
-}
-
-#played-title {
-    font-size: 1rem;
-    white-space: nowrap;
 }
 
 #player-progress-bar-thumb, 
@@ -106,7 +99,7 @@ header {
     height: 0.4rem;
     width: 100%;
     margin: auto;
-    /* border-radius: 0.2rem; */
+    border-radius: 0;
     background-color: rgb(135, 168, 229);
 }
 
@@ -202,9 +195,12 @@ header {
 
 #zoom-thumb-svg-btn {
     position: absolute;
+    height: calc(var(--thumb-width)/1.6);
+    width: calc(var(--thumb-width)/1.6);
+    top: 0.15rem;
     left: 1rem;
-    height: 0.3rem;
-    width: 0.3rem;
+    /* height: 0.3rem;
+    width: 0.3rem; */
     background-color: rgb(101, 116, 160);
     border: 1.5px solid black;
     border-radius: 50%;
@@ -332,11 +328,4 @@ header {
 .range-editor, header {
     width: 100%;
  }
-
-
-#played-title-wrapper {
-    width: 80%;
-}
-
-
 }

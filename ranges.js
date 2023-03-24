@@ -1,24 +1,30 @@
 let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
 
-let playerBottomMenuWrapper = document.querySelector('#bottom-menu-wrapper');
+// Volume slider elements
+let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
+let volumeSliderTrack = document.querySelector('#volume-slider-track');
+
+
+let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrapper');
+let volumeBTN = document.querySelector('#volume-svg-btn');
+let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
+let volumeSlider = document.querySelector('#volume-slider-track');
+
+volumeSlider.style.display = 'none';
+const volumeDefaultLevel = 0.5;
+
+let volumeActualLevel = {
+    position: volumeDefaultLevel
+}
 
 let playBTN = document.querySelector('#player-btn');
 let playerWrapper = document.querySelector('.player');
 let stopBTN = document.querySelector('#stop-svg-btn');
-let repeatBTN = document.querySelector('#repeat-svg-btn');
-let volumeBTN = document.querySelector('#volume-svg-btn');
-let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
-let volumeSlider = document.querySelector('#volume-slider-wrapper');
-// CSS style property is void before being checked
-// Assign property a value to get it set
-volumeSlider.style.visibility = 'hidden';
 
 let songName = '';
 
 let volumeSliderOn = false;
-const volumeDefaultLevel = 0.5;
-let volumeActualLevel = volumeDefaultLevel;
 
 let startPlayAt = 0;
 let durationRounded = 0;
@@ -61,77 +67,89 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
     playTime.textContent = `0 / ${durationRounded}`;
-// SEGMENT: Create Ruler
 
-let longBarTemplate = document.querySelector('#long-bar-template');
-let shortBarTemplate = document.querySelector('#short-bar-template');
-let middleBarTemplate = document.querySelector('#middle-bar-template');
-const ruler = document.querySelector("#progress-bar-ruler");      
+    // SEGMENT: Create Ruler
 
-if (durationRounded > 70) {
-    console.log("Make Large ruler");
-    largeScale();
-} else {
-    smallScale();
-}
+    let longBarTemplate = document.querySelector('#long-bar-template');
+    let shortBarTemplate = document.querySelector('#short-bar-template');
+    let middleBarTemplate = document.querySelector('#middle-bar-template');
+    const ruler = document.querySelector("#progress-bar-ruler");      
 
-function largeScale() {
-    for(let i = 0; i <= durationRounded; i += 10) {
-        console.log("Ingex i is " + i);
-        if (i%50 == 0) {
-            if(i > 0) { // other than first one, LongBar is preceded by ShortBar
+    if (durationRounded > 70) {
+        console.log("Make Large ruler");
+        largeScale();
+    } else {
+        smallScale();
+    }
+
+    function largeScale() {
+        for(let i = 0; i <= durationRounded; i += 10) {
+            console.log("Ingex i is " + i);
+            if (i%50 == 0) {
+                if(i > 0) { // other than first one, LongBar is preceded by ShortBar
+                    const cloneShort = shortBarTemplate.content.cloneNode(true);
+                    ruler.appendChild(cloneShort);
+                }
+                const cloneLong = longBarTemplate.content.cloneNode(true);
+                let barNumber = cloneLong.querySelector("#long-number");
+                barNumber.textContent = i;
+                ruler.appendChild(cloneLong);
+            } else {
                 const cloneShort = shortBarTemplate.content.cloneNode(true);
                 ruler.appendChild(cloneShort);
-            }
-            const cloneLong = longBarTemplate.content.cloneNode(true);
-            let barNumber = cloneLong.querySelector("#long-number");
-            barNumber.textContent = i;
-            ruler.appendChild(cloneLong);
-        } else {
-            const cloneShort = shortBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneShort);
-            const cloneMiddle = middleBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneMiddle);
-       }
-       console.log(i);
-      }
-}
+                const cloneMiddle = middleBarTemplate.content.cloneNode(true);
+                ruler.appendChild(cloneMiddle);
+        }
+        console.log(i);
+        }
+    }
 
-function smallScale() {
-    for(let i = 0; i <= durationRounded; i++) {
-        if (i%10 == 0) {
-            if (i != 0) {
+    function smallScale() {
+        for(let i = 0; i <= durationRounded; i++) {
+            if (i%10 == 0) {
+                if (i != 0) {
+                    const cloneShort = shortBarTemplate.content.cloneNode(true);
+                    ruler.appendChild(cloneShort);
+                }
+                const clone = longBarTemplate.content.cloneNode(true);
+                let barNumber = clone.querySelector("#long-number");
+                barNumber.textContent = i;
+                ruler.appendChild(clone);
+            } else if (i%5 == 0) {
+                const cloneMiddle = middleBarTemplate.content.cloneNode(true);
+                ruler.appendChild(cloneMiddle);
+            } else {
                 const cloneShort = shortBarTemplate.content.cloneNode(true);
                 ruler.appendChild(cloneShort);
-            }
-            const clone = longBarTemplate.content.cloneNode(true);
-            let barNumber = clone.querySelector("#long-number");
-            barNumber.textContent = i;
-            ruler.appendChild(clone);
-        } else if (i%5 == 0) {
-            const cloneMiddle = middleBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneMiddle);
-        } else {
-            const cloneShort = shortBarTemplate.content.cloneNode(true);
-            ruler.appendChild(cloneShort);
-       }  
-      }
-}
+        }  
+        }
+    }
 
-// Move the first ruler notch to the very left
-// and the right ruler notch to the very right
+    // Move the first ruler notch to the very left
+    // and the right ruler notch to the very right
 
-// appendChild in largeScale and smallScale functions
-// adds CarretReturn text node before child element
-// and therefore firstChild will refer to it
-// firstElementChild refers to div correctly
+    // appendChild in largeScale and smallScale functions
+    // adds CarretReturn text node before child element
+    // and therefore firstChild will refer to it
+    // firstElementChild refers to div correctly
 
-ruler.firstElementChild.style.marginLeft = 0;
-ruler.lastElementChild.style.marginRight = 0;
+    ruler.firstElementChild.style.marginLeft = 0;
+    ruler.lastElementChild.style.marginRight = 0;
 
-// SEGMENT END: Create Ruler 
+    // SEGMENT END: Create Ruler
+
+    // Activate slider for ranges
 
 
+
+    // Activate slider for ZOOM
+
+
+
+    // Activate slider for volume
+    volumeSlider.style.display = 'block';
+    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
+    volumeSlider.style.display = 'none';
 
     
 })
@@ -180,8 +198,10 @@ volumeOffBTN.addEventListener('click', () => {
 // ToDo
 
 // Elements
-// Slider function execution
 // Auxiliary function
+// Slider function execution
+sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat)
+
 
 // SEGMENT END: ZOOM Slider
 
