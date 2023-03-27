@@ -108,7 +108,8 @@ main {
 
 #player-progress-bar-thumb {
     position: relative;
-    top: calc(50% - calc(var(--thumb-width)/2));
+    top: 50%;
+    transform: translate(0, -50%);
     left: calc(var(--thumb-width)*-0.5);
     height: var(--thumb-width);
     width: var(--thumb-width);

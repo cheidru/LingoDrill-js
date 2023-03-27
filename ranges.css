@@ -96,11 +96,56 @@ header {
 
 #player-progress-bar-track {
     /* box-sizing: border-box; */
+    position: relative;
     height: 0.4rem;
     width: 100%;
     margin: auto;
     border-radius: 0;
     background-color: rgb(135, 168, 229);
+}
+
+
+[id^="range-border-wrapper-"] {
+    display: flex;
+    width:fit-content;
+    position: absolute;
+    left:0.5rem;
+    flex-direction: column;
+}
+
+#range-border-wrapper-right {
+    align-items: flex-end;
+    position: absolute;
+    right: 0;
+}
+
+#range-border-wrapper-left {
+    align-items: flex-start;
+    position: absolute;
+    left: 0;
+}
+
+[id^="range-border-pointer-"] {
+    width: 0;
+    height: 0;
+    left: 0;
+    border-top: 0.2rem solid transparent;
+    border-bottom: 0.2rem solid transparent;
+}
+
+#range-border-pointer-left {
+    border-left: 0.6rem solid red;
+}
+
+#range-border-pointer-right {
+    border-right: 0.6rem solid red;
+}
+
+.range-border-line {
+    width: 0;
+    height: 1rem;
+    border: 0.5px dashed black;
+    /* background-color: black; */
 }
 
 #player-time {
@@ -115,6 +160,7 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 0 0.5rem;
+    column-gap: 1rem;
 }
 
 #player-bottom-menu-wrapper {
@@ -124,11 +170,11 @@ header {
     flex-grow: 1;
 }
 
-#stop-svg-btn, #repeat-svg-btn {
+#stop-svg-btn {
     display: none;
 }
 
-[id*="volume-svg-btn"], #repeat-svg-btn {
+[id*="volume-svg-btn"] {
     height: 0.9rem;
     width: 0.9rem;
 }
@@ -151,6 +197,7 @@ header {
 }
 
 #volume-slider-track {
+    position: relative;
     height: 0.2rem;
     width: 100%;
     margin: auto 0;
@@ -159,8 +206,9 @@ header {
 }
 
 #volume-slider-thumb {
-    position: absolute;
-    top: calc(50% - calc(var(--thumb-width)/4));
+    position: relative;
+    top: 50%;
+    transform: translate(0, -50%);
     left: calc((var(--thumb-width)*-1/8) + 0.1rem);
     height: calc(var(--thumb-width)/2);
     width: calc(var(--thumb-width)/2);
@@ -187,17 +235,27 @@ header {
     width: 0.9rem;
 }
 
+#zoom-minus-svg-btn {
+    margin-right: 0.2rem;
+}
+
+#zoom-plus-svg-btn {
+    margin-left: 0.3rem;
+}
+
 #zoom-track {
+    position: relative;
     height: 1px;
     width: 100%;
     background-color: black;
 }
 
 #zoom-thumb-svg-btn {
-    position: absolute;
-    height: calc(var(--thumb-width)/1.6);
-    width: calc(var(--thumb-width)/1.6);
-    top: 0.15rem;
+    position: relative;
+    height: calc(var(--thumb-width)/2.5);
+    width: calc(var(--thumb-width)/2.5);
+    top: 50%;
+    transform: translate(0, -50%);
     left: 1rem;
     /* height: 0.3rem;
     width: 0.3rem; */
@@ -206,40 +264,6 @@ header {
     border-radius: 50%;
 }
 
-[id^="range-border-wrapper-"] {
-    display: flex;
-    position: absolute;
-    left:0.5rem;
-    flex-direction: column;
-}
-
-#range-border-wrapper-right {
-    align-items: flex-end;
-    right: 0.5rem;
-}
-
-[id^="range-border-pointer-"] {
-    width: 0;
-    height: 0;
-    left: 0;
-    border-top: 0.2rem solid transparent;
-    border-bottom: 0.2rem solid transparent;
-}
-
-#range-border-pointer-left {
-    border-left: 0.6rem solid red;
-}
-
-#range-border-pointer-right {
-    border-right: 0.6rem solid red;
-}
-
-.range-border-line {
-    width: 0;
-    height: 1rem;
-    border: 0.5px dashed black;
-    /* background-color: black; */
-}
 
 .inumber {
     outline: none;

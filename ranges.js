@@ -1,5 +1,6 @@
 let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
+let songDuration = 0;
 
 // Volume slider elements
 let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
@@ -18,7 +19,8 @@ let volumeActualLevel = {
     position: volumeDefaultLevel
 }
 
-let playBTN = document.querySelector('#player-btn');
+let playBTN = document.querySelector('#bottom-menu-player-btn');
+
 let playerWrapper = document.querySelector('.player');
 let stopBTN = document.querySelector('#stop-svg-btn');
 
@@ -168,16 +170,6 @@ stopBTN.addEventListener('click', () => {
     stopPlaying();    
 })
 
-repeatBTN.addEventListener('click', () => {
-    if(aFile.loop == true) {
-        aFile.loop = false;
-        repeatBTN.style.fill = "gray";
-    } else {
-        aFile.loop = true;
-        repeatBTN.style.fill = "rgb(65, 105, 225)";
-    };
-});
-
 volumeBTN.addEventListener('click', () => {
     if (volumeSlider.style.display == 'none') {
         volumeSlider.style.display = 'block';
@@ -198,21 +190,74 @@ volumeOffBTN.addEventListener('click', () => {
 // ToDo
 
 // Elements
+let zoomThumb = document.querySelector('#zoom-thumb-svg-btn');
+let zoomTrack = document.querySelector('#zoom-track');
+let zoomMaxValue = 3;
+let zoomValueObject = {
+    position: 0
+};
 // Auxiliary function
+function makeZoom(zoomValue) {
+    //ToDo
+    // Scale the ruler up or down
+    // Change the combination of long/middle/short bars depending on magnification
+    // Change long bar numbers when needed
+    // Hide audio track out of view    
+    // Add side elements to indicate that some audio track os out of view
+    // Add drag functionality to move audion track left-right
+    // Redraw audio track (selected parts) and the scale when being dragged
+}
+
 // Slider function execution
-sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat)
-
-
+sliderMoveHandler(zoomThumb, zoomTrack, zoomMaxValue, zoomValueObject, makeZoom);
 // SEGMENT END: ZOOM Slider
 
 
-// SEGMENT: Range Selection
+// Common for borders
+let progressBarLine = document.querySelector('#player-progress-bar-track');
+
+// SEGMENT: Range Selection Border Left
+
 
 // Elements
+let borderLeft = document.querySelector('#range-border-wrapper-left');
+let borderLeftStopObject = {
+    position: 0
+}
+
+// Auxiliary function
+function rangeSelect() {
+        //ToDo
+        //Highlight selected area from left to right border
+        //Show play ? and save icons for the selection
+}
+
 // Slider function execution
+sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, rangeSelect);
+
+// SEGMENT END: Range Selection Border Left
+
+
+// SEGMENT: Range Selection Border Right
+
+
+// Elements
+
 // Auxiliary function
 
-// SEGMENT END: Range Selection
+// Slider function execution
+// SEGMENT END: Range Selection Border Right
+
+// SEGMENT: Range Selection Player Slider
+
+
+// Elements
+
+// Auxiliary function
+
+// Slider function execution
+// SEGMENT END: Range Selection Player Slider
+
 
 // SEGMENT Auxiliary functions for different sliders
 function stopPlayerWhenSliderClicked(event) {
