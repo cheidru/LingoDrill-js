@@ -117,12 +117,16 @@ header {
     align-items: flex-end;
     position: absolute;
     right: 0;
+    /* Compensate thumbOffset in sliderMoveHandler function */
+    transform: translate(50%, 0);
 }
 
 #range-border-wrapper-left {
     align-items: flex-start;
     position: absolute;
     left: 0;
+    /* Compensate thumbOffset in sliderMoveHandler function */
+    transform: translate(50%, 0);
 }
 
 [id^="range-border-pointer-"] {
