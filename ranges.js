@@ -323,6 +323,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
 
     // Listeners to control player thumb position when it is changed manually
     thumbObject.onpointerdown = function(event) {
+        // Prevent bubbling the event to the parent (track)
+        // and making other listeners of the track (for range slider borders and thumb) to trigger
         event.stopPropagation();
         // prevent selection start (browser action)
         // event.preventDefault();
