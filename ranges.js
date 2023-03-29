@@ -257,14 +257,23 @@ function rangeSelectRight() {
 sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, rangeSelectRight);
 // SEGMENT END: Range Selection Border Right
 
+
 // SEGMENT: Range Selection Player Slider
-
-
 // Elements
+let rangeSelectorThumb = document.querySelector('#range-progress-bar-wrapper');
+let rangeSelectorThumbStopObject = {
+    position: 0
+}
 
 // Auxiliary function
+function rangeSelectorFoo() {
+        //ToDo
+        //Highlight selected area from left to right border
+        //Show play ? and save icons for the selection
+}
 
 // Slider function execution
+sliderMoveHandler(rangeSelectorThumb, progressBarLine, songDuration, rangeSelectorThumbStopObject, rangeSelectorFoo);
 // SEGMENT END: Range Selection Player Slider
 
 
@@ -314,7 +323,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
 
     // Listeners to control player thumb position when it is changed manually
     thumbObject.onpointerdown = function(event) {
-
+        event.stopPropagation();
         // prevent selection start (browser action)
         // event.preventDefault();
 

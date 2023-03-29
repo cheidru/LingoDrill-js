@@ -54,29 +54,18 @@ main {
     background-color: rgb(164, 169, 218);
 }
 
-#range-progress-bar-thumb, 
-#player-btn, #range-thumb-time {
+#player-btn {
     display: none;
 }
-
-#range-progress-bar-thumb {
-    position: absolute;
-    top: -0.2rem;
-    display: flex;
-    /* left:0.5rem; */
-    flex-direction: column;
-    width: 0;
-    height: 0.8rem;
-    border: 0.5px dashed white;
-}
-
+/* 
 #range-thumb-time {
     position: relative;
-    top:0;
+    top:-2rem;
     left: 50%;
     width:fit-content;
     color: white;
-}
+} */
+
 
 #progress-bar-ruler {
     display: flex;
@@ -115,24 +104,32 @@ main {
 }
 
 
-[id^="range-border-wrapper-"] {
+#range-progress-bar-thumb {
+    position: relative;
+    width: 0.5px;
+    height: 0.8rem;
+    top: 0;
+    transform: translateX(50%);
+    background-color: white;
+}
+
+
+[id^="range-border-wrapper-"],
+#range-progress-bar-wrapper {
     display: flex;
     width:fit-content;
     position: absolute;
+    top: -0.7rem;
     left:0.5rem;
     flex-direction: column;
 }
 
 #range-border-wrapper-right {
     align-items: flex-end;
-    position: relative;
-    top: -0.7rem;
 }
 
 #range-border-wrapper-left {
     align-items: flex-start;
-    position: absolute;
-    top: -0.7rem;
     left: 0;
     /* Compensate thumbOffset in sliderMoveHandler function */
     transform: translate(50%, 0);
@@ -154,7 +151,12 @@ main {
     border-right: 0.6rem solid red;
 }
 
-.border-time {
+[id*="range-border-right-lock-"] {
+    transform: translateX(50%);
+    fill: rgba(255, 123, 0, 0.77);
+}
+
+.border-time, #range-thumb-time {
     min-width: fit-content;
     position: relative;
     width: fit-content;
@@ -162,6 +164,11 @@ main {
     color: white;
     user-select: none;
 
+}
+
+#range-thumb-time {
+    top: 50%;
+    transform: translateX(-50%);
 }
 
 #right-border-time {
@@ -178,13 +185,6 @@ main {
     border: 0.5px dashed black;
     /* background-color: black; */
 }
-
-#range-thumb-time {
-     min-width: fit-content;
-     /* min-width: 3rem; */
-     font-size: 0.5rem;
-     user-select: none;
-    }
 
 #bottom-menu-wrapper {
     display: flex;
