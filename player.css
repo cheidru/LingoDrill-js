@@ -145,6 +145,7 @@ main {
 
 #stop-svg-btn {
     display: flex;
+    flex-shrink: 0;
     height: 0.7rem;
     width: 0.7rem;
     margin-right: 0.15rem;
@@ -163,6 +164,7 @@ main {
 
 #repeat-svg-btn {
     padding: 0 0.3rem;
+    flex-shrink: 0;
     fill: var(--bottom-menu-color);
 }
 
@@ -179,6 +181,7 @@ main {
 
 [id^="volume-svg-btn"]{
     margin-right: 0.15rem;
+    flex-shrink: 0;
 }
 
 #volume-svg-btn-off{
@@ -189,7 +192,8 @@ main {
 #volume-slider-track {
     position: relative;
     height: 0.2rem;
-    width: 4rem;
+    max-width: 4rem;
+    width: 100%;
     margin: auto 0;
     border-radius: 0.1rem;
     background-color: rgb(101, 130, 219);

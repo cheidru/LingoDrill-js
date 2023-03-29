@@ -68,7 +68,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     aTitle.style.marginLeft = `-${songName.length - 37}rem`;    
     setTimeout(function(){aTitle.style.marginLeft = "0rem"}, 18000);
     
-    playTime.textContent = `0 / ${durationRounded}`;
+    // playTime.textContent = `0 / ${durationRounded}`;
 
     // SEGMENT: Create Ruler
 
@@ -226,26 +226,35 @@ let borderLeftStopObject = {
 }
 
 // Auxiliary function
-function rangeSelect() {
+function rangeSelectLeft() {
         //ToDo
         //Highlight selected area from left to right border
         //Show play ? and save icons for the selection
 }
 
 // Slider function execution
-sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, rangeSelect);
+sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, rangeSelectLeft);
 
 // SEGMENT END: Range Selection Border Left
 
 
 // SEGMENT: Range Selection Border Right
 
-
 // Elements
+let borderRight = document.querySelector('#range-border-wrapper-right');
+let borderRightStopObject = {
+    position: 0
+}
 
 // Auxiliary function
+function rangeSelectRight() {
+        //ToDo
+        //Highlight selected area from left to right border
+        //Show play ? and save icons for the selection
+}
 
 // Slider function execution
+sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, rangeSelectRight);
 // SEGMENT END: Range Selection Border Right
 
 // SEGMENT: Range Selection Player Slider
