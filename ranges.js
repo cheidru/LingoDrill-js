@@ -153,6 +153,11 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 
+
+    borderRightStopObject = {
+        position: borderRight.style.left
+    }
+
     
 })
 // SEGMENT END: Read audio file data from DB
@@ -262,7 +267,7 @@ sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObj
 // Elements
 let rangeSelectorThumb = document.querySelector('#range-progress-bar-wrapper');
 let rangeSelectorThumbStopObject = {
-    position: 0
+    position: rangeSelectorThumb.style.left
 }
 
 // Auxiliary function
@@ -270,6 +275,9 @@ function rangeSelectorFoo() {
         //ToDo
         //Highlight selected area from left to right border
         //Show play ? and save icons for the selection
+
+        // Calculate the nearest slider thumb to move to the point
+        // when 'pointerdown' event shot on the slider track object 
 }
 
 // Slider function execution
@@ -350,6 +358,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
                     trackPosition = (event.pageX - startPosition) / sliderUnit;
                 }
+                console.log("thumbPosition.position: ", thumbPosition.position, "startPosition: ", startPosition, "thumbOffset: ", thumbOffset);
                 thumbPosition.position = trackPosition;
                 if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
