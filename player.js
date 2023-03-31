@@ -65,8 +65,8 @@ let volumeActualLevel = {
 }
 volumeSlider.style.display = 'none';
 
-// CSS style property is void before being checked
-// Assign property a value to get it set
+// CSS style property is taken from HTML tag attribute 'style'
+// Use method getComputedStyle(element, [pseudo]) to get it
 
 // Initial volume slider thumb position
 aFile.volume = volumeActualLevel.position;

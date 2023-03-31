@@ -86,7 +86,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
 
     function largeScale() {
         for(let i = 0; i <= durationRounded; i += 10) {
-            console.log("Ingex i is " + i);
             if (i%50 == 0) {
                 if(i > 0) { // other than first one, LongBar is preceded by ShortBar
                     const cloneShort = shortBarTemplate.content.cloneNode(true);
@@ -102,7 +101,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
                 const cloneMiddle = middleBarTemplate.content.cloneNode(true);
                 ruler.appendChild(cloneMiddle);
         }
-        console.log(i);
         }
     }
 
@@ -153,12 +151,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 
-
-    borderRightStopObject = {
-        position: borderRight.style.left
-    }
-
-    
 })
 // SEGMENT END: Read audio file data from DB
 
@@ -220,6 +212,7 @@ sliderMoveHandler(zoomThumb, zoomTrack, zoomMaxValue, zoomValueObject, makeZoom)
 
 // Common for borders
 let progressBarLine = document.querySelector('#player-progress-bar-track');
+let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
 
 // SEGMENT: Range Selection Border Left
 
@@ -247,9 +240,13 @@ sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObjec
 
 // Elements
 let borderRight = document.querySelector('#range-border-wrapper-right');
+// borderRight.style.right = 0;
 let borderRightStopObject = {
-    position: 0
+    position: 1300
 }
+
+console.log("borderRightStopObject position: ", borderRightStopObject.position);
+
 
 // Auxiliary function
 function rangeSelectRight() {
@@ -266,9 +263,14 @@ sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObj
 // SEGMENT: Range Selection Player Slider
 // Elements
 let rangeSelectorThumb = document.querySelector('#range-progress-bar-wrapper');
+// Place thumb in the middle of the slider track
+rangeSelectorThumb.style.left = progressBarLineSpan/2;
 let rangeSelectorThumbStopObject = {
-    position: rangeSelectorThumb.style.left
+    position: 50
+    // position: rangeSelectorThumb.style.left
 }
+
+// rangeSelectorThumbStopObject.position = rangeSelectorThumb.style.left;
 
 // Auxiliary function
 function rangeSelectorFoo() {
@@ -358,7 +360,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
                     trackPosition = (event.pageX - startPosition) / sliderUnit;
                 }
-                console.log("thumbPosition.position: ", thumbPosition.position, "startPosition: ", startPosition, "thumbOffset: ", thumbOffset);
                 thumbPosition.position = trackPosition;
                 if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
