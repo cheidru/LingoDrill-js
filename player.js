@@ -43,40 +43,61 @@ openDB.onerror = (err) => {
 // SEGMENT END: Read audio file data from DB
 
 
-// Progress bar elements and initial state
+// Progress bar elements
 let progressBarThumb = document.querySelector('#player-progress-bar-thumb');
 let progressBarLine = document.querySelector('#player-progress-bar-track');
+let progressBarWrapper = document.querySelector('#player-progress-bar-wrapper');
 
+// Progress bar coordinates
+let playerLeftEnd = playerWrapper.getBoundingClientRect().left;
 let thumbInitialPosition = 0;
+// let thumbInitialPosition = progressBarThumb.getBoundingClientRect().left;
+let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
+let lineRightEnd = progressBarLine.getBoundingClientRect().right;
+
 let playAtObject = {
     position: startPlayAt
 }
 
-let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrapper');
-// Volume slider elements and initial state
+// Volume slider elements
 let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
-let volumeSlider = document.querySelector('#volume-slider-track');
+let volumeSliderTrack = document.querySelector('#volume-slider-track');
+let volumeSliderWrapper = document.querySelector('#volume-slider-wrapper');
+let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrapper');
+
+// Volume slider coordinates
+let vsThumbInitialPosition = volumeSliderThumb.getBoundingClientRect().left;
+let vsThumbOffset = volumeSliderThumb.getBoundingClientRect().width / 2;
+
+let vsTrackLeftEnd = volumeSliderTrack.getBoundingClientRect().x;
+
+let vsTrackRightEnd = volumeSliderTrack.getBoundingClientRect().right;
+let vsTrackSpan = volumeSliderTrack.getBoundingClientRect().width;
+
 let volumeBTN = document.querySelector('#volume-svg-btn');
 let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
+let volumeSlider = document.querySelector('#volume-slider-track');
+let volumeSliderOn = false;
 
+volumeSlider.style.display = 'none';
 const volumeDefaultLevel = 0.5;
+
 let volumeActualLevel = {
     position: volumeDefaultLevel
 }
-volumeSlider.style.display = 'none';
 
-// CSS style property is taken from HTML tag attribute 'style'
-// Use method getComputedStyle(element, [pseudo]) to get it
+// CSS style property is void before being checked
+// Assign property a value to get it set
 
 // Initial volume slider thumb position
+// volumeSliderThumb.style.left = volumeActualLevel.position * volumeSliderTrack.getBoundingClientRect().width + 'px';
 aFile.volume = volumeActualLevel.position;
 
-// Do all job after audiofile metadata is loaded
+
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);
 
-    // Legacy code
     // Restore special symbols in audio file URI and get the file name from it
     // let songName = decodeURI(aFile.src).split('/').pop();
 
@@ -87,13 +108,14 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     
     playTime.textContent = `0 / ${durationRounded}`;
 
+
     // Slider for audio player
     sliderMoveHandler(progressBarThumb, progressBarLine, songDuration, playAtObject, stopPlayerWhenSliderClicked,
         playTime, playTimeFormat);
     
-    // Slider for volume
+    // Slider for volume slider
     volumeSlider.style.display = 'block';
-    sliderMoveHandler(volumeSliderThumb, volumeSlider, 1, volumeActualLevel, showMute, undefined, undefined);
+    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 })
 
@@ -135,8 +157,6 @@ volumeOffBTN.addEventListener('click', () => {
     }
 });
 
-
-// SEGMENT Auxiliary functions for different sliders
 function stopPlayerWhenSliderClicked(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
 }
@@ -150,7 +170,6 @@ function showMute(event) {
         volumeOffBTN.style.display = "none"; 
     }
 }
-// SEGMENT END Auxiliary functions for different sliders
 
 // Template literals can't be directly passed as an argument to a function to be used inside it
 // for formatting of the function output. An auxiliary function, which returns a template string
@@ -201,6 +220,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     thumbObject.style.left = 0 - thumbOffset + 'px';
                     trackPosition = 0;
                 } else if (event.pageX > lineRightEnd) {
+                    // console.log("event.pageX, startPosition, lineRightEnd", event.pageX, startPosition, lineRightEnd);
                     thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
                     trackPosition = durationRounded;
                 } else {
@@ -235,8 +255,9 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
             thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
             trackPosition = (event.pageX - startPosition) / sliderUnit;
         }
-
+        // console.log("event.pageX, startPosition, originX, lineRightEnd", event.pageX, startPosition, originX, lineRightEnd);
         if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
+        // aFile.currentTime = startPlayAt;
         thumbPosition.position = trackPosition;
     })
 
@@ -258,7 +279,6 @@ function stopPlaying() {
 }
 
 function playLoops() {
-    let thumbOffset = progressBarThumb.getBoundingClientRect().width / 2;
     startPlayAt = playAtObject.position;
     aFile.currentTime = startPlayAt;
     playBTN.classList.remove('play-btn');
@@ -266,7 +286,8 @@ function playLoops() {
 
  // При передаче методов обьекта в качестве колбэка в функцию, напр setTimeout,
 // setInterval теряется контекст исходного обьекта (this) и метод возвращает undefined. Метод setTimeout
-// в браузере имеет особенность: он устанавливает this=window для вызова функции. Таким образом, 
+// в браузере имеет особенность (не особенность, а стандартное поведение - потеря thid - для вызываемой колбэк функции):
+// он устанавливает this=window для вызова функции. Таким образом, 
 // для this.pause он пытается получить window.pause, которого не существует. Чтобы этого избежать,
 // можно обернуть вызов в анонимную (или стрелочную) функцию, создав замыкание.
 // Этот метод имеет уязвимость если до момента срабатывания setTimeout в переменную aFile будет записано

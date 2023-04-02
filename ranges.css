@@ -122,7 +122,7 @@ main {
 #range-progress-bar-wrapper {
     display: flex;
     width:fit-content;
-    position: relative;
+    position: absolute;
     top: 0.1rem;
     flex-direction: column;
     /* Compensate thumbOffset in sliderMoveHandler function */
@@ -130,6 +130,8 @@ main {
 }
 
 #range-border-wrapper-right {
+    right: 0;
+    transform: translateX(-50%);
     align-items: flex-end;
 }
 
