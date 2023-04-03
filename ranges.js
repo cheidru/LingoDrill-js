@@ -148,7 +148,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
 
     // Activate slider for volume
     volumeSlider.style.display = 'block';
-    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
+    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, 1, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 
 })
@@ -206,7 +206,7 @@ function makeZoom(zoomValue) {
 }
 
 // Slider function execution
-sliderMoveHandler(zoomThumb, zoomTrack, zoomMaxValue, zoomValueObject, makeZoom);
+sliderMoveHandler(zoomThumb, zoomTrack, zoomMaxValue, zoomValueObject, 1, makeZoom);
 // SEGMENT END: ZOOM Slider
 
 
@@ -231,7 +231,7 @@ function rangeSelectLeft() {
 }
 
 // Slider function execution
-sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, rangeSelectLeft);
+sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft);
 
 // SEGMENT END: Range Selection Border Left
 
@@ -240,13 +240,10 @@ sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObjec
 
 // Elements
 let borderRight = document.querySelector('#range-border-wrapper-right');
-// borderRight.style.right = 0;
+
 let borderRightStopObject = {
-    position: 1300
+    position: borderRight.getBoundingClientRect.x
 }
-
-console.log("borderRightStopObject position: ", borderRightStopObject.position);
-
 
 // Auxiliary function
 function rangeSelectRight() {
@@ -256,35 +253,8 @@ function rangeSelectRight() {
 }
 
 // Slider function execution
-sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, rangeSelectRight);
+sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
 // SEGMENT END: Range Selection Border Right
-
-
-// SEGMENT: Range Selection Player Slider
-// Elements
-let rangeSelectorThumb = document.querySelector('#range-progress-bar-wrapper');
-// Place thumb in the middle of the slider track
-rangeSelectorThumb.style.left = progressBarLineSpan/2;
-let rangeSelectorThumbStopObject = {
-    position: 50
-    // position: rangeSelectorThumb.style.left
-}
-
-// rangeSelectorThumbStopObject.position = rangeSelectorThumb.style.left;
-
-// Auxiliary function
-function rangeSelectorFoo() {
-        //ToDo
-        //Highlight selected area from left to right border
-        //Show play ? and save icons for the selection
-
-        // Calculate the nearest slider thumb to move to the point
-        // when 'pointerdown' event shot on the slider track object 
-}
-
-// Slider function execution
-sliderMoveHandler(rangeSelectorThumb, progressBarLine, songDuration, rangeSelectorThumbStopObject, rangeSelectorFoo);
-// SEGMENT END: Range Selection Player Slider
 
 
 // SEGMENT Auxiliary functions for different sliders
@@ -314,10 +284,10 @@ let playTimeFormat = function makePlayerTimeFormatString(trackPosition, duration
 
 // Handle thumb movement
 // Return thumb position relative to track start
-function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
+function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
 
     // Initialise objects coordinates
-    let thumbOffset = thumbObject.getBoundingClientRect().width / 2;
+    let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
     let sliderUnit = trackObject.getBoundingClientRect().width / sliderMaxValue;
     let thumbInitialPosition = thumbPosition.position == 0 ? 0 - thumbOffset : (thumbPosition.position * sliderUnit) - thumbOffset;
  
@@ -352,6 +322,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
     
                 if (event.pageX < startPosition) {
                     thumbObject.style.left = 0 - thumbOffset + 'px';
+                    console.log("thumbObject.style.left: ", thumbObject.style.left, "thumbOffset: ", thumbOffset);
                     trackPosition = 0;
                 } else if (event.pageX > lineRightEnd) {
                     thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';

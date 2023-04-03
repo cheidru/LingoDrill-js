@@ -110,12 +110,12 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
 
 
     // Slider for audio player
-    sliderMoveHandler(progressBarThumb, progressBarLine, songDuration, playAtObject, stopPlayerWhenSliderClicked,
+    sliderMoveHandler(progressBarThumb, progressBarLine, songDuration, playAtObject, 1, stopPlayerWhenSliderClicked,
         playTime, playTimeFormat);
     
     // Slider for volume slider
     volumeSlider.style.display = 'block';
-    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, showMute, undefined, undefined);
+    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, 1, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 })
 
@@ -182,10 +182,10 @@ let playTimeFormat = function makePlayerTimeFormatString(trackPosition, duration
 
 // Handle thumb movement
 // Return thumb position relative to track start
-function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
+function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
 
     // Initialise objects coordinates
-    let thumbOffset = thumbObject.getBoundingClientRect().width / 2;
+    let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
     let sliderUnit = trackObject.getBoundingClientRect().width / sliderMaxValue;
     let thumbInitialPosition = thumbPosition.position == 0 ? 0 - thumbOffset : (thumbPosition.position * sliderUnit) - thumbOffset;
  
