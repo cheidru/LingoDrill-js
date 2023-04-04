@@ -271,7 +271,23 @@ function showMute(event) {
         volumeOffBTN.style.display = "none"; 
     }
 }
+
+let rightLockClosed = document.querySelector('#range-border-right-lock-closed');
+let rightLockOpen = document.querySelector('#range-border-right-lock-open');
+let leftLockClosed = document.querySelector('#range-border-left-lock-closed');
+let leftLockOpen = document.querySelector('#range-border-left-lock-open');
+let killBorderRightListeners = true;
+
+rightLockOpen.addEventListener('click', () => {
+    console.log('lock clicked');
+    rightLockOpen.style.display = 'none';
+    rightLockClosed.style.display = 'block';
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
+
+})
+
 // SEGMENT END Auxiliary functions for different sliders
+
 
 // Template literals can't be directly passed as an argument to a function to be used inside it
 // for formatting of the function output. An auxiliary function, which returns a template string
@@ -284,7 +300,7 @@ let playTimeFormat = function makePlayerTimeFormatString(trackPosition, duration
 
 // Handle thumb movement
 // Return thumb position relative to track start
-function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
+function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat, killListener) {
 
     // Initialise objects coordinates
     let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
@@ -302,7 +318,15 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
     thumbObject.style.left = thumbInitialPosition + 'px';
 
     // Listeners to control player thumb position when it is changed manually
-    thumbObject.onpointerdown = function(event) {
+    if (killListener == undefined) {
+        thumbObject.addEventListener('pointerdown', thumbPointerDownHandler);        
+        trackObject.addEventListener('pointerdown', trackPointerDownHandler);
+    } else {
+        thumbObject.removeEventListener('pointerdown', thumbPointerDownHandler);        
+        trackObject.removeEventListener('pointerdown', trackPointerDownHandler);
+    }
+    
+    function thumbPointerDownHandler (event) {
         // Prevent bubbling the event to the parent (track)
         // and making other listeners of the track (for range slider borders and thumb) to trigger
         event.stopPropagation();
@@ -310,7 +334,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
         // event.preventDefault();
 
         // начать отслеживание перемещения указателя и переопределить их на ползунок
-        thumbObject.setPointerCapture(event.pointerId);
+        thumbObject.setPointerCapture(event.pointerId);        
 
         thumbObject.onpointermove = function(event) {
 
@@ -339,10 +363,9 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
             thumbObject.onpointermove = null;
             thumbObject.onpointerup = null;
         }
+    }
 
-    }   
-    
-    trackObject.addEventListener('pointerdown', function(event) {
+    function trackPointerDownHandler (event) {
         // if pointer movement should initiate other actions, anable the provided function
         if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
 
@@ -362,7 +385,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
 
         if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         thumbPosition.position = trackPosition;
-    })
+    }
+
 
 }
 // End of Global function
