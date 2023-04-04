@@ -278,13 +278,15 @@ let leftLockClosed = document.querySelector('#range-border-left-lock-closed');
 let leftLockOpen = document.querySelector('#range-border-left-lock-open');
 let killBorderRightListeners = true;
 
-rightLockOpen.addEventListener('click', () => {
-    console.log('lock clicked');
-    rightLockOpen.style.display = 'none';
-    rightLockClosed.style.display = 'block';
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
 
-})
+// borderRight.addEventListener('pointerdown', () => {
+borderRight.addEventListener('click', (event) => {
+    if (event.target == rightLockOpen) console.log(event.target);
+    // rightLockOpen.style.display = 'none';
+    // rightLockClosed.style.display = 'block';
+    // sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
+
+}, true)
 
 // SEGMENT END Auxiliary functions for different sliders
 
