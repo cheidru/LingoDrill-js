@@ -280,13 +280,16 @@ let killBorderRightListeners = true;
 
 
 // borderRight.addEventListener('pointerdown', () => {
-borderRight.addEventListener('click', (event) => {
-    if (event.target == rightLockOpen) console.log(event.target);
+
+rightLockOpen.addEventListener('click', (event) => {
+    console.log("right wrapper clicked", event.target.getAttribute("id"));
+    // https://www.cookieshq.co.uk/posts/event-listeners-not-working-troublelshooting
+    // if (event.target.closest(rightLockOpen) == ) console.log('lock clicked');
     // rightLockOpen.style.display = 'none';
     // rightLockClosed.style.display = 'block';
     // sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
 
-}, true)
+}, false)
 
 // SEGMENT END Auxiliary functions for different sliders
 
