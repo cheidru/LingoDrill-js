@@ -260,6 +260,7 @@ main {
 #zoom-minus-svg-btn, #zoom-plus-svg-btn {
     height: 0.6rem;
     width: 0.6rem;
+    user-select:none;
 }
 
 #zoom-minus-svg-btn {

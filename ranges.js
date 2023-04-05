@@ -281,13 +281,13 @@ let killBorderRightListeners = true;
 
 // borderRight.addEventListener('pointerdown', () => {
 
-rightLockOpen.addEventListener('click', (event) => {
+rightLockOpen.addEventListener('pointerdown', (event) => {
     console.log("right wrapper clicked", event.target.getAttribute("id"));
     // https://www.cookieshq.co.uk/posts/event-listeners-not-working-troublelshooting
     // if (event.target.closest(rightLockOpen) == ) console.log('lock clicked');
-    // rightLockOpen.style.display = 'none';
-    // rightLockClosed.style.display = 'block';
-    // sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
+    rightLockOpen.style.display = 'none';
+    rightLockClosed.style.display = 'block';
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
 
 }, false)
 
