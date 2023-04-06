@@ -36,7 +36,6 @@ let intervalsId = 0;
 
 // SEGMENT: Read audio file data from DB
 let audioFileID = localStorage.getItem('aFileID');
-// console.log("DB record ID: ", audioFileID, typeof audioFileID);
 let openDB = indexedDB.open("audioBase", 1);
 
 openDB.onsuccess = (e) => {
@@ -78,7 +77,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     const ruler = document.querySelector("#progress-bar-ruler");      
 
     if (durationRounded > 70) {
-        console.log("Make Large ruler");
         largeScale();
     } else {
         smallScale();
@@ -282,14 +280,19 @@ let killBorderRightListeners = true;
 // borderRight.addEventListener('pointerdown', () => {
 
 rightLockOpen.addEventListener('pointerdown', (event) => {
-    console.log("right wrapper clicked", event.target.getAttribute("id"));
     // https://www.cookieshq.co.uk/posts/event-listeners-not-working-troublelshooting
-    // if (event.target.closest(rightLockOpen) == ) console.log('lock clicked');
     rightLockOpen.style.display = 'none';
     rightLockClosed.style.display = 'block';
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, undefined, undefined, killBorderRightListeners);
+    borderRight.removeEventListener('pointerdown', borderRightStopObject.thumbHandler);        
+    progressBarLine.removeEventListener('pointerdown', borderRightStopObject.trackHandler);
+})
 
-}, false)
+rightLockClosed.addEventListener('pointerdown', (event) => {
+    rightLockClosed.style.display = 'none';
+    rightLockOpen.style.display = 'block';
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
+})
+
 
 // SEGMENT END Auxiliary functions for different sliders
 
@@ -305,7 +308,7 @@ let playTimeFormat = function makePlayerTimeFormatString(trackPosition, duration
 
 // Handle thumb movement
 // Return thumb position relative to track start
-function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat, killListener) {
+function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPosition, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
 
     // Initialise objects coordinates
     let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
@@ -313,7 +316,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
     let thumbInitialPosition = thumbPosition.position == 0 ? 0 - thumbOffset : (thumbPosition.position * sliderUnit) - thumbOffset;
  
     let originX = trackObject.getBoundingClientRect().x;
-    console.log("sliderUnit: ", sliderUnit);
+
 
     let trackPosition = 0;
     let sliderMaxValueRounded = Math.round(sliderMaxValue);
@@ -323,14 +326,12 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
     thumbObject.style.left = thumbInitialPosition + 'px';
 
     // Listeners to control player thumb position when it is changed manually
-    if (killListener == undefined) {
+
         thumbObject.addEventListener('pointerdown', thumbPointerDownHandler);        
         trackObject.addEventListener('pointerdown', trackPointerDownHandler);
-    } else {
-        thumbObject.removeEventListener('pointerdown', thumbPointerDownHandler);        
-        trackObject.removeEventListener('pointerdown', trackPointerDownHandler);
-    }
-    
+        thumbPosition.thumbHandler = thumbPointerDownHandler;
+        thumbPosition.trackHandler = trackPointerDownHandler;
+   
     function thumbPointerDownHandler (event) {
         // Prevent bubbling the event to the parent (track)
         // and making other listeners of the track (for range slider borders and thumb) to trigger
@@ -351,7 +352,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
     
                 if (event.pageX < startPosition) {
                     thumbObject.style.left = 0 - thumbOffset + 'px';
-                    console.log("thumbObject.style.left: ", thumbObject.style.left, "thumbOffset: ", thumbOffset);
                     trackPosition = 0;
                 } else if (event.pageX > lineRightEnd) {
                     thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
@@ -391,8 +391,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
         if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         thumbPosition.position = trackPosition;
     }
-
-
 }
 // End of Global function
 
@@ -437,7 +435,6 @@ function playLoops() {
         playTime.textContent = `${Math.round(aFile.currentTime)} / ${durationRounded}`;
         // move progress bar Thumb according to the current play time
         let progressBarThumbPosition = aFile.currentTime/aFile.duration;
-          // console.log("startPlayAt:", startPlayAt);
         if (progressBarThumbPosition < 1) progressBarThumb.style.left = (aFile.currentTime / (aFile.duration / progressBarLine.getBoundingClientRect().width)) - thumbOffset + 'px';
         else {
             clearInterval(intervalsId);
