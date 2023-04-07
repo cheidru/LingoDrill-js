@@ -277,9 +277,8 @@ let leftLockOpen = document.querySelector('#range-border-left-lock-open');
 let killBorderRightListeners = true;
 
 
-// borderRight.addEventListener('pointerdown', () => {
-
 rightLockOpen.addEventListener('pointerdown', (event) => {
+    event.stopPropagation();
     // https://www.cookieshq.co.uk/posts/event-listeners-not-working-troublelshooting
     rightLockOpen.style.display = 'none';
     rightLockClosed.style.display = 'block';
@@ -287,11 +286,27 @@ rightLockOpen.addEventListener('pointerdown', (event) => {
     progressBarLine.removeEventListener('pointerdown', borderRightStopObject.trackHandler);
 })
 
+leftLockOpen.addEventListener('pointerdown', (event) => {
+    event.stopPropagation();
+    // https://www.cookieshq.co.uk/posts/event-listeners-not-working-troublelshooting
+    leftLockOpen.style.display = 'none';
+    leftLockClosed.style.display = 'block';
+    borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);        
+    progressBarLine.removeEventListener('pointerdown', borderLeftStopObject.trackHandler);
+})
+
 rightLockClosed.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'none';
     rightLockOpen.style.display = 'block';
     sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
 })
+
+leftLockClosed.addEventListener('pointerdown', (event) => {
+    leftLockClosed.style.display = 'none';
+    leftLockOpen.style.display = 'block';
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 2, rangeSelectLeft);
+})
+
 
 
 // SEGMENT END Auxiliary functions for different sliders

@@ -154,6 +154,10 @@ main {
     transform: translateX(-25%);
 }
 
+#range-border-left-lock-closed {    
+    transform: translateX(-45%);
+}
+
 .border-time {
     min-width: fit-content;
     position: relative;
