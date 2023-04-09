@@ -150,8 +150,9 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     volumeSlider.style.display = 'none';
 
     // Slider function execution after songDuration is determined
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft);
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft, borderLeftTime, borderLeftTimeFormat);
+    borderRightTime.textContent = durationRounded;
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, borderRightTime, borderRightTimeFormat);
 
 })
 // SEGMENT END: Read audio file data from DB
@@ -223,27 +224,27 @@ let borderLeftStopObject = {
     position: 0
 }
 
+let borderLeftTime = document.querySelector('#left-border-time');
+let borderLeftTimeFormat = function makeborderLeftTimeFormatString(trackPosition) {
+    return `${Math.round(trackPosition)}`;
+}
+
 // Auxiliary function
 function rangeSelectLeft() {
         //ToDo
         //Highlight selected area from left to right border
         //Show play ? and save icons for the selection
 }
-
-
-
 // SEGMENT END: Range Selection Border Left
 
 
 // SEGMENT: Range Selection Border Right
-
 // Elements
 let borderRight = document.querySelector('#range-border-wrapper-right');
 
 let borderRightStopObject = {
-    position: borderRight.getBoundingClientRect.x
+    position: borderRight.getBoundingClientRect.x    
 }
-console.log(borderRightStopObject.position);
 
 // Auxiliary function
 function rangeSelectRight() {
@@ -252,6 +253,11 @@ function rangeSelectRight() {
         //Show play ? and save icons for the selection
 }
 
+
+let borderRightTime = document.querySelector('#right-border-time');
+let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPosition) {
+    return `${Math.round(trackPosition)}`;
+}
 
 // SEGMENT END: Range Selection Border Right
 
@@ -306,13 +312,13 @@ leftLockOpen.addEventListener('pointerdown', (event) => {
 rightLockClosed.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'none';
     rightLockOpen.style.display = 'block';
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, borderRightTime, borderRightTimeFormat);
 })
 
 leftLockClosed.addEventListener('pointerdown', (event) => {
     leftLockClosed.style.display = 'none';
     leftLockOpen.style.display = 'block';
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 2, rangeSelectLeft);
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft, borderLeftTime, borderLeftTimeFormat);
 })
 
 
@@ -335,6 +341,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
 
     // Initialise objects coordinates
     let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
+
     let sliderUnit = trackObject.getBoundingClientRect().width / sliderMaxValue;
     let thumbInitialPosition = thumbPosition.position == 0 ? 0 - thumbOffset : (thumbPosition.position * sliderUnit) - thumbOffset;
  
@@ -384,7 +391,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     trackPosition = (event.pageX - startPosition) / sliderUnit;
                 }
                 thumbPosition.position = trackPosition;
-                console.log(trackObject.getBoundingClientRect().width, sliderMaxValue);
                 if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
 

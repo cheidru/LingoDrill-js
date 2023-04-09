@@ -158,11 +158,12 @@ main {
     transform: translateX(-45%);
 }
 
-.border-time {
+.border-time {    
     min-width: fit-content;
     position: relative;
     width: fit-content;
     font-size: 0.4rem;
+    text-align: center;
     color: white;
     user-select: none;
 
