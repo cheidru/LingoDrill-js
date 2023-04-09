@@ -59,7 +59,7 @@ openDB.onerror = (err) => {
 }
 
 let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
-    let songDuration = aFile.duration;
+    songDuration = aFile.duration;
     durationRounded = Math.round(songDuration);
 
     aTitle.textContent = songName;
@@ -149,6 +149,10 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, volumeActualLevel, 1, showMute, undefined, undefined);
     volumeSlider.style.display = 'none';
 
+    // Slider function execution after songDuration is determined
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft);
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
+
 })
 // SEGMENT END: Read audio file data from DB
 
@@ -213,8 +217,6 @@ let progressBarLine = document.querySelector('#player-progress-bar-track');
 let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
 
 // SEGMENT: Range Selection Border Left
-
-
 // Elements
 let borderLeft = document.querySelector('#range-border-wrapper-left');
 let borderLeftStopObject = {
@@ -228,8 +230,7 @@ function rangeSelectLeft() {
         //Show play ? and save icons for the selection
 }
 
-// Slider function execution
-sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft);
+
 
 // SEGMENT END: Range Selection Border Left
 
@@ -242,6 +243,7 @@ let borderRight = document.querySelector('#range-border-wrapper-right');
 let borderRightStopObject = {
     position: borderRight.getBoundingClientRect.x
 }
+console.log(borderRightStopObject.position);
 
 // Auxiliary function
 function rangeSelectRight() {
@@ -250,8 +252,7 @@ function rangeSelectRight() {
         //Show play ? and save icons for the selection
 }
 
-// Slider function execution
-sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight);
+
 // SEGMENT END: Range Selection Border Right
 
 
@@ -284,6 +285,9 @@ rightLockOpen.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'block';
     borderRight.removeEventListener('pointerdown', borderRightStopObject.thumbHandler);        
     progressBarLine.removeEventListener('pointerdown', borderRightStopObject.trackHandler);
+    borderRight.onpointerdown = (event) => {
+        event.stopPropagation();
+    }
 })
 
 leftLockOpen.addEventListener('pointerdown', (event) => {
@@ -293,6 +297,10 @@ leftLockOpen.addEventListener('pointerdown', (event) => {
     leftLockClosed.style.display = 'block';
     borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);        
     progressBarLine.removeEventListener('pointerdown', borderLeftStopObject.trackHandler);
+    borderLeft.onpointerdown = (event) => {
+        event.stopPropagation();
+    }
+
 })
 
 rightLockClosed.addEventListener('pointerdown', (event) => {
@@ -376,6 +384,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     trackPosition = (event.pageX - startPosition) / sliderUnit;
                 }
                 thumbPosition.position = trackPosition;
+                console.log(trackObject.getBoundingClientRect().width, sliderMaxValue);
                 if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
 
