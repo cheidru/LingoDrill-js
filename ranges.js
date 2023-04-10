@@ -249,6 +249,25 @@ let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPositi
 // SEGMENT END: Range Selection Border Right
 
 // SEGMENT Auxiliary functions for different sliders
+
+let rangeBox = document.querySelector('#range-box');
+let leftLine = document.querySelector('#border-line-left');
+let leftLineStyles = getComputedStyle(leftLine);
+let rightLine = document.querySelector('#border-line-right');
+let rightLineStyles  = getComputedStyle(rightLine);
+
+
+function colorRange() {
+    rangeBox.style.height = leftLineStyles.height;
+    rangeBox.style.left = leftLine.getBoundingClientRect().x + 'px';
+    console.log(rangeBox.style.left, leftLine.getBoundingClientRect().x);
+    rangeBox.style.top = leftLine.getBoundingClientRect().top + 'px';
+    console.log(rangeBox.style.top, leftLine.getBoundingClientRect().top);
+    rangeBox.style.width = (rightLine.getBoundingClientRect().x + rightLine.getBoundingClientRect().width - leftLine.getBoundingClientRect().x) + 'px';
+}
+
+colorRange();
+
 function stopPlayerWhenSliderClicked(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
 }

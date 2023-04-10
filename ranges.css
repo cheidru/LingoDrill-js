@@ -109,12 +109,14 @@ main {
 #range-border-wrapper-right {
     right: 0;
     align-items: flex-end;
+    z-index: 1;
 }
 
 #range-border-wrapper-left {
     align-items: flex-start;
     /* Compensate thumbOffset in sliderMoveHandler function */
     transform: translateX(50%);
+    z-index: 1;
 }
 
 [id^="range-border-pointer-"] {
@@ -182,6 +184,11 @@ main {
     height: 0.8rem;
     border: 0.5px dashed black;
     /* background-color: black; */
+}
+
+#range-box {
+    position: absolute;
+    background-color: rgba(135, 168, 229, 0.5);
 }
 
 #bottom-menu-wrapper {
