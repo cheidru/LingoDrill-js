@@ -83,7 +83,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     }
 
     function largeScale() {
-        for(let i = 0; i <= durationRounded; i += 10) {
+        for(let i = 0; i <= durationRounded; i += 5) {
             if (i%50 == 0) {
                 if(i > 0) { // other than first one, LongBar is preceded by ShortBar
                     const cloneShort = shortBarTemplate.content.cloneNode(true);
@@ -93,12 +93,13 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
                 let barNumber = cloneLong.querySelector("#long-number");
                 barNumber.textContent = i;
                 ruler.appendChild(cloneLong);
+            } else if (i%10 == 0) {
+                const cloneMiddle = middleBarTemplate.content.cloneNode(true);
+                ruler.appendChild(cloneMiddle);
             } else {
                 const cloneShort = shortBarTemplate.content.cloneNode(true);
                 ruler.appendChild(cloneShort);
-                const cloneMiddle = middleBarTemplate.content.cloneNode(true);
-                ruler.appendChild(cloneMiddle);
-        }
+            }
         }
     }
 
@@ -119,7 +120,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
             } else {
                 const cloneShort = shortBarTemplate.content.cloneNode(true);
                 ruler.appendChild(cloneShort);
-        }  
+            }  
         }
     }
 
@@ -133,16 +134,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
 
     ruler.firstElementChild.style.marginLeft = 0;
     ruler.lastElementChild.style.marginRight = 0;
-
     // SEGMENT END: Create Ruler
-
-    // Activate slider for ranges
-
-
-
-    // Activate slider for ZOOM
-
-
 
     // Activate slider for volume
     volumeSlider.style.display = 'block';
@@ -212,7 +204,6 @@ function makeZoom(zoomValue) {
 sliderMoveHandler(zoomThumb, zoomTrack, zoomMaxValue, zoomValueObject, 1, makeZoom);
 // SEGMENT END: ZOOM Slider
 
-
 // Common for borders
 let progressBarLine = document.querySelector('#player-progress-bar-track');
 let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
@@ -237,11 +228,9 @@ function rangeSelectLeft() {
 }
 // SEGMENT END: Range Selection Border Left
 
-
 // SEGMENT: Range Selection Border Right
 // Elements
 let borderRight = document.querySelector('#range-border-wrapper-right');
-
 let borderRightStopObject = {
     position: borderRight.getBoundingClientRect.x    
 }
@@ -253,14 +242,11 @@ function rangeSelectRight() {
         //Show play ? and save icons for the selection
 }
 
-
 let borderRightTime = document.querySelector('#right-border-time');
 let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPosition) {
     return `${Math.round(trackPosition)}`;
 }
-
 // SEGMENT END: Range Selection Border Right
-
 
 // SEGMENT Auxiliary functions for different sliders
 function stopPlayerWhenSliderClicked(event) {
@@ -282,7 +268,6 @@ let rightLockOpen = document.querySelector('#range-border-right-lock-open');
 let leftLockClosed = document.querySelector('#range-border-left-lock-closed');
 let leftLockOpen = document.querySelector('#range-border-left-lock-open');
 let killBorderRightListeners = true;
-
 
 rightLockOpen.addEventListener('pointerdown', (event) => {
     event.stopPropagation();
@@ -306,7 +291,6 @@ leftLockOpen.addEventListener('pointerdown', (event) => {
     borderLeft.onpointerdown = (event) => {
         event.stopPropagation();
     }
-
 })
 
 rightLockClosed.addEventListener('pointerdown', (event) => {
@@ -320,9 +304,6 @@ leftLockClosed.addEventListener('pointerdown', (event) => {
     leftLockOpen.style.display = 'block';
     sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft, borderLeftTime, borderLeftTimeFormat);
 })
-
-
-
 // SEGMENT END Auxiliary functions for different sliders
 
 
