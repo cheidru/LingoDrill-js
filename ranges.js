@@ -255,15 +255,17 @@ let leftLine = document.querySelector('#border-line-left');
 let leftLineStyles = getComputedStyle(leftLine);
 let rightLine = document.querySelector('#border-line-right');
 let rightLineStyles  = getComputedStyle(rightLine);
-
+let borderRightStyles = getComputedStyle(borderRight);
+let textStyles = getComputedStyle(borderLeftTime);
 
 function colorRange() {
-    rangeBox.style.height = leftLineStyles.height;
-    rangeBox.style.left = leftLine.getBoundingClientRect().x + 'px';
-    console.log(rangeBox.style.left, leftLine.getBoundingClientRect().x);
-    rangeBox.style.top = leftLine.getBoundingClientRect().top + 'px';
-    console.log(rangeBox.style.top, leftLine.getBoundingClientRect().top);
-    rangeBox.style.width = (rightLine.getBoundingClientRect().x + rightLine.getBoundingClientRect().width - leftLine.getBoundingClientRect().x) + 'px';
+    rangeBox.style.height = ((borderRightStyles.height).replace('px','') - (textStyles.height).replace('px','') - 5) + 'px';
+    rangeBox.style.left = leftLineStyles.left;
+    // rangeBox.style.left = leftLine.getBoundingClientRect().x + 'px';
+    console.log(leftLineStyles.top);
+    rangeBox.style.top = '0.5rem';
+    // rangeBox.style.top = leftLine.getBoundingClientRect().top + 'px';
+    rangeBox.style.width = (rightLine.getBoundingClientRect().x + borderRight.getBoundingClientRect().width/2 - leftLine.getBoundingClientRect().x) + 'px';
 }
 
 colorRange();

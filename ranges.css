@@ -161,9 +161,10 @@ main {
 }
 
 .border-time {    
-    min-width: fit-content;
+    min-width: fit-content;    
     position: relative;
     width: fit-content;
+    height: 0.45rem;
     font-size: 0.4rem;
     text-align: center;
     color: white;
