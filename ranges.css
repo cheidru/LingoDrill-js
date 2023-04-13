@@ -89,7 +89,7 @@ main {
     position: relative;
     height: 0.4rem;
     width: 100%;
-    margin: auto;
+    margin: 0 auto;
     border-radius: 0;
     background-color: rgb(135, 168, 229);
 }
@@ -115,7 +115,7 @@ main {
 #range-border-wrapper-left {
     align-items: flex-start;
     /* Compensate thumbOffset in sliderMoveHandler function */
-    transform: translateX(50%);
+    /* transform: translate(50%); */
     z-index: 1;
 }
 

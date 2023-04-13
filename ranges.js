@@ -142,9 +142,9 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     volumeSlider.style.display = 'none';
 
     // Slider function execution after songDuration is determined
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft, borderLeftTime, borderLeftTimeFormat);
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeSelect, borderLeftTime, borderLeftTimeFormat);
     borderRightTime.textContent = durationRounded;
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, borderRightTime, borderRightTimeFormat);
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelect, borderRightTime, borderRightTimeFormat);
 
 })
 // SEGMENT END: Read audio file data from DB
@@ -212,36 +212,26 @@ let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
 // Elements
 let borderLeft = document.querySelector('#range-border-wrapper-left');
 let borderLeftStopObject = {
+    left: '0px',
     position: 0
 }
-
+// Auxiliary function
 let borderLeftTime = document.querySelector('#left-border-time');
 let borderLeftTimeFormat = function makeborderLeftTimeFormatString(trackPosition) {
     return `${Math.round(trackPosition)}`;
-}
-
-// Auxiliary function
-function rangeSelectLeft() {
-        //ToDo
-        //Highlight selected area from left to right border
-        //Show play ? and save icons for the selection
 }
 // SEGMENT END: Range Selection Border Left
 
 // SEGMENT: Range Selection Border Right
 // Elements
 let borderRight = document.querySelector('#range-border-wrapper-right');
+let borderRightStyles = getComputedStyle(borderRight);
 let borderRightStopObject = {
+    left: borderRightStyles.left,
     position: borderRight.getBoundingClientRect.x    
 }
 
 // Auxiliary function
-function rangeSelectRight() {
-        //ToDo
-        //Highlight selected area from left to right border
-        //Show play ? and save icons for the selection
-}
-
 let borderRightTime = document.querySelector('#right-border-time');
 let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPosition) {
     return `${Math.round(trackPosition)}`;
@@ -253,22 +243,24 @@ let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPositi
 let rangeBox = document.querySelector('#range-box');
 let leftLine = document.querySelector('#border-line-left');
 let leftLineStyles = getComputedStyle(leftLine);
+leftLine.style.left = leftLineStyles.left;
 let rightLine = document.querySelector('#border-line-right');
 let rightLineStyles  = getComputedStyle(rightLine);
-let borderRightStyles = getComputedStyle(borderRight);
-let textStyles = getComputedStyle(borderLeftTime);
+let timeStyles = getComputedStyle(borderLeftTime);
 
 function colorRange() {
-    rangeBox.style.height = ((borderRightStyles.height).replace('px','') - (textStyles.height).replace('px','') - 5) + 'px';
-    rangeBox.style.left = leftLineStyles.left;
-    // rangeBox.style.left = leftLine.getBoundingClientRect().x + 'px';
-    console.log(leftLineStyles.top);
-    rangeBox.style.top = '0.5rem';
-    // rangeBox.style.top = leftLine.getBoundingClientRect().top + 'px';
-    rangeBox.style.width = (rightLine.getBoundingClientRect().x + borderRight.getBoundingClientRect().width/2 - leftLine.getBoundingClientRect().x) + 'px';
+    // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
+    rangeBox.style.height = ((borderRightStyles.height).replace('px','') - (timeStyles.height).replace('px','') - 6) + 'px';
+    rangeBox.style.left = (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
+    rangeBox.style.top = '0.55rem';
+    rangeBox.style.width = (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
 }
 
 colorRange();
+
+function rangeSelect() {
+    colorRange();
+}
 
 function stopPlayerWhenSliderClicked(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
@@ -304,7 +296,6 @@ rightLockOpen.addEventListener('pointerdown', (event) => {
 
 leftLockOpen.addEventListener('pointerdown', (event) => {
     event.stopPropagation();
-    // https://www.cookieshq.co.uk/posts/event-listeners-not-working-troublelshooting
     leftLockOpen.style.display = 'none';
     leftLockClosed.style.display = 'block';
     borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);        
@@ -317,14 +308,16 @@ leftLockOpen.addEventListener('pointerdown', (event) => {
 rightLockClosed.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'none';
     rightLockOpen.style.display = 'block';
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelectRight, borderRightTime, borderRightTimeFormat);
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelect, borderRightTime, borderRightTimeFormat);
 })
 
 leftLockClosed.addEventListener('pointerdown', (event) => {
     leftLockClosed.style.display = 'none';
     leftLockOpen.style.display = 'block';
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelectLeft, borderLeftTime, borderLeftTimeFormat);
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 1, rangeSelect, borderLeftTime, borderLeftTimeFormat);
 })
+
+
 // SEGMENT END Auxiliary functions for different sliders
 
 
@@ -393,6 +386,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
                     trackPosition = (event.pageX - startPosition) / sliderUnit;
                 }
                 thumbPosition.position = trackPosition;
+                if (typeof thumbPosition.left !== 'undefined') thumbPosition.left = thumbObject.style.left;
                 if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
         }
 
