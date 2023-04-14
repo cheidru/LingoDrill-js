@@ -211,6 +211,12 @@ main {
     display: none;
 }
 
+#save-svg-btn {
+    height: 0.9rem;
+    width: 0.9rem;
+
+}
+
 [id*="volume-svg-btn"] {
     height: 0.9rem;
     width: 0.9rem;

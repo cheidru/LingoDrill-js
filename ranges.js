@@ -142,9 +142,9 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     volumeSlider.style.display = 'none';
 
     // Slider function execution after songDuration is determined
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeSelect, borderLeftTime, borderLeftTimeFormat);
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
     borderRightTime.textContent = durationRounded;
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelect, borderRightTime, borderRightTimeFormat);
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 
 })
 // SEGMENT END: Read audio file data from DB
@@ -264,15 +264,15 @@ colorRange();
 
 
 
-
-
-function rangeSelect() {
+function rangeRightSelect() {
     // check if range borders intersect when one of them is being dragged
-    // if so, replace active listener to one with another range border
-    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {
-        // console.log(event.target);
-        if (event.target == borderRight) {
-            borderRight.removeEventListener('pointerdown', borderRightStopObject.thumbHandler);        
+    // if so, replace active listener to one with another range border    
+    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {        
+        console.log('rangeRightSelect');
+        if (event.target === borderRight) {
+            console.log('event.target', event.target);
+            borderRight.removeEventListener('pointerdown', borderRightStopObject.thumbHandler);  
+            console.log("right listener removed");      
             progressBarLine.removeEventListener('pointerdown', borderRightStopObject.trackHandler);
             borderRight.onpointerdown = (event) => {
                 event.stopPropagation();
@@ -284,12 +284,37 @@ function rangeSelect() {
             borderLeft.dispatchEvent(clickEvent);
             let dragEvent = new MouseEvent('mousemove')
             borderLeft.dispatchEvent(dragEvent);
+            sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);       
         }
     }
     colorRange();
 }
 
-
+function rangeLeftSelect() {
+    // check if range borders intersect when one of them is being dragged
+    // if so, replace active listener to one with another range border    
+    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {        
+        console.log('rangeLeftSelect');
+        if (event.target === borderLeft) {
+            console.log('event.target', event.target);
+            borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);  
+            console.log("right listener removed");      
+            progressBarLine.removeEventListener('pointerdown', borderLeftStopObject.trackHandler);
+            borderLeft.onpointerdown = (event) => {
+                event.stopPropagation();
+            }
+            borderLeft.onpointermove = null;
+            // borderRight.setPointerCapture(borderRightStopObject.pointerId) = null;
+            let clickEvent = new MouseEvent('pointerdown');
+            clickEvent.pointerId = borderRightStopObject.pointerId;
+            borderRight.dispatchEvent(clickEvent);
+            let dragEvent = new MouseEvent('mousemove')
+            borderRight.dispatchEvent(dragEvent);
+            sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);       
+        }
+    }
+    colorRange();
+}
 
 
 function stopPlayerWhenSliderClicked(event) {
@@ -338,13 +363,13 @@ leftLockOpen.addEventListener('pointerdown', (event) => {
 rightLockClosed.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'none';
     rightLockOpen.style.display = 'block';
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeSelect, borderRightTime, borderRightTimeFormat);
+    sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 })
 
 leftLockClosed.addEventListener('pointerdown', (event) => {
     leftLockClosed.style.display = 'none';
     leftLockOpen.style.display = 'block';
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeSelect, borderLeftTime, borderLeftTimeFormat);
+    sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
 })
 
 
