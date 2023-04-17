@@ -2,6 +2,8 @@ let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
 let songDuration = 0;
 
+let borderDragOn = false;
+
 // Volume slider elements
 let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
 let volumeSliderTrack = document.querySelector('#volume-slider-track');
@@ -265,29 +267,7 @@ colorRange();
 function rangeLeftSelect() {
     // check if range borders intersect when one of them is being dragged
     // if so, replace active listener to one with another range border    
-    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {        
-
-        if (event.target === borderLeft) {
-            console.log('rangeLeftSelect');
-            console.log('event.target', event.target);
-            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
-            borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);  
-            console.log("right listener removed");      
-            progressBarLine.removeEventListener('pointerdown', borderLeftStopObject.trackHandler);
-            borderLeft.onpointerdown = (event) => {
-                event.stopPropagation();
-            }
-            borderLeft.onpointermove = null;
-            // borderRight.setPointerCapture(borderRightStopObject.pointerId) = null;
-            let clickEvent = new MouseEvent('pointerdown');
-            clickEvent.pointerId = borderRightStopObject.pointerId;
-            borderRight.dispatchEvent(clickEvent);
-            let dragEvent = new MouseEvent('mousemove')
-            borderRight.dispatchEvent(dragEvent);
-            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
-            sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);      
-        }
-    }
+    switchBorderWrappers();
     colorRange();
 }
 
@@ -295,12 +275,19 @@ function rangeLeftSelect() {
 
 
 function rangeRightSelect() {
-    // check if range borders intersect when one of them is being dragged
-    // if so, replace active listener to one with another range border    
-    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {        
+    switchBorderWrappers();
+    colorRange();
+}
 
-        if (event.target === borderRight) {
-            console.log('rangeRightSelect');
+
+function switchBorderWrappers() {
+
+    if (borderDragOn) return; // Avoid switching to another border when on is in process
+    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {  
+        borderDragOn = true;
+
+        if (event.target === borderLeft) {
+            console.log('rangeLeftSelect');
             console.log('event.target', event.target);
             console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
             borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);  
@@ -310,21 +297,44 @@ function rangeRightSelect() {
                 event.stopPropagation();
             }
             borderLeft.onpointermove = null;
-            // borderRight.setPointerCapture(borderRightStopObject.pointerId) = null;
+            borderLeft.releasePointerCapture(borderLeftStopObject.pointerId);
             let clickEvent = new MouseEvent('pointerdown');
             clickEvent.pointerId = borderRightStopObject.pointerId;
             borderRight.dispatchEvent(clickEvent);
-            let dragEvent = new MouseEvent('mousemove')
+            let dragEvent = new MouseEvent('mousemove');
             borderRight.dispatchEvent(dragEvent);
             console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
-            sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);      
+            sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
+            let rightLineOldPosition = rightLine.getBoundingClientRect().x
+            setTimeout(() => {
+                borderDragOn = rightLineOldPosition > rightLine.getBoundingClientRect().x ? true : false;
+            }, 100)
+        } else if(event.target === borderRight) {
+            console.log('rangeRightSelect');
+            console.log('event.target', event.target);
+            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
+            borderRight.removeEventListener('pointerdown', borderRightStopObject.thumbHandler);  
+            console.log("right listener removed");      
+            progressBarLine.removeEventListener('pointerdown', borderRightStopObject.trackHandler);
+            borderRight.onpointerdown = (event) => {
+                event.stopPropagation();
+            }
+            borderRight.onpointermove = null;
+            borderRight.releasePointerCapture(borderRightStopObject.pointerId);
+            let clickEvent = new MouseEvent('pointerdown');
+            clickEvent.pointerId = borderLeftStopObject.pointerId;
+            borderLeft.dispatchEvent(clickEvent);
+            let dragEvent = new MouseEvent('mousemove')
+            borderLeft.dispatchEvent(dragEvent);
+            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
+            sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
+            let leftLineOldPosition = leftLine.getBoundingClientRect().x
+            setTimeout(() => {
+                borderDragOn = leftLineOldPosition < leftLine.getBoundingClientRect().x ? true : false;
+            }, 100)
         }
     }
-    colorRange();
 }
-
-
-
 
 
 
@@ -461,6 +471,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, thumbPositi
         }
 
         thumbObject.onpointerup = () => {
+            borderDragOn = false;
             thumbObject.onpointermove = null;
             thumbObject.onpointerup = null;
         }
