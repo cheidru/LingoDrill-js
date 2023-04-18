@@ -217,7 +217,8 @@ let borderLeftStopObject = {
     name: 'borderLeft',
     pointerId: 0,
     left: '0px',
-    position: 0
+    position: 0,
+    locked: false
 }
 // Auxiliary function
 let borderLeftTime = document.querySelector('#left-border-time');
@@ -234,7 +235,8 @@ let borderRightStopObject = {
     name: 'borderRight',
     pointerId: 0,
     left: borderRightStyles.left,
-    position: borderRight.getBoundingClientRect.x    
+    position: borderRight.getBoundingClientRect.x,
+    locked: false
 }
 
 // Auxiliary function
@@ -285,13 +287,16 @@ function switchBorderWrappers() {
     if (borderDragOn) return; // Avoid switching to another border when on is in process
     if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {  
         borderDragOn = true;
+        let borderLeftComputedStyles = getComputedStyle(borderLeft);
+        let borderRightComputedStyles = getComputedStyle(borderRight);
 
         if (event.target === borderLeft) {
             console.log('rangeLeftSelect');
-            console.log('event.target', event.target);
-            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
+            // console.log('event.target', event.target);
+            // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
             borderLeft.removeEventListener('pointerdown', borderLeftStopObject.thumbHandler);  
-            console.log("left listener removed");      
+            console.log("borderRight.getBoundingClientRect().x :", borderRight.getBoundingClientRect().x, "borderLeftComputedStyles.wydth: ", borderLeftComputedStyles.wydth);
+            let stopPosition = borderRight.style.left;    
             progressBarLine.removeEventListener('pointerdown', borderLeftStopObject.trackHandler);
             borderLeft.onpointerdown = (event) => {
                 event.stopPropagation();
@@ -308,13 +313,17 @@ function switchBorderWrappers() {
             let rightLineOldPosition = rightLine.getBoundingClientRect().x
             setTimeout(() => {
                 borderDragOn = rightLineOldPosition > rightLine.getBoundingClientRect().x ? true : false;
-            }, 100)
+                borderLeft.style.left = stopPosition.replace('px','') - borderLeftComputedStyles.wydth + 'px';
+                console.log("borderLeft.getBoundingClientRect().x", borderLeft.getBoundingClientRect().x);
+            }, 50);
+
         } else if(event.target === borderRight) {
-            console.log('rangeRightSelect');
-            console.log('event.target', event.target);
-            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
+            // console.log('rangeRightSelect');
+            // console.log('event.target', event.target);
+            // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
             borderRight.removeEventListener('pointerdown', borderRightStopObject.thumbHandler);  
-            console.log("right listener removed");      
+            // console.log("right listener removed");
+            let stopPosition = borderLeft.style.left;         
             progressBarLine.removeEventListener('pointerdown', borderRightStopObject.trackHandler);
             borderRight.onpointerdown = (event) => {
                 event.stopPropagation();
@@ -326,19 +335,17 @@ function switchBorderWrappers() {
             borderLeft.dispatchEvent(clickEvent);
             let dragEvent = new MouseEvent('mousemove')
             borderLeft.dispatchEvent(dragEvent);
-            console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
+            // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
             sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
             let leftLineOldPosition = leftLine.getBoundingClientRect().x
             setTimeout(() => {
                 borderDragOn = leftLineOldPosition < leftLine.getBoundingClientRect().x ? true : false;
-            }, 100)
+                borderRight.style.left = stopPosition.replace('px','') + borderRightComputedStyles.wydth + 'px';
+            }, 50);
+
         }
     }
 }
-
-
-
-
 
 function stopPlayerWhenSliderClicked(event) {
     if (!aFile.paused & event.target != playBTN) stopPlaying();
@@ -370,6 +377,7 @@ rightLockOpen.addEventListener('pointerdown', (event) => {
     borderRight.onpointerdown = (event) => {
         event.stopPropagation();
     }
+    borderRightStopObject.locked = true;
 })
 
 leftLockOpen.addEventListener('pointerdown', (event) => {
@@ -381,17 +389,20 @@ leftLockOpen.addEventListener('pointerdown', (event) => {
     borderLeft.onpointerdown = (event) => {
         event.stopPropagation();
     }
+    borderLeftStopObject.locked = true;
 })
 
 rightLockClosed.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'none';
     rightLockOpen.style.display = 'block';
+    borderRightStopObject.locked = false;
     sliderMoveHandler(borderRight, progressBarLine, songDuration, borderRightStopObject, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 })
 
 leftLockClosed.addEventListener('pointerdown', (event) => {
     leftLockClosed.style.display = 'none';
     leftLockOpen.style.display = 'block';
+    borderLeftStopObject.locked = false;
     sliderMoveHandler(borderLeft, progressBarLine, songDuration, borderLeftStopObject, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
 })
 
