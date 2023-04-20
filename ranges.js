@@ -267,8 +267,6 @@ function colorRange() {
 colorRange();
 
 function rangeLeftSelect() {
-    // check if range borders intersect when one of them is being dragged
-    // if so, replace active listener to one with another range border    
     switchBorderWrappers();
     colorRange();
 }
@@ -284,8 +282,11 @@ function rangeRightSelect() {
 
 function switchBorderWrappers() {
 
-    if (borderDragOn) return; // Avoid switching to another border when on is in process
-    if (rightLine.getBoundingClientRect().x < leftLine.getBoundingClientRect().x) {  
+    if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
+    // Borders intersection starts
+    if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x)
+
+    if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
         borderDragOn = true;
         let borderLeftComputedStyles = getComputedStyle(borderLeft);
         let borderRightComputedStyles = getComputedStyle(borderRight);
@@ -345,6 +346,14 @@ function switchBorderWrappers() {
 
         }
     }
+}
+
+function freeseBorderWrapper(wrapperObject) {
+
+}
+
+function unfreeseBorderWrapper(wrapperObject){
+
 }
 
 function stopPlayerWhenSliderClicked(event) {
