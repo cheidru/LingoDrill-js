@@ -212,6 +212,7 @@ main {
 }
 
 #save-svg-btn {
+    flex-shrink: 0;
     height: 0.9rem;
     width: 0.9rem;
 
@@ -248,6 +249,7 @@ main {
     position: relative;
     height: 0.2rem;
     max-width: 4rem;
+    min-width: calc(var(--thumb-width)/0.7);
     width: 100%;
     margin: auto 0;
     border-radius: 0.1rem;
