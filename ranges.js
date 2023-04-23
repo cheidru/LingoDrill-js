@@ -37,6 +37,9 @@ let intervalsId = 0;
 let audioFileID = localStorage.getItem('aFileID');
 let openDB = indexedDB.open("audioBase", 1);
 
+let borderLeft = document.querySelector('#range-border-wrapper-left');
+let borderRight = document.querySelector('#range-border-wrapper-right');
+
 openDB.onsuccess = (e) => {
     let db = e.target.result;
     let transAct = db.transaction('audio', 'readonly');
@@ -208,7 +211,8 @@ let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
 
 // SEGMENT: Range Selection Border Left
 // Elements
-let borderLeft = document.querySelector('#range-border-wrapper-left');
+
+let borderLeftStyles = getComputedStyle(borderLeft);
 borderLeft.pointerId = 0;
 borderLeft.name = 'borderLeft';
 borderLeft.left = '0px';
@@ -224,7 +228,7 @@ let borderLeftTimeFormat = function makeborderLeftTimeFormatString(trackPosition
 
 // SEGMENT: Range Selection Border Right
 // Elements
-let borderRight = document.querySelector('#range-border-wrapper-right');
+
 let borderRightStyles = getComputedStyle(borderRight);
 borderRight.pointerId = 0;
 borderRight.name = 'borderRight';
@@ -274,18 +278,25 @@ function rangeRightSelect() {
 
 
 function switchBorderWrappers() {
+    let borderRightSideLeftCoord = borderRight.getBoundingClientRect().x;
+    let borderLeftSideRightCoord = borderLeft.getBoundingClientRect().x + borderLeft.getBoundingClientRect().width;
 
-    if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
+    if (borderDragOn && borderLeftSideRightCoord < borderRightSideLeftCoord) {
+        event.target === borderLeft ? unfreezeBorderWrapper(borderRight): unfreezeBorderWrapper(borderLeft);
+    } else if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
     // Borders intersection starts
 
-    if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < rightLine.getBoundingClientRect().width) { 
+    if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
     // if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
-        borderDragOn = true;
-        // let borderLeftComputedStyles = getComputedStyle(borderLeft);
-        // let borderRightComputedStyles = getComputedStyle(borderRight);
+        console.log('borderRight.getBoundingClientRect().width: ', borderRight.getBoundingClientRect().width, "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
+        console.log("target: ", event.target);
 
-        event.target === borderLeft ? freezeBorderWrapper(borderRight): freezeBorderWrapper(borderLeft);
-            switchActiveBorderTo()
+        borderDragOn = true;
+
+        event.target === borderLeft ? 
+         (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
+         (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
+    }
 
     // Overlapping starts
     // console.log('rangeLeftSelect');    
@@ -308,54 +319,45 @@ function switchBorderWrappers() {
     // sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
 
 
+            // let rightLineOldPosition = rightLine.getBoundingClientRect().x
+            // setTimeout(() => {
+            //     borderDragOn = rightLineOldPosition > rightLine.getBoundingClientRect().x ? true : false;
+            //     borderLeft.style.left = stopPosition.replace('px','') - borderLeftStyles.width + 'px';
+            //     console.log("borderLeft.getBoundingClientRect().x", borderLeft.getBoundingClientRect().x);
+            // }, 50);
 
-
-
-
-
-
-
-
-            let rightLineOldPosition = rightLine.getBoundingClientRect().x
-            setTimeout(() => {
-                borderDragOn = rightLineOldPosition > rightLine.getBoundingClientRect().x ? true : false;
-                borderLeft.style.left = stopPosition.replace('px','') - borderLeftComputedStyles.wydth + 'px';
-                console.log("borderLeft.getBoundingClientRect().x", borderLeft.getBoundingClientRect().x);
-            }, 50);
-
-        } else if(event.target === borderRight) {
-            // console.log('rangeRightSelect');
-            // console.log('event.target', event.target);
-            // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
-            borderRight.removeEventListener('pointerdown', borderRight.thumbHandler);  
-            // console.log("right listener removed");
-            let stopPosition = borderLeft.style.left;         
-            progressBarLine.removeEventListener('pointerdown', borderRight.trackHandler);
-            borderRight.onpointerdown = (event) => {
-                event.stopPropagation();
-            }
-            borderRight.onpointermove = null;
-            borderRight.releasePointerCapture(borderRight.pointerId);
-            let clickEvent = new MouseEvent('pointerdown');
-            clickEvent.pointerId = borderLeft.pointerId;
-            borderLeft.dispatchEvent(clickEvent);
-            let dragEvent = new MouseEvent('mousemove')
-            borderLeft.dispatchEvent(dragEvent);
-            // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
-            sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
-            let leftLineOldPosition = leftLine.getBoundingClientRect().x
-            setTimeout(() => {
-                borderDragOn = leftLineOldPosition < leftLine.getBoundingClientRect().x ? true : false;
-                borderRight.style.left = stopPosition.replace('px','') + borderRightComputedStyles.wydth + 'px';
-            }, 50);
+        // } else if(event.target === borderRight) {
+            // // console.log('rangeRightSelect');
+            // // console.log('event.target', event.target);
+            // // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
+            // borderRight.removeEventListener('pointerdown', borderRight.thumbHandler);  
+            // // console.log("right listener removed");
+            // let stopPosition = borderLeft.style.left;         
+            // progressBarLine.removeEventListener('pointerdown', borderRight.trackHandler);
+            // borderRight.onpointerdown = (event) => {
+            //     event.stopPropagation();
+            // }
+            // borderRight.onpointermove = null;
+            // borderRight.releasePointerCapture(borderRight.pointerId);
+            // let clickEvent = new MouseEvent('pointerdown');
+            // clickEvent.pointerId = borderLeft.pointerId;
+            // borderLeft.dispatchEvent(clickEvent);
+            // let dragEvent = new MouseEvent('mousemove')
+            // borderLeft.dispatchEvent(dragEvent);
+            // // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
+            // sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
+            // let leftLineOldPosition = leftLine.getBoundingClientRect().x
+            // setTimeout(() => {
+            //     borderDragOn = leftLineOldPosition < leftLine.getBoundingClientRect().x ? true : false;
+            //     borderRight.style.left = stopPosition.replace('px','') + borderRightStyles.width + 'px';
+            // }, 50);
 
         }
-    }
-}
+    
 
 function freezeBorderWrapper(borderWrapperObject) {
     // Overlapping starts
-    console.log('rangeLeftSelect');    
+    console.log('freezeBorderWrapper of ', borderWrapperObject);    
     borderWrapperObject.removeEventListener('pointerdown', borderWrapperObject.thumbHandler);    
     progressBarLine.removeEventListener('pointerdown', borderWrapperObject.trackHandler);
     borderWrapperObject.onpointerdown = (event) => {
@@ -366,17 +368,25 @@ function freezeBorderWrapper(borderWrapperObject) {
 }
 
 function switchActiveBorderTo(borderObjectGetFocus) {
+    console.log('switch to ', borderObjectGetFocus);  
     // Consider locked object
     let clickEvent = new MouseEvent('pointerdown');
     clickEvent.pointerId = borderObjectGetFocus.pointerId;
     borderObjectGetFocus.dispatchEvent(clickEvent);
     let dragEvent = new MouseEvent('mousemove');
-    borderObjectGetFocus.dispatchEvent(dragEvent);    
+    borderObjectGetFocus.dispatchEvent(dragEvent);
+    if (borderObjectGetFocus == borderLeft) { 
+        borderRight.style.left = borderLeftStyles.left;
+    } else {
+        borderLeft.style.left = ((borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
+    }
+        // borderLeft.style.left = ((borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
+    console.log('borderRight: ', borderRight, 'borderLeft: ', borderLeft);
 }
 
 function unfreezeBorderWrapper(wrapperObject){
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
-
+    if (wrapperObject == borderLeft) sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
+    if (wrapperObject == borderRight) sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 }
 
 function stopPlayerWhenSliderClicked(event) {
