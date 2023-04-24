@@ -297,6 +297,9 @@ function switchBorderWrappers() {
         event.target === borderLeft ? 
          (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
          (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
+
+         console.log('borderRight.style.left AFTER switch to: ', borderRight.style.left);
+         debugger
     }
 
     // Overlapping starts
