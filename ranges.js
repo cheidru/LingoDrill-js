@@ -268,9 +268,6 @@ function rangeLeftSelect() {
     colorRange();
 }
 
-
-
-
 function rangeRightSelect() {
     switchBorderWrappers();
     colorRange();
@@ -278,21 +275,25 @@ function rangeRightSelect() {
 
 
 function switchBorderWrappers() {
+
     let borderRightSideLeftCoord = borderRight.getBoundingClientRect().x;
     let borderLeftSideRightCoord = borderLeft.getBoundingClientRect().x + borderLeft.getBoundingClientRect().width;
 
     if (borderDragOn && borderLeftSideRightCoord < borderRightSideLeftCoord) {
+        console.log("unfreeze");
         event.target === borderLeft ? unfreezeBorderWrapper(borderRight): unfreezeBorderWrapper(borderLeft);
+        borderDragOn = false;
+        return
     } else if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
     // Borders intersection starts
 
     if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
     // if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
-        console.log('borderRight.getBoundingClientRect().width: ', borderRight.getBoundingClientRect().width, "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
+        console.log('borderRight.getBoundingClientRect().width * 2: ', (borderRight.getBoundingClientRect().width * 2), "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
         console.log("target: ", event.target);
 
         borderDragOn = true;
-
+        
         event.target === borderLeft ? 
          (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
          (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
@@ -375,13 +376,17 @@ function switchActiveBorderTo(borderObjectGetFocus) {
     borderObjectGetFocus.dispatchEvent(clickEvent);
     let dragEvent = new MouseEvent('mousemove');
     borderObjectGetFocus.dispatchEvent(dragEvent);
-    if (borderObjectGetFocus == borderLeft) { 
-        borderRight.style.left = borderLeftStyles.left;
+
+    if (borderObjectGetFocus == borderLeft) {
+        console.log('borderRight.style.left brfore: ', borderRight.style.left);
+        // borderRight.style.left = (0 + (borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
+        borderRight.style.left = "13px";
+        console.log('borderRight.style.left after: ', borderRight.style.left);
     } else {
-        borderLeft.style.left = ((borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
+        borderLeft.style.left = borderRightStyles.left;
     }
         // borderLeft.style.left = ((borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
-    console.log('borderRight: ', borderRight, 'borderLeft: ', borderLeft);
+    console.log('borderRight: ', borderRight, 'borderRight.style.left: ', borderRight.style.left);
 }
 
 function unfreezeBorderWrapper(wrapperObject){
