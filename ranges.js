@@ -3,6 +3,7 @@ let aTitle = document.querySelector('#played-title');
 let songDuration = 0;
 
 let borderDragOn = false;
+let preventOverridingHandlerAdjustment = false;
 
 // Volume slider elements
 let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
@@ -214,7 +215,6 @@ let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
 
 let borderLeftStyles = getComputedStyle(borderLeft);
 borderLeft.pointerId = 0;
-borderLeft.name = 'borderLeft';
 borderLeft.left = '0px';
 borderLeft.position = 0;
 borderLeft.locked = false;
@@ -231,7 +231,6 @@ let borderLeftTimeFormat = function makeborderLeftTimeFormatString(trackPosition
 
 let borderRightStyles = getComputedStyle(borderRight);
 borderRight.pointerId = 0;
-borderRight.name = 'borderRight';
 borderRight.left = borderRightStyles.left;
 borderRight.position = borderRight.getBoundingClientRect.x;
 borderRight.locked = false;
@@ -299,62 +298,9 @@ function switchBorderWrappers() {
          (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
 
          console.log('borderRight.style.left AFTER switch to: ', borderRight.style.left);
-         debugger
+
     }
 
-    // Overlapping starts
-    // console.log('rangeLeftSelect');    
-    // borderLeft.removeEventListener('pointerdown', borderLeft.thumbHandler);  
-    // console.log("borderRight.getBoundingClientRect().x :", borderRight.getBoundingClientRect().x, "borderLeftComputedStyles.wydth: ", borderLeftComputedStyles.wydth);
-    // let stopPosition = borderRight.style.left;    
-    // progressBarLine.removeEventListener('pointerdown', borderLeft.trackHandler);
-    // borderLeft.onpointerdown = (event) => {
-    //     event.stopPropagation();
-    // }
-    // borderLeft.onpointermove = null;
-    // borderLeft.releasePointerCapture(borderLeft.pointerId);
-
-    // let clickEvent = new MouseEvent('pointerdown');
-    // clickEvent.pointerId = borderRight.pointerId;
-    // borderRight.dispatchEvent(clickEvent);
-    // let dragEvent = new MouseEvent('mousemove');
-    // borderRight.dispatchEvent(dragEvent);
-    // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
-    // sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
-
-
-            // let rightLineOldPosition = rightLine.getBoundingClientRect().x
-            // setTimeout(() => {
-            //     borderDragOn = rightLineOldPosition > rightLine.getBoundingClientRect().x ? true : false;
-            //     borderLeft.style.left = stopPosition.replace('px','') - borderLeftStyles.width + 'px';
-            //     console.log("borderLeft.getBoundingClientRect().x", borderLeft.getBoundingClientRect().x);
-            // }, 50);
-
-        // } else if(event.target === borderRight) {
-            // // console.log('rangeRightSelect');
-            // // console.log('event.target', event.target);
-            // // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, '\nleftLine x: ', leftLine.getBoundingClientRect().x);
-            // borderRight.removeEventListener('pointerdown', borderRight.thumbHandler);  
-            // // console.log("right listener removed");
-            // let stopPosition = borderLeft.style.left;         
-            // progressBarLine.removeEventListener('pointerdown', borderRight.trackHandler);
-            // borderRight.onpointerdown = (event) => {
-            //     event.stopPropagation();
-            // }
-            // borderRight.onpointermove = null;
-            // borderRight.releasePointerCapture(borderRight.pointerId);
-            // let clickEvent = new MouseEvent('pointerdown');
-            // clickEvent.pointerId = borderLeft.pointerId;
-            // borderLeft.dispatchEvent(clickEvent);
-            // let dragEvent = new MouseEvent('mousemove')
-            // borderLeft.dispatchEvent(dragEvent);
-            // // console.log('rightLine x: ', rightLine.getBoundingClientRect().x, 'leftLine x: ', leftLine.getBoundingClientRect().x);
-            // sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
-            // let leftLineOldPosition = leftLine.getBoundingClientRect().x
-            // setTimeout(() => {
-            //     borderDragOn = leftLineOldPosition < leftLine.getBoundingClientRect().x ? true : false;
-            //     borderRight.style.left = stopPosition.replace('px','') + borderRightStyles.width + 'px';
-            // }, 50);
 
         }
     
@@ -382,8 +328,8 @@ function switchActiveBorderTo(borderObjectGetFocus) {
 
     if (borderObjectGetFocus == borderLeft) {
         console.log('borderRight.style.left brfore: ', borderRight.style.left);
-        // borderRight.style.left = (0 + (borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
-        borderRight.style.left = "13px";
+        borderRight.style.left = (0 + (borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
+        preventOverridingHandlerAdjustment = true;
         console.log('borderRight.style.left after: ', borderRight.style.left);
     } else {
         borderLeft.style.left = borderRightStyles.left;
@@ -508,26 +454,36 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, offsetKey, 
         thumbObject.pointerId = event.pointerId;
 
         thumbObject.onpointermove = function(event) {
+            
+            let lineRightEnd = trackObject.getBoundingClientRect().right;
+            let startPosition = originX;
+            let pageX = event.pageX;
 
-                // if pointer movement should initiate other actions, anable the provided function
-                if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
+            // if pointer movement should initiate other actions, anable the provided function
+            if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
 
-                let lineRightEnd = trackObject.getBoundingClientRect().right;
-                let startPosition = originX;
-    
-                if (event.pageX < startPosition) {
-                    thumbObject.style.left = 0 - thumbOffset + 'px';
-                    trackPosition = 0;
-                } else if (event.pageX > lineRightEnd) {
-                    thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
-                    trackPosition = durationRounded;
-                } else {
-                    thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
-                    trackPosition = (event.pageX - startPosition) / sliderUnit;
-                }
-                thumbObject.position = trackPosition;
-                if (typeof thumbObject.left !== 'undefined') thumbObject.left = thumbObject.style.left;
-                if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
+            if (preventOverridingHandlerAdjustment == true) {
+                console.log('event.pageX', event.pageX);
+                pageX = (thumbObject.style.left).replace('px','') + startPosition + thumbOffset;
+                preventOverridingHandlerAdjustment = false;
+                console.log('borderRight.style.left IN Slider: ', borderRight.style.left, 'event.pageX', event.pageX);
+            }
+
+
+            if (event.pageX < startPosition) {
+                thumbObject.style.left = 0 - thumbOffset + 'px';
+                trackPosition = 0;
+            } else if (event.pageX > lineRightEnd) {
+                thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
+                trackPosition = durationRounded;
+            } else {
+                thumbObject.style.left = pageX - startPosition - thumbOffset + 'px';
+                trackPosition = (pageX - startPosition) / sliderUnit;
+            }
+            thumbObject.position = trackPosition;
+            if (typeof thumbObject.left !== 'undefined') thumbObject.left = thumbObject.style.left;
+            if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
+                
         }
 
         thumbObject.onpointerup = () => {
