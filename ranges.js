@@ -39,7 +39,9 @@ let audioFileID = localStorage.getItem('aFileID');
 let openDB = indexedDB.open("audioBase", 1);
 
 let borderLeft = document.querySelector('#range-border-wrapper-left');
+let leftPointer = document.querySelector('#range-border-pointer-left');
 let borderRight = document.querySelector('#range-border-wrapper-right');
+let rightPointer = document.querySelector('#range-border-pointer-right');
 
 openDB.onsuccess = (e) => {
     let db = e.target.result;
@@ -272,34 +274,77 @@ function rangeRightSelect() {
     colorRange();
 }
 
+function toggleBorderStyles() {    
+    console.log("toggle process");
+
+    borderLeft.classList.toggle('border-wrapper-left');
+    borderRight.classList.toggle('border-wrapper-left');
+
+    borderLeft.classList.toggle('border-wrapper-right');
+    borderRight.classList.toggle('border-wrapper-right');
+
+    borderLeftTime.classList.toggle('left-time');
+    borderRightTime.classList.toggle('left-time');
+    
+    borderLeftTime.classList.toggle('right-time');
+    borderRightTime.classList.toggle('right-time');
+
+    // leftLine.classList.toggle('left-line');
+    // rightLine.classList.toggle('left-line');
+
+    // leftLine.classList.toggle('right-line');
+    // rightLine.classList.toggle('right-line');
+
+    leftPointer.classList.toggle('left-pointer');
+    rightPointer.classList.toggle('left-pointer');
+
+    leftPointer.classList.toggle('right-pointer');
+    rightPointer.classList.toggle('right-pointer');
+    
+    rightLockClosed.classList.toggle('left-lock-closed');
+    leftLockClosed.classList.toggle('left-lock-closed');
+
+    rightLockClosed.classList.toggle('right-lock-closed');
+    leftLockClosed.classList.toggle('right-lock-closed');
+    
+    rightLockOpen.classList.toggle('left-lock-open');
+    leftLockOpen.classList.toggle('left-lock-open');
+
+    rightLockOpen.classList.toggle('right-lock-open');
+    leftLockOpen.classList.toggle('right-lock-open');
+}
+
 
 function switchBorderWrappers() {
 
     let borderRightSideLeftCoord = borderRight.getBoundingClientRect().x;
     let borderLeftSideRightCoord = borderLeft.getBoundingClientRect().x + borderLeft.getBoundingClientRect().width;
 
+    console.log("borderDragOn: ", borderDragOn, 'borderLeftSideRightCoord: ', borderLeftSideRightCoord, 'borderRightSideLeftCoord: ', borderRightSideLeftCoord);
+
     if (borderDragOn && borderLeftSideRightCoord < borderRightSideLeftCoord) {
         console.log("unfreeze");
-        event.target === borderLeft ? unfreezeBorderWrapper(borderRight): unfreezeBorderWrapper(borderLeft);
+        toggleBorderStyles();
+        // event.target === borderLeft ? unfreezeBorderWrapper(borderRight): unfreezeBorderWrapper(borderLeft);
         borderDragOn = false;
-        return
+        // return
     } else if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
     // Borders intersection starts
 
-    if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
-    // if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
-        console.log('borderRight.getBoundingClientRect().width * 2: ', (borderRight.getBoundingClientRect().width * 2), "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
-        console.log("target: ", event.target);
+    // if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
+    // // if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
+    //     console.log('borderRight.getBoundingClientRect().width * 2: ', (borderRight.getBoundingClientRect().width * 2), "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
+    //     console.log("target: ", event.target);
 
-        borderDragOn = true;
+    //     borderDragOn = true;
         
-        event.target === borderLeft ? 
-         (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
-         (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
+    //     event.target === borderLeft ? 
+    //      (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
+    //      (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
 
-         console.log('borderRight.style.left AFTER switch to: ', borderRight.style.left);
+    //      console.log('borderRight.style.left AFTER switch to: ', borderRight.style.left);
 
-    }
+    // }
 
 
         }
