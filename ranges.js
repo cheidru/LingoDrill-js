@@ -320,10 +320,7 @@ function switchBorderWrappers() {
     let borderRightSideLeftCoord = borderRight.getBoundingClientRect().x;
     let borderLeftSideRightCoord = borderLeft.getBoundingClientRect().x + borderLeft.getBoundingClientRect().width;
 
-    console.log("borderDragOn: ", borderDragOn, 'borderLeftSideRightCoord: ', borderLeftSideRightCoord, 'borderRightSideLeftCoord: ', borderRightSideLeftCoord);
-
-    if (borderDragOn && borderLeftSideRightCoord < borderRightSideLeftCoord) {
-        console.log("unfreeze");
+    if (borderDragOn && borderLeftSideRightCoord > borderRightSideLeftCoord) {
         toggleBorderStyles();
         // event.target === borderLeft ? unfreezeBorderWrapper(borderRight): unfreezeBorderWrapper(borderLeft);
         borderDragOn = false;
@@ -331,12 +328,12 @@ function switchBorderWrappers() {
     } else if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
     // Borders intersection starts
 
-    // if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
+    if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
     // // if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
     //     console.log('borderRight.getBoundingClientRect().width * 2: ', (borderRight.getBoundingClientRect().width * 2), "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
     //     console.log("target: ", event.target);
-
-    //     borderDragOn = true;
+        console.log('borderDragOn = true'); 
+        borderDragOn = true;
         
     //     event.target === borderLeft ? 
     //      (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
@@ -344,7 +341,7 @@ function switchBorderWrappers() {
 
     //      console.log('borderRight.style.left AFTER switch to: ', borderRight.style.left);
 
-    // }
+    }
 
 
         }
