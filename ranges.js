@@ -220,6 +220,7 @@ borderLeft.pointerId = 0;
 borderLeft.left = '0px';
 borderLeft.position = 0;
 borderLeft.locked = false;
+borderLeft.isActualLeftBorder = true;
 
 // Auxiliary function
 let borderLeftTime = document.querySelector('#left-border-time');
@@ -236,6 +237,7 @@ borderRight.pointerId = 0;
 borderRight.left = borderRightStyles.left;
 borderRight.position = borderRight.getBoundingClientRect.x;
 borderRight.locked = false;
+borderRight.isActualLeftBorder = false;
 
 // Auxiliary function
 let borderRightTime = document.querySelector('#right-border-time');
@@ -257,26 +259,26 @@ let timeStyles = getComputedStyle(borderLeftTime);
 function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
     rangeBox.style.height = ((borderRightStyles.height).replace('px','') - (timeStyles.height).replace('px','') - 6) + 'px';
-    rangeBox.style.left = (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
+    // rangeBox.style.left = (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
+    rangeBox.style.left = borderLeft.isActualLeftBorder ? (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px' :
+            (rightLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
     rangeBox.style.top = '0.55rem';
-    rangeBox.style.width = (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
+    rangeBox.style.width = Math.abs(rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
 }
 
 colorRange();
 
 function rangeLeftSelect() {
-    switchBorderWrappers();
+    if(bordersGotIntersected()) toggleBorderStyles();
     colorRange();
 }
 
 function rangeRightSelect() {
-    switchBorderWrappers();
+    if(bordersGotIntersected()) toggleBorderStyles();
     colorRange();
 }
 
 function toggleBorderStyles() {    
-    console.log("toggle process");
-
     borderLeft.classList.toggle('border-wrapper-left');
     borderRight.classList.toggle('border-wrapper-left');
 
@@ -288,12 +290,6 @@ function toggleBorderStyles() {
     
     borderLeftTime.classList.toggle('right-time');
     borderRightTime.classList.toggle('right-time');
-
-    // leftLine.classList.toggle('left-line');
-    // rightLine.classList.toggle('left-line');
-
-    // leftLine.classList.toggle('right-line');
-    // rightLine.classList.toggle('right-line');
 
     leftPointer.classList.toggle('left-pointer');
     rightPointer.classList.toggle('left-pointer');
@@ -312,77 +308,20 @@ function toggleBorderStyles() {
 
     rightLockOpen.classList.toggle('right-lock-open');
     leftLockOpen.classList.toggle('right-lock-open');
+
+    borderLeft.isActualLeftBorder = borderLeft.isActualLeftBorder == true ? false : true;
+    borderRight.isActualLeftBorder = borderRight.isActualLeftBorder == true ? false : true;
 }
 
-
-function switchBorderWrappers() {
-
-    let borderRightSideLeftCoord = borderRight.getBoundingClientRect().x;
-    let borderLeftSideRightCoord = borderLeft.getBoundingClientRect().x + borderLeft.getBoundingClientRect().width;
-
-    if (borderDragOn && borderLeftSideRightCoord > borderRightSideLeftCoord) {
-        toggleBorderStyles();
-        // event.target === borderLeft ? unfreezeBorderWrapper(borderRight): unfreezeBorderWrapper(borderLeft);
-        borderDragOn = false;
-        // return
-    } else if (borderDragOn) return; // Avoid switching to another border while borders intersect when one is being dragged
-    // Borders intersection starts
-
-    if (rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x < borderRight.getBoundingClientRect().width * 2) { 
-    // // if (rightLine.getBoundingClientRect().x <= leftLine.getBoundingClientRect().x) {  
-    //     console.log('borderRight.getBoundingClientRect().width * 2: ', (borderRight.getBoundingClientRect().width * 2), "rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x: ", rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x ); 
-    //     console.log("target: ", event.target);
-        console.log('borderDragOn = true'); 
-        borderDragOn = true;
-        
-    //     event.target === borderLeft ? 
-    //      (() => {freezeBorderWrapper(borderLeft); switchActiveBorderTo(borderRight);})():
-    //      (() => {freezeBorderWrapper(borderRight); switchActiveBorderTo(borderLeft);})();
-
-    //      console.log('borderRight.style.left AFTER switch to: ', borderRight.style.left);
-
-    }
-
-
-        }
-    
-
-function freezeBorderWrapper(borderWrapperObject) {
-    // Overlapping starts
-    console.log('freezeBorderWrapper of ', borderWrapperObject);    
-    borderWrapperObject.removeEventListener('pointerdown', borderWrapperObject.thumbHandler);    
-    progressBarLine.removeEventListener('pointerdown', borderWrapperObject.trackHandler);
-    borderWrapperObject.onpointerdown = (event) => {
-        event.stopPropagation();
-    }
-    borderWrapperObject.onpointermove = null;
-    borderWrapperObject.releasePointerCapture(borderWrapperObject.pointerId);
-}
-
-function switchActiveBorderTo(borderObjectGetFocus) {
-    console.log('switch to ', borderObjectGetFocus);  
-    // Consider locked object
-    let clickEvent = new MouseEvent('pointerdown');
-    clickEvent.pointerId = borderObjectGetFocus.pointerId;
-    borderObjectGetFocus.dispatchEvent(clickEvent);
-    let dragEvent = new MouseEvent('mousemove');
-    borderObjectGetFocus.dispatchEvent(dragEvent);
-
-    if (borderObjectGetFocus == borderLeft) {
-        console.log('borderRight.style.left brfore: ', borderRight.style.left);
-        borderRight.style.left = (0 + (borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
-        preventOverridingHandlerAdjustment = true;
-        console.log('borderRight.style.left after: ', borderRight.style.left);
-    } else {
-        borderLeft.style.left = borderRightStyles.left;
-    }
-        // borderLeft.style.left = ((borderLeftStyles.left).replace('px','') - borderRight.getBoundingClientRect().width) + 'px';
-    console.log('borderRight: ', borderRight, 'borderRight.style.left: ', borderRight.style.left);
-}
-
-function unfreezeBorderWrapper(wrapperObject){
-    if (wrapperObject == borderLeft) sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
-    if (wrapperObject == borderRight) sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
+function bordersGotIntersected() {
+    if((borderLeft.isActualLeftBorder &&
+        (borderLeft.getBoundingClientRect().x > borderRight.getBoundingClientRect().x )) || 
+        (!borderLeft.isActualLeftBorder &&
+        (borderLeft.getBoundingClientRect().x < borderRight.getBoundingClientRect().x ))) {
+            console.log('bordersGotIntersected');
+            return true;
+        } else {
+            return false;}
 }
 
 function stopPlayerWhenSliderClicked(event) {
