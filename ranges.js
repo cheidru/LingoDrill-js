@@ -237,7 +237,6 @@ borderRight.pointerId = 0;
 borderRight.left = borderRightStyles.left;
 borderRight.position = borderRight.getBoundingClientRect.x;
 borderRight.locked = false;
-borderRight.isActualLeftBorder = false;
 
 // Auxiliary function
 let borderRightTime = document.querySelector('#right-border-time');
@@ -260,7 +259,8 @@ function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
     rangeBox.style.height = ((borderRightStyles.height).replace('px','') - (timeStyles.height).replace('px','') - 6) + 'px';
     // rangeBox.style.left = (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
-    rangeBox.style.left = borderLeft.isActualLeftBorder ? (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px' :
+    rangeBox.style.left = borderLeft.isActualLeftBorder ? 
+            (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px' :
             (rightLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
     rangeBox.style.top = '0.55rem';
     rangeBox.style.width = Math.abs(rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
@@ -269,12 +269,22 @@ function colorRange() {
 colorRange();
 
 function rangeLeftSelect() {
-    if(bordersGotIntersected()) toggleBorderStyles();
+    if(bordersGotIntersected()) {
+        toggleBorderStyles();
+        // offsetKey = borderLeft.isActualLeftBorder == true ? 0 : 2;
+        // this.thumbOffset = (borderLeft.getBoundingClientRect().width / 2) * offsetKey
+    }
     colorRange();
 }
 
 function rangeRightSelect() {
-    if(bordersGotIntersected()) toggleBorderStyles();
+    if(bordersGotIntersected()) {
+        toggleBorderStyles();
+        // offsetKey = borderLeft.isActualLeftBorder == true ? 2 : 0;
+        // console.log('change thumbOffset from ', this.thumbOffset);
+        // this.thumbOffset = (borderRight.getBoundingClientRect().width / 2) * offsetKey;
+        // console.log('to ', this.thumbOffset);
+    }
     colorRange();
 }
 
@@ -309,8 +319,20 @@ function toggleBorderStyles() {
     rightLockOpen.classList.toggle('right-lock-open');
     leftLockOpen.classList.toggle('right-lock-open');
 
-    borderLeft.isActualLeftBorder = borderLeft.isActualLeftBorder == true ? false : true;
-    borderRight.isActualLeftBorder = borderRight.isActualLeftBorder == true ? false : true;
+    // borderLeft.isActualLeftBorder = borderLeft.isActualLeftBorder == true ? false : true;
+    console.log("borderLeft.style.left", borderLeft.style.left, "borderRight.style.left", borderRight.style.left);
+    if (borderLeft.isActualLeftBorder == true) {
+        borderLeft.isActualLeftBorder = false;        
+        borderLeft.style.left = (borderLeft.style.left).replace('px','') - borderLeft.getBoundingClientRect().width + 'px';
+        borderRight.style.left = (borderRight.style.left).replace('px','') + borderRight.getBoundingClientRect().width + 'px';
+    } else {
+        borderLeft.isActualLeftBorder = true;
+        borderLeft.style.left = (borderLeft.style.left).replace('px','') + borderLeft.getBoundingClientRect().width + 'px';
+        borderRight.style.left = (borderRight.style.left).replace('px','') - borderRight.getBoundingClientRect().width + 'px';
+    }
+    console.log("borderLeft.style.left", borderLeft.style.left, "borderRight.style.left", borderRight.style.left);
+    
+    let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
 }
 
 function bordersGotIntersected() {
@@ -318,7 +340,7 @@ function bordersGotIntersected() {
         (borderLeft.getBoundingClientRect().x > borderRight.getBoundingClientRect().x )) || 
         (!borderLeft.isActualLeftBorder &&
         (borderLeft.getBoundingClientRect().x < borderRight.getBoundingClientRect().x ))) {
-            console.log('bordersGotIntersected');
+
             return true;
         } else {
             return false;}
