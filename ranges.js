@@ -1,14 +1,18 @@
 let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
 let songDuration = 0;
+let thumbOffset = 0;
 
 let borderDragOn = false;
-let preventOverridingHandlerAdjustment = false;
 
 // Volume slider elements
 let volumeSliderThumb = document.querySelector('#volume-slider-thumb');
 const volumeDefaultLevel = 0.5;
 volumeSliderThumb.position = volumeDefaultLevel;
+volumeSliderThumb.offset = 1;
+volumeSliderThumb.maxValue = 1;
+
+
 let volumeSliderTrack = document.querySelector('#volume-slider-track');
 
 
@@ -39,9 +43,13 @@ let audioFileID = localStorage.getItem('aFileID');
 let openDB = indexedDB.open("audioBase", 1);
 
 let borderLeft = document.querySelector('#range-border-wrapper-left');
+
+borderLeft.offset = 0;
 let leftPointer = document.querySelector('#range-border-pointer-left');
 let borderRight = document.querySelector('#range-border-wrapper-right');
+borderRight.offset = 2;
 let rightPointer = document.querySelector('#range-border-pointer-right');
+
 
 openDB.onsuccess = (e) => {
     let db = e.target.result;
@@ -143,13 +151,15 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
 
     // Activate slider for volume
     volumeSlider.style.display = 'block';
-    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, 1, 1, showMute, undefined, undefined);
+    sliderMoveHandler(volumeSliderThumb, volumeSliderTrack, showMute);
     volumeSlider.style.display = 'none';
 
     // Slider function execution after songDuration is determined
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
+    borderLeft.maxValue = songDuration;
+    sliderMoveHandler(borderLeft, progressBarLine, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
     borderRightTime.textContent = durationRounded;
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
+    borderRight.maxValue = songDuration;
+    sliderMoveHandler(borderRight, progressBarLine, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 
 })
 // SEGMENT END: Read audio file data from DB
@@ -189,8 +199,9 @@ volumeOffBTN.addEventListener('click', () => {
 // Elements
 let zoomThumb = document.querySelector('#zoom-thumb-svg-btn');
 let zoomTrack = document.querySelector('#zoom-track');
-let zoomMaxValue = 3;
+zoomThumb.maxValue = 3;
 zoomThumb.position = 0;
+zoomThumb.offset = 1;
 
 // Auxiliary function
 function makeZoom(zoomValue) {
@@ -205,7 +216,7 @@ function makeZoom(zoomValue) {
 }
 
 // Slider function execution
-sliderMoveHandler(zoomThumb, zoomTrack, zoomMaxValue, 1, makeZoom);
+sliderMoveHandler(zoomThumb, zoomTrack, makeZoom);
 // SEGMENT END: ZOOM Slider
 
 // Common for borders
@@ -257,7 +268,7 @@ let timeStyles = getComputedStyle(borderLeftTime);
 
 function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
-    rangeBox.style.height = ((borderRightStyles.height).replace('px','') - (timeStyles.height).replace('px','') - 6) + 'px';
+    rangeBox.style.height = (Number((borderRightStyles.height).replace('px','')) - (timeStyles.height).replace('px','') - 6) + 'px';
     // rangeBox.style.left = (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
     rangeBox.style.left = borderLeft.isActualLeftBorder ? 
             (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px' :
@@ -271,8 +282,17 @@ colorRange();
 function rangeLeftSelect() {
     if(bordersGotIntersected()) {
         toggleBorderStyles();
-        // offsetKey = borderLeft.isActualLeftBorder == true ? 0 : 2;
-        // this.thumbOffset = (borderLeft.getBoundingClientRect().width / 2) * offsetKey
+        if (borderLeft.isActualLeftBorder) {
+            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) + borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) - borderRight.getBoundingClientRect().width) + 'px';
+        } else {
+            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) - borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) + borderRight.getBoundingClientRect().width) + 'px';
+        }
+
+        borderRight.offset = borderLeft.isActualLeftBorder == true ? 2 : 0;
+        borderLeft.offset = borderLeft.isActualLeftBorder == true ? 0 : 2;
+        thumbOffset = (borderLeft.getBoundingClientRect().width / 2) * borderLeft.offset;
     }
     colorRange();
 }
@@ -280,15 +300,22 @@ function rangeLeftSelect() {
 function rangeRightSelect() {
     if(bordersGotIntersected()) {
         toggleBorderStyles();
-        // offsetKey = borderLeft.isActualLeftBorder == true ? 2 : 0;
-        // console.log('change thumbOffset from ', this.thumbOffset);
-        // this.thumbOffset = (borderRight.getBoundingClientRect().width / 2) * offsetKey;
-        // console.log('to ', this.thumbOffset);
+        if (borderLeft.isActualLeftBorder) {
+            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) + borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) - borderRight.getBoundingClientRect().width) + 'px';
+        } else {
+            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) - borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) + borderRight.getBoundingClientRect().width) + 'px';
+        }
+
+        borderRight.offset = borderLeft.isActualLeftBorder == true ? 2 : 0;
+        borderLeft.offset = borderLeft.isActualLeftBorder == true ? 0 : 2;
+        thumbOffset = (borderRight.getBoundingClientRect().width / 2) * borderRight.offset;
     }
     colorRange();
 }
 
-function toggleBorderStyles() {    
+function toggleBorderStyles() { 
     borderLeft.classList.toggle('border-wrapper-left');
     borderRight.classList.toggle('border-wrapper-left');
 
@@ -319,27 +346,14 @@ function toggleBorderStyles() {
     rightLockOpen.classList.toggle('right-lock-open');
     leftLockOpen.classList.toggle('right-lock-open');
 
-    // borderLeft.isActualLeftBorder = borderLeft.isActualLeftBorder == true ? false : true;
-    console.log("borderLeft.style.left", borderLeft.style.left, "borderRight.style.left", borderRight.style.left);
-    if (borderLeft.isActualLeftBorder == true) {
-        borderLeft.isActualLeftBorder = false;        
-        borderLeft.style.left = (borderLeft.style.left).replace('px','') - borderLeft.getBoundingClientRect().width + 'px';
-        borderRight.style.left = (borderRight.style.left).replace('px','') + borderRight.getBoundingClientRect().width + 'px';
-    } else {
-        borderLeft.isActualLeftBorder = true;
-        borderLeft.style.left = (borderLeft.style.left).replace('px','') + borderLeft.getBoundingClientRect().width + 'px';
-        borderRight.style.left = (borderRight.style.left).replace('px','') - borderRight.getBoundingClientRect().width + 'px';
-    }
-    console.log("borderLeft.style.left", borderLeft.style.left, "borderRight.style.left", borderRight.style.left);
-    
-    let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
+    borderLeft.isActualLeftBorder = borderLeft.isActualLeftBorder == true ? false : true;
 }
 
 function bordersGotIntersected() {
     if((borderLeft.isActualLeftBorder &&
-        (borderLeft.getBoundingClientRect().x > borderRight.getBoundingClientRect().x )) || 
+        (borderLeft.getBoundingClientRect().x > borderRight.getBoundingClientRect().x + (borderRight.getBoundingClientRect().width * 2))) || 
         (!borderLeft.isActualLeftBorder &&
-        (borderLeft.getBoundingClientRect().x < borderRight.getBoundingClientRect().x ))) {
+        (borderLeft.getBoundingClientRect().x + (borderLeft.getBoundingClientRect().width * 2) < borderRight.getBoundingClientRect().x))) {
 
             return true;
         } else {
@@ -395,14 +409,14 @@ rightLockClosed.addEventListener('pointerdown', (event) => {
     rightLockClosed.style.display = 'none';
     rightLockOpen.style.display = 'block';
     borderRight.locked = false;
-    sliderMoveHandler(borderRight, progressBarLine, songDuration, 2, rangeRightSelect, borderRightTime, borderRightTimeFormat);
+    sliderMoveHandler(borderRight, progressBarLine, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 })
 
 leftLockClosed.addEventListener('pointerdown', (event) => {
     leftLockClosed.style.display = 'none';
     leftLockOpen.style.display = 'block';
     borderLeft.locked = false;
-    sliderMoveHandler(borderLeft, progressBarLine, songDuration, 0, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
+    sliderMoveHandler(borderLeft, progressBarLine, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
 })
 
 
@@ -420,19 +434,19 @@ let playTimeFormat = function makePlayerTimeFormatString(trackPosition, duration
 
 // Handle thumb movement
 // Return thumb position relative to track start
-function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, offsetKey, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
+function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
 
     // Initialise objects coordinates
-    let thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * offsetKey;
+    thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * thumbObject.offset;
 
-    let sliderUnit = trackObject.getBoundingClientRect().width / sliderMaxValue;
+    let sliderUnit = trackObject.getBoundingClientRect().width / thumbObject.maxValue;
     let thumbInitialPosition = thumbObject.position == 0 ? 0 - thumbOffset : (thumbObject.position * sliderUnit) - thumbOffset;
  
     let originX = trackObject.getBoundingClientRect().x;
 
 
     let trackPosition = 0;
-    let sliderMaxValueRounded = Math.round(sliderMaxValue);
+    let sliderMaxValueRounded = Math.round(thumbObject.maxValue);
 
     // prevent default brauser action for drag'n'drop operation
     thumbObject.ondragstart = () => false;
@@ -449,6 +463,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, offsetKey, 
         // Prevent bubbling the event to the parent (track)
         // and making other listeners of the track (for range slider borders and thumb) to trigger
         event.stopPropagation();
+        thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * thumbObject.offset;
+        thumbInitialPosition = thumbObject.position == 0 ? 0 - thumbOffset : (thumbObject.position * sliderUnit) - thumbOffset;
         // prevent selection start (browser action)
         // event.preventDefault();
 
@@ -456,22 +472,15 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, offsetKey, 
         thumbObject.setPointerCapture(event.pointerId);
         thumbObject.pointerId = event.pointerId;
 
-        thumbObject.onpointermove = function(event) {
+        thumbObject.onpointermove = (event) => {
             
             let lineRightEnd = trackObject.getBoundingClientRect().right;
             let startPosition = originX;
             let pageX = event.pageX;
+            
 
             // if pointer movement should initiate other actions, anable the provided function
             if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
-
-            if (preventOverridingHandlerAdjustment == true) {
-                console.log('event.pageX', event.pageX);
-                pageX = (thumbObject.style.left).replace('px','') + startPosition + thumbOffset;
-                preventOverridingHandlerAdjustment = false;
-                console.log('borderRight.style.left IN Slider: ', borderRight.style.left, 'event.pageX', event.pageX);
-            }
-
 
             if (event.pageX < startPosition) {
                 thumbObject.style.left = 0 - thumbOffset + 'px';
@@ -485,6 +494,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, offsetKey, 
             }
             thumbObject.position = trackPosition;
             if (typeof thumbObject.left !== 'undefined') thumbObject.left = thumbObject.style.left;
+
+
             if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
                 
         }
@@ -499,6 +510,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderMaxValue, offsetKey, 
     function trackPointerDownHandler (event) {
         // if pointer movement should initiate other actions, anable the provided function
         if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
+        thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * thumbObject.offset;
+        thumbInitialPosition = thumbObject.position == 0 ? 0 - thumbOffset : (thumbObject.position * sliderUnit) - thumbOffset;
 
         let lineRightEnd = trackObject.getBoundingClientRect().right;
         let startPosition = originX;
