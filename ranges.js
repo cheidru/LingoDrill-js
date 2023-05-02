@@ -205,6 +205,8 @@ zoomThumb.offset = 1;
 
 // Auxiliary function
 function makeZoom(zoomValue) {
+    let rangeSliderWrapper = document.querySelector("#player-progress-bar-wrapper");
+    let rulerWrapper = document.querySelector("#progress-bar-ruler");
     //ToDo
     // Scale the ruler up or down
     // Change the combination of long/middle/short bars depending on magnification
@@ -213,6 +215,14 @@ function makeZoom(zoomValue) {
     // Add side elements to indicate that some audio track os out of view
     // Add drag functionality to move audion track left-right
     // Redraw audio track (selected parts) and the scale when being dragged
+    let zoomInRatio = 1 + zoomThumb.position;
+    rangeSliderWrapper.style.transform = `scaleX(${zoomInRatio})`;
+    rangeBox.style.transform = `scaleX(${zoomInRatio})`;
+    rulerWrapper.style.transform = `scaleX(${zoomInRatio})`;
+
+
+    // console.log("zoomThumb.position", zoomThumb.position);
+
 }
 
 // Slider function execution
@@ -487,7 +497,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisp
                 trackPosition = 0;
             } else if (event.pageX > lineRightEnd) {
                 thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
-                trackPosition = durationRounded;
+                trackPosition = thumbObject.maxValue;
             } else {
                 thumbObject.style.left = pageX - startPosition - thumbOffset + 'px';
                 trackPosition = (pageX - startPosition) / sliderUnit;
@@ -521,7 +531,7 @@ function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisp
             trackPosition = 0;
         } else if (event.pageX > lineRightEnd) {
             thumbObject.style.left = lineRightEnd - startPosition  + 'px';
-            trackPosition = durationRounded;
+            trackPosition = thumbObject.maxValue;
         } else {
             thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
             trackPosition = (event.pageX - startPosition) / sliderUnit;
