@@ -205,8 +205,13 @@ zoomThumb.offset = 1;
 
 // Auxiliary function
 function makeZoom(zoomValue) {
-    let rangeSliderWrapper = document.querySelector("#player-progress-bar-wrapper");
-    let rulerWrapper = document.querySelector("#progress-bar-ruler");
+    let zoomInRatio = 1 + zoomThumb.position;
+    let rangeBoxOrigWidth;
+    if (zoomInRatio == 1) rangeBoxOrigWidth = (rangeBox.style.width).replace('px','');
+    
+    // let rangeSliderWrapper = document.querySelector("#player-progress-bar-wrapper");
+    // let rulerWrapper = document.querySelector("#progress-bar-ruler");
+
     //ToDo
     // Scale the ruler up or down
     // Change the combination of long/middle/short bars depending on magnification
@@ -215,13 +220,13 @@ function makeZoom(zoomValue) {
     // Add side elements to indicate that some audio track os out of view
     // Add drag functionality to move audion track left-right
     // Redraw audio track (selected parts) and the scale when being dragged
-    let zoomInRatio = 1 + zoomThumb.position;
-    rangeSliderWrapper.style.transform = `scaleX(${zoomInRatio})`;
-    rangeBox.style.transform = `scaleX(${zoomInRatio})`;
-    rulerWrapper.style.transform = `scaleX(${zoomInRatio})`;
 
 
-    // console.log("zoomThumb.position", zoomThumb.position);
+    colorRange();
+    console.log("rangeBox.style.width: ", rangeBox.style.width, "rangeBoxOrigWidth: ", "zoomInRatio: ", zoomInRatio);
+    rangeBox.style.width = Math.abs(rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
+
+
 
 }
 
@@ -237,7 +242,6 @@ let progressBarLineSpan = progressBarLine.getBoundingClientRect().width;
 // Elements
 
 let borderLeftStyles = getComputedStyle(borderLeft);
-borderLeft.pointerId = 0;
 borderLeft.left = '0px';
 borderLeft.position = 0;
 borderLeft.locked = false;
@@ -254,9 +258,10 @@ let borderLeftTimeFormat = function makeborderLeftTimeFormatString(trackPosition
 // Elements
 
 let borderRightStyles = getComputedStyle(borderRight);
-borderRight.pointerId = 0;
 borderRight.left = borderRightStyles.left;
-borderRight.position = borderRight.getBoundingClientRect.x;
+borderRight.position = borderRight.maxValue;
+
+
 borderRight.locked = false;
 
 // Auxiliary function
@@ -445,6 +450,10 @@ let playTimeFormat = function makePlayerTimeFormatString(trackPosition, duration
 // Handle thumb movement
 // Return thumb position relative to track start
 function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisplayObject, valueDisplayTextFormat) {
+    // thumbObject should have following properties
+    // thumbObject.offset
+    // thumbObject.maxValue
+    // thumbObject.position
 
     // Initialise objects coordinates
     thumbOffset = (thumbObject.getBoundingClientRect().width / 2) * thumbObject.offset;
@@ -480,7 +489,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisp
 
         // начать отслеживание перемещения указателя и переопределить их на ползунок
         thumbObject.setPointerCapture(event.pointerId);
-        thumbObject.pointerId = event.pointerId;
 
         thumbObject.onpointermove = (event) => {
             
