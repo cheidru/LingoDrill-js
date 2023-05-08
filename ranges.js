@@ -203,12 +203,22 @@ zoomThumb.maxValue = 3;
 zoomThumb.position = 0;
 zoomThumb.offset = 1;
 
+
+
+
+
+
+
+
+
+
 // Auxiliary function
 function makeZoom(zoomValue) {
     let zoomInRatio = 1 + zoomThumb.position;
-    let rangeBoxOrigWidth;
-    if (zoomInRatio == 1) rangeBoxOrigWidth = (rangeBox.style.width).replace('px','');
-    
+    progressBarLine.style.minWidth = (progressBarLineSpan * zoomInRatio) + 'px';
+    progressBarLine.style.marginLeft = '0px';
+    colorRange();
+   
     // let rangeSliderWrapper = document.querySelector("#player-progress-bar-wrapper");
     // let rulerWrapper = document.querySelector("#progress-bar-ruler");
 
@@ -222,9 +232,8 @@ function makeZoom(zoomValue) {
     // Redraw audio track (selected parts) and the scale when being dragged
 
 
-    colorRange();
-    console.log("rangeBox.style.width: ", rangeBox.style.width, "rangeBoxOrigWidth: ", "zoomInRatio: ", zoomInRatio);
-    rangeBox.style.width = Math.abs(rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
+    // console.log("rangeBox.style.width: ", rangeBox.style.width, "rangeBoxOrigWidth: ", "zoomInRatio: ", zoomInRatio);
+    // rangeBox.style.width = Math.abs(rightLine.getBoundingClientRect().x - leftLine.getBoundingClientRect().x) + 'px';
 
 
 
@@ -309,6 +318,12 @@ function rangeLeftSelect() {
         borderLeft.offset = borderLeft.isActualLeftBorder == true ? 0 : 2;
         thumbOffset = (borderLeft.getBoundingClientRect().width / 2) * borderLeft.offset;
     }
+
+    progressBarLine.removeEventListener('pointerdown', borderLeft.trackHandler);
+    borderLeft.onpointerdown = (event) => {
+        event.stopPropagation();
+    }
+
     colorRange();
 }
 
@@ -327,6 +342,12 @@ function rangeRightSelect() {
         borderLeft.offset = borderLeft.isActualLeftBorder == true ? 0 : 2;
         thumbOffset = (borderRight.getBoundingClientRect().width / 2) * borderRight.offset;
     }
+
+    progressBarLine.removeEventListener('pointerdown', borderRight.trackHandler);
+    borderRight.onpointerdown = (event) => {
+        event.stopPropagation();
+    }
+
     colorRange();
 }
 
@@ -475,6 +496,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisp
 
     thumbObject.addEventListener('pointerdown', thumbPointerDownHandler);        
     trackObject.addEventListener('pointerdown', trackPointerDownHandler);
+    // assign handler function to the object property for outside access
+    // to stop EventListener from outside
     thumbObject.thumbHandler = thumbPointerDownHandler;
     thumbObject.trackHandler = trackPointerDownHandler;
    
