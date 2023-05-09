@@ -215,7 +215,15 @@ main {
     flex-shrink: 0;
     height: 0.9rem;
     width: 0.9rem;
+    padding-right: 0.1rem;
+}
 
+#border-svg-btn {
+    flex-shrink: 0;
+    height: 0.7rem;
+    width: 0.7rem;
+    padding-right: 0.1rem;
+    stroke: rgb(65, 105, 225);
 }
 
 [id*="volume-svg-btn"] {

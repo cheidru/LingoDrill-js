@@ -20,6 +20,7 @@ let playerBottomMenuWrapper = document.querySelector('#player-bottom-menu-wrappe
 let volumeBTN = document.querySelector('#volume-svg-btn');
 let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
 let volumeSlider = document.querySelector('#volume-slider-track');
+let bordersBTN = document.querySelector('#border-svg-btn');
 
 volumeSlider.style.display = 'none';
 
@@ -50,6 +51,7 @@ let borderRight = document.querySelector('#range-border-wrapper-right');
 borderRight.offset = 2;
 let rightPointer = document.querySelector('#range-border-pointer-right');
 
+let ruler = document.querySelector("#progress-bar-ruler");   
 
 openDB.onsuccess = (e) => {
     let db = e.target.result;
@@ -87,7 +89,7 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     let longBarTemplate = document.querySelector('#long-bar-template');
     let shortBarTemplate = document.querySelector('#short-bar-template');
     let middleBarTemplate = document.querySelector('#middle-bar-template');
-    const ruler = document.querySelector("#progress-bar-ruler");      
+   
 
     if (durationRounded > 70) {
         largeScale();
@@ -193,6 +195,10 @@ volumeOffBTN.addEventListener('click', () => {
     }
 });
 
+bordersBTN.addEventListener('click', () => {
+    bordersBTN.style.fill = "rgb(65, 105, 225)";
+})
+
 // SEGMENT: ZOOM Slider
 // ToDo
 
@@ -203,20 +209,17 @@ zoomThumb.maxValue = 3;
 zoomThumb.position = 0;
 zoomThumb.offset = 1;
 
-
-
-
-
-
-
-
-
-
 // Auxiliary function
-function makeZoom(zoomValue) {
+function makeZoom() {
     let zoomInRatio = 1 + zoomThumb.position;
     progressBarLine.style.minWidth = (progressBarLineSpan * zoomInRatio) + 'px';
+    ruler.style.minWidth = (progressBarLineSpan * zoomInRatio) + 'px';
     progressBarLine.style.marginLeft = '0px';
+    ruler.style.marginLeft = '0px';
+
+    zoomThumb.position > 0 ? ruler.style.background = "navy" : ruler.style.background = "none";
+
+
     colorRange();
    
     // let rangeSliderWrapper = document.querySelector("#player-progress-bar-wrapper");
