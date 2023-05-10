@@ -98,6 +98,18 @@ main {
     margin-top: -0.8rem;
 }
 
+#player-thumb {
+    padding-top: 0.1rem;
+}
+
+#thumb-pointer {
+    width: calc(var(--thumb-width) * 0.5);
+    height: calc(var(--thumb-width) * 0.5);
+    border-radius: 50%;
+    background-color: red;
+    transform: translateX(-40%);
+}
+
 [class^="border-wrapper-"] {
     display: flex;
     width:fit-content;
@@ -172,12 +184,16 @@ main {
 
 }
 
+.thumb-time {
+    transform: translateX(-35%);  
+}
+
 .right-time {
     transform: translateX(50%);
 }
 
 .left-time {
-    transform: translateX(-50%);
+    transform: translateX(-35%);
 }
 
 .range-border-line {
@@ -220,10 +236,10 @@ main {
 
 #border-svg-btn {
     flex-shrink: 0;
-    height: 0.7rem;
-    width: 0.7rem;
+    height: 0.6rem;
+    width: 0.6rem;
     padding-right: 0.1rem;
-    stroke: rgb(65, 105, 225);
+    /* stroke: rgb(65, 105, 225); */
 }
 
 [id*="volume-svg-btn"] {

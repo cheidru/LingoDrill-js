@@ -1,6 +1,7 @@
 let aFile = document.querySelector('#mymusic');
 let aTitle = document.querySelector('#played-title');
 let songDuration = 0;
+let playerThumb = document.querySelector('#player-thumb');
 let thumbOffset = 0;
 
 let borderDragOn = false;
@@ -21,6 +22,28 @@ let volumeBTN = document.querySelector('#volume-svg-btn');
 let volumeOffBTN = document.querySelector('#volume-svg-btn-off');
 let volumeSlider = document.querySelector('#volume-slider-track');
 let bordersBTN = document.querySelector('#border-svg-btn');
+let borderLeft = document.querySelector('#range-border-wrapper-left');
+borderLeft.offset = 0;
+let leftPointer = document.querySelector('#range-border-pointer-left');
+let borderRight = document.querySelector('#range-border-wrapper-right');
+borderRight.offset = 2;
+let rightPointer = document.querySelector('#range-border-pointer-right');
+let ruler = document.querySelector("#progress-bar-ruler");   
+
+let rangeBox = document.querySelector('#range-box');
+let leftLine = document.querySelector('#border-line-left');
+let leftLineStyles = getComputedStyle(leftLine);
+leftLine.style.left = leftLineStyles.left;
+let rightLine = document.querySelector('#border-line-right');
+let rightLineStyles  = getComputedStyle(rightLine);
+
+
+bordersBTNisOnOff = 0; // 0 - off; 1 - on
+bordersBTN.style.stroke = "black";
+borderLeft.style.visibility = "hidden";
+borderRight.style.visibility = "hidden";
+rangeBox.style.visibility = "hidden";
+
 
 volumeSlider.style.display = 'none';
 
@@ -43,15 +66,7 @@ let intervalsId = 0;
 let audioFileID = localStorage.getItem('aFileID');
 let openDB = indexedDB.open("audioBase", 1);
 
-let borderLeft = document.querySelector('#range-border-wrapper-left');
 
-borderLeft.offset = 0;
-let leftPointer = document.querySelector('#range-border-pointer-left');
-let borderRight = document.querySelector('#range-border-wrapper-right');
-borderRight.offset = 2;
-let rightPointer = document.querySelector('#range-border-pointer-right');
-
-let ruler = document.querySelector("#progress-bar-ruler");   
 
 openDB.onsuccess = (e) => {
     let db = e.target.result;
@@ -100,10 +115,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     function largeScale() {
         for(let i = 0; i <= durationRounded; i += 5) {
             if (i%50 == 0) {
-                if(i > 0) { // other than first one, LongBar is preceded by ShortBar
-                    const cloneShort = shortBarTemplate.content.cloneNode(true);
-                    ruler.appendChild(cloneShort);
-                }
                 const cloneLong = longBarTemplate.content.cloneNode(true);
                 let barNumber = cloneLong.querySelector("#long-number");
                 barNumber.textContent = i;
@@ -121,10 +132,6 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     function smallScale() {
         for(let i = 0; i <= durationRounded; i++) {
             if (i%10 == 0) {
-                if (i != 0) {
-                    const cloneShort = shortBarTemplate.content.cloneNode(true);
-                    ruler.appendChild(cloneShort);
-                }
                 const clone = longBarTemplate.content.cloneNode(true);
                 let barNumber = clone.querySelector("#long-number");
                 barNumber.textContent = i;
@@ -196,7 +203,23 @@ volumeOffBTN.addEventListener('click', () => {
 });
 
 bordersBTN.addEventListener('click', () => {
-    bordersBTN.style.fill = "rgb(65, 105, 225)";
+    if (!bordersBTNisOnOff) {
+        bordersBTNisOnOff = 1;
+        bordersBTN.style.stroke = "rgb(65, 105, 225)";
+        borderLeft.style.visibility = "visible";
+        borderRight.style.visibility = "visible";
+        rangeBox.style.visibility = "visible";
+        playerThumb.style.visibility = "hidden";
+
+    } else {
+        bordersBTNisOnOff = 0;
+        bordersBTN.style.stroke = "black";
+        borderLeft.style.visibility = "hidden";
+        borderRight.style.visibility = "hidden";
+        rangeBox.style.visibility = "hidden";
+        playerThumb.style.visibility = "visible";
+    }
+
 })
 
 // SEGMENT: ZOOM Slider
@@ -217,7 +240,7 @@ function makeZoom() {
     progressBarLine.style.marginLeft = '0px';
     ruler.style.marginLeft = '0px';
 
-    zoomThumb.position > 0 ? ruler.style.background = "navy" : ruler.style.background = "none";
+    zoomThumb.position > 0 ? ruler.style.background = "rgba(25, 25, 112, 0.3)" : ruler.style.background = "none";
 
 
     colorRange();
@@ -261,6 +284,7 @@ borderLeft.isActualLeftBorder = true;
 
 // Auxiliary function
 let borderLeftTime = document.querySelector('#left-border-time');
+let timeStyles = getComputedStyle(borderLeftTime);
 let borderLeftTimeFormat = function makeborderLeftTimeFormatString(trackPosition) {
     return `${Math.round(trackPosition)}`;
 }
@@ -285,13 +309,6 @@ let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPositi
 
 // SEGMENT Auxiliary functions for different sliders
 
-let rangeBox = document.querySelector('#range-box');
-let leftLine = document.querySelector('#border-line-left');
-let leftLineStyles = getComputedStyle(leftLine);
-leftLine.style.left = leftLineStyles.left;
-let rightLine = document.querySelector('#border-line-right');
-let rightLineStyles  = getComputedStyle(rightLine);
-let timeStyles = getComputedStyle(borderLeftTime);
 
 function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
