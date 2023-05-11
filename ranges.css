@@ -76,8 +76,7 @@ main {
 
 #player-progress-bar-wrapper {
     position: relative;
-    padding: 0.5rem;
-    padding-bottom: 1rem;
+    padding: 0.7rem 0.5rem 1rem;
     width: auto;
 }
 
@@ -363,7 +362,7 @@ main {
     height: 1rem;
 }
 
-#long-number {
+#long-number, #middle-number {
     position: absolute;
     top: -25%;
     left: 50%;
@@ -372,6 +371,11 @@ main {
     width: fit-content;
     transform: translateX(-50%);
     color: white;
+    user-select: none;
+}
+
+#middle-number {
+    font-size: 0.3rem;
 }
 
 #middle-bar {
