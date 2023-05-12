@@ -279,6 +279,7 @@ function stopPlaying() {
 }
 
 function playLoops() {
+    debugger
     startPlayAt = playAtObject.position;
     aFile.currentTime = startPlayAt;
     playBTN.classList.remove('play-btn');
