@@ -260,19 +260,21 @@ function playerThumbTimeFormat(trackPosition, maxValue) {
 let borderRightStyles = getComputedStyle(borderRight);
 borderRight.left = borderRightStyles.left;
 borderRight.position = borderRight.maxValue;
-
-
 borderRight.locked = false;
 
-// Auxiliary function
 let borderRightTime = document.querySelector('#right-border-time');
 let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPosition) {
     return `${Math.round(trackPosition)}`;
 }
 // SEGMENT END: Range Selection Border Right
 
+
 // SEGMENT Auxiliary functions for different sliders
 
+// Right-left swiping function for ruler & range slider when zoomed-in
+ruler.addEventListener('pointerdown', (event) => {
+
+})
 
 function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
