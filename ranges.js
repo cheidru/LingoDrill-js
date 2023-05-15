@@ -222,9 +222,11 @@ function makeZoom() {
 
     if (zoomThumb.position > 0) {
         ruler.style.background = "rgba(25, 25, 112, 0.3)";
+        ruler.style.cursor = "pointer";
         drawScale(PRECISE_SCALE);
      } else {
         ruler.style.background = "none";
+        ruler.style.cursor = "auto";
         durationRounded > 70 ? drawScale(LARGE_SCALE) : drawScale(MIDDLE_SCALE);
      }
     colorRange();
@@ -447,16 +449,19 @@ function drawScale(precision) {
             denomLarge = 50;
             denomMiddle = 10;
             incr = 5;
+            ruler.removeEventListener('pointerdown', ruler.handler);
             break;
         case MIDDLE_SCALE:
             denomLarge = 10;
             denomMiddle = 5;
             incr = 1;
+            ruler.removeEventListener('pointerdown', ruler.handler);
             break;
         case PRECISE_SCALE:
             denomLarge = undefined;
             denomMiddle = 1;
             incr = 1;
+            ruler.addEventListener('pointerdown', ruler.handler = swipeRuler);
             break;
     }
 
@@ -501,7 +506,81 @@ function drawScale(precision) {
         } else {
             const cloneShort = shortBarTemplate.content.cloneNode(true);
             ruler.appendChild(cloneShort);
-        }  
+        }
+
+        function swipeRuler(event) {
+            // величина сдвига позиции курсора равна перемещению шкалы
+            // и RangeSlider
+            // остановиться когда достигнут конец шкалы
+            // если скорость курсора в момент отжатия кнопки мыши > V,
+            // продолжить смещение шкалы и RangeSlider
+            // величина остаточного смещения зависит от скорости и коэффициента скорости W
+
+            // prevent default brauser action for drag'n'drop operation
+            ruler.ondragstart = () => false;
+        
+            // control ruler and RangeSlider position
+
+
+
+
+            // prevent selection start (browser action)
+            // event.preventDefault();
+    
+            // начать отслеживание перемещения курсора и переопределить их на шкалу
+            ruler.setPointerCapture(event.pointerId);
+    
+            ruler.onpointermove = (event) => {
+
+
+
+                
+                
+                let lineRightEnd = trackObject.getBoundingClientRect().right;
+                let startPosition = originX;
+                let pageX = event.pageX;
+                
+    
+                // if pointer movement should initiate other actions, anable the provided function
+                if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
+    
+                if (event.pageX < startPosition) {
+                    thumbObject.style.left = 0 - thumbOffset + 'px';
+                    trackPosition = 0;
+                } else if (event.pageX > lineRightEnd) {
+                    thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
+                    trackPosition = thumbObject.maxValue;
+                } else {
+                    thumbObject.style.left = pageX - startPosition - thumbOffset + 'px';
+                    trackPosition = (pageX - startPosition) / sliderUnit;
+                }
+                thumbObject.position = trackPosition;
+                if (typeof thumbObject.left !== 'undefined') thumbObject.left = thumbObject.style.left;
+    
+                if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
+                        
+
+        
+                thumbObject.onpointerup = () => {
+                    borderDragOn = false;
+                    thumbObject.onpointermove = null;
+                    thumbObject.onpointerup = null;
+                }
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+        }
     }
 
     ruler.firstElementChild.style.marginLeft = 0;
