@@ -530,11 +530,7 @@ function drawScale(precision) {
             // начать отслеживание перемещения курсора и переопределить их на шкалу
             ruler.setPointerCapture(event.pointerId);
     
-            ruler.onpointermove = (event) => {
-
-
-
-                
+            ruler.onpointermove = (event) => {                
                 
                 let lineRightEnd = trackObject.getBoundingClientRect().right;
                 let startPosition = originX;
