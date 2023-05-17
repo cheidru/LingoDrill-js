@@ -210,7 +210,6 @@ bordersBTN.addEventListener('click', () => {
 })
 
 // SEGMENT: ZOOM Slider
-// ToDo
 
 // Elements
 let zoomThumb = document.querySelector('#zoom-thumb-svg-btn');
@@ -278,9 +277,7 @@ let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPositi
 }
 // SEGMENT END: Range Selection Border Right
 
-
 // SEGMENT Auxiliary functions for different sliders
-
 
 function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
@@ -515,63 +512,50 @@ function drawScale(precision) {
         }
 
 
-// Right-left swiping function for ruler & range slider when zoomed-in
-        function swipeRuler(event) {
-            ruler.pointerOriginX = event.pageX;
-            let actualOffsetLeft = ruler.offsetLeft;
-            // let actualOffsetRight = document.documentElement.clientWidth - ruler.offsetLeft + ruler.offsetWidth;
-            
-            // величина сдвига позиции курсора равна перемещению шкалы
-            // и RangeSlider
-            // остановиться когда достигнут конец шкалы
-            // если скорость курсора в момент отжатия кнопки мыши > V,
-            // продолжить смещение шкалы и RangeSlider
-            // величина остаточного смещения зависит от скорости и коэффициента скорости W
 
-            // prevent default brauser action for drag'n'drop operation
-            ruler.ondragstart = () => false;
-        
-            // control ruler and RangeSlider position
-            // prevent selection start (browser action)
-            // event.preventDefault();
-    
-            // начать отслеживание перемещения курсора и переопределить их на шкалу
-            ruler.setPointerCapture(event.pointerId);
-    
-            ruler.onpointermove = (event) => {
-                let newMarginLeft = actualOffsetLeft + event.pageX - ruler.pointerOriginX;
-
-                if (newMarginLeft > ruler.left) {
-                            ruler.style.marginLeft = ruler.left + 'px';
-
-                // } else if (newMarginRight > Number(ruler.originalStyleMarginRight.replace('px',''))) {
-                //             ruler.style.marginRight = ruler.originalStyleMarginRight;
-                } else if (newMarginLeft + ruler.width - ruler.originalWidth < 0) {
-                        ruler.style.marginRight = '0px';
-                } else {
-                            ruler.style.marginLeft = newMarginLeft + 'px';                            
-                }
-
-
-                // ruler.style.marginLeft = newMarginLeft > Number(ruler.originalStyleMarginLeft.replace('px','')) ?
-                //                             ruler.originalStyleMarginLeft : newMarginLeft + 'px';
-                // ruler.style.marginRight = newMarginRight > Number(ruler.originalStyleMarginRight.replace('px','')) ?
-                // ruler.originalStyleMarginRight : newMarginRight + 'px';
-
-            }            
-                   
-       
-            ruler.onpointerup = () => {
-                ruler.pointerOriginX = undefined;
-                ruler.onpointermove = null;
-                ruler.onpointerup = null;
-            }
-            
-        }
     }
 
     ruler.firstElementChild.style.marginLeft = 0;
     ruler.lastElementChild.style.marginRight = 0; 
+}
+
+// Right-left swiping function for ruler & range slider when zoomed-in
+function swipeRuler(event) {
+    ruler.pointerOriginX = event.pageX;
+    let actualOffsetLeft = ruler.offsetLeft;
+    // let actualOffsetRight = document.documentElement.clientWidth - ruler.offsetLeft + ruler.offsetWidth;
+    
+    // величина сдвига позиции курсора равна перемещению шкалы
+    // и RangeSlider
+    // остановиться когда достигнут конец шкалы
+    // если скорость курсора в момент отжатия кнопки мыши > V,
+    // продолжить смещение шкалы и RangeSlider
+    // величина остаточного смещения зависит от скорости и коэффициента скорости W
+
+    // prevent default brauser action for drag'n'drop operation
+    ruler.ondragstart = () => false;
+
+    // начать отслеживание перемещения курсора и переопределить их на шкалу
+    ruler.setPointerCapture(event.pointerId);
+
+    ruler.onpointermove = (event) => {
+        let newMarginLeft = actualOffsetLeft + event.pageX - ruler.pointerOriginX;
+
+        if (newMarginLeft > ruler.left) {
+                ruler.style.marginLeft = progressBarLine.style.marginLeft = ruler.left + 'px';
+
+        } else if (newMarginLeft + ruler.width - ruler.originalWidth < 0) {
+                ruler.style.marginRight = progressBarLine.style.marginRight = '0px';
+        } else {
+                ruler.style.marginLeft = progressBarLine.style.marginLeft = newMarginLeft + 'px';                            
+        }
+    }
+
+    ruler.onpointerup = () => {
+        ruler.pointerOriginX = undefined;
+        ruler.onpointermove = null;
+        ruler.onpointerup = null;
+    }    
 }
 
 // SEGMENT END Auxiliary functions for different sliders
