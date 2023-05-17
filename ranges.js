@@ -127,9 +127,9 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     // SEGMENT: Create Ruler
     durationRounded > 70 ? drawScale(LARGE_SCALE) : drawScale(MIDDLE_SCALE);
 
-    rulerCompStyle = getComputedStyle(ruler);
-    ruler.originalStyleMarginLeft = rulerCompStyle.marginleft;
-    ruler.originalStyleMarginRight = rulerCompStyle.marginright;
+
+    ruler.left = ruler.offsetLeft;
+    ruler.originalWidth = ruler.offsetWidth;
 
     // Move the first ruler notch to the very left
     // and the right ruler notch to the very right
@@ -224,6 +224,7 @@ function makeZoom() {
     let zoomInRatio = 1 + zoomThumb.position;
     progressBarLine.style.minWidth = (progressBarLineSpan * zoomInRatio) + 'px';
     ruler.style.minWidth = (progressBarLineSpan * zoomInRatio) + 'px';
+    ruler.width = ruler.offsetWidth;
     progressBarLine.style.marginLeft = '0px';
     ruler.style.marginLeft = '0px';
 
@@ -517,7 +518,8 @@ function drawScale(precision) {
 // Right-left swiping function for ruler & range slider when zoomed-in
         function swipeRuler(event) {
             ruler.pointerOriginX = event.pageX;
-            let actualMarginLeft = ruler.style.marginLeft;
+            let actualOffsetLeft = ruler.offsetLeft;
+            // let actualOffsetRight = document.documentElement.clientWidth - ruler.offsetLeft + ruler.offsetWidth;
             
             // величина сдвига позиции курсора равна перемещению шкалы
             // и RangeSlider
@@ -537,52 +539,34 @@ function drawScale(precision) {
             ruler.setPointerCapture(event.pointerId);
     
             ruler.onpointermove = (event) => {
-                let newMarginLeft = Number(actualMarginLeft.replace('px','')) + (event.pageX - ruler.pointerOriginX);
+                let newMarginLeft = actualOffsetLeft + event.pageX - ruler.pointerOriginX;
 
-                ruler.style.marginLeft = newMarginLeft < Number(ruler.originalStyleMarginLeft.replace('px','')) ?
-                                            ruler.originalStyleMarginLeft : newMarginLeft + 'px';
-              
-               
-    
-                // // if pointer movement should initiate other actions, anable the provided function
-                // if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
-    
-                // if (event.pageX < startPosition) {
-                //     thumbObject.style.left = 0 - thumbOffset + 'px';
-                //     trackPosition = 0;
-                // } else if (event.pageX > lineRightEnd) {
-                //     thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
-                //     trackPosition = thumbObject.maxValue;
-                // } else {
-                //     thumbObject.style.left = pageX - startPosition - thumbOffset + 'px';
-                //     trackPosition = (pageX - startPosition) / sliderUnit;
-                // }
-                // thumbObject.position = trackPosition;
-                // if (typeof thumbObject.left !== 'undefined') thumbObject.left = thumbObject.style.left;
-    
-                // if (typeof valueDisplayObject !== 'undefined') valueDisplayObject.textContent = valueDisplayTextFormat(trackPosition, sliderMaxValueRounded);
-                        
+                if (newMarginLeft > ruler.left) {
+                            ruler.style.marginLeft = ruler.left + 'px';
 
-        
-                ruler.onpointerup = () => {
-                    ruler.pointerOriginX = undefined;
-                    ruler.onpointermove = null;
-                    ruler.onpointerup = null;
+                // } else if (newMarginRight > Number(ruler.originalStyleMarginRight.replace('px',''))) {
+                //             ruler.style.marginRight = ruler.originalStyleMarginRight;
+                } else if (newMarginLeft + ruler.width - ruler.originalWidth < 0) {
+                        ruler.style.marginRight = '0px';
+                } else {
+                            ruler.style.marginLeft = newMarginLeft + 'px';                            
                 }
+
+
+                // ruler.style.marginLeft = newMarginLeft > Number(ruler.originalStyleMarginLeft.replace('px','')) ?
+                //                             ruler.originalStyleMarginLeft : newMarginLeft + 'px';
+                // ruler.style.marginRight = newMarginRight > Number(ruler.originalStyleMarginRight.replace('px','')) ?
+                // ruler.originalStyleMarginRight : newMarginRight + 'px';
+
+            }            
+                   
+       
+            ruler.onpointerup = () => {
+                ruler.pointerOriginX = undefined;
+                ruler.onpointermove = null;
+                ruler.onpointerup = null;
             }
-
-
-
-
-
-
-
-
-
-
-
-
-
+            
         }
     }
 
