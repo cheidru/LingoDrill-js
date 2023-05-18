@@ -155,6 +155,8 @@ let aFileDataLoaded = aFile.addEventListener('loadedmetadata', function() {
     sliderMoveHandler(borderLeft, progressBarLine, rangeLeftSelect, borderLeftTime, borderLeftTimeFormat);
     borderRightTime.textContent = durationRounded;
     borderRight.maxValue = songDuration;
+    borderRight.position = borderRight.maxValue;
+    borderRight.locked = false;
     sliderMoveHandler(borderRight, progressBarLine, rangeRightSelect, borderRightTime, borderRightTimeFormat);
 
 })
@@ -191,8 +193,9 @@ volumeOffBTN.addEventListener('click', () => {
 
 bordersBTN.addEventListener('click', () => {
     if (!bordersBTNisOnOff) {
-        bordersBTNisOnOff = 1;
+        bordersBTNisOnOff = 1; // Borders swiched on
         bordersBTN.style.stroke = "rgb(65, 105, 225)";
+        moveNearestBorderToSliderThumbPosition();
         borderLeft.style.visibility = "visible";
         borderRight.style.visibility = "visible";
         rangeBox.style.visibility = "visible";
@@ -208,6 +211,25 @@ bordersBTN.addEventListener('click', () => {
     }
 
 })
+
+function moveNearestBorderToSliderThumbPosition() {
+
+    let borderLeftDistance = Math.abs(playerThumb.position - borderLeft.position);
+    let borderRightDistance = Math.abs(playerThumb.position - borderRight.position);
+
+
+    if ((borderLeftDistance - borderRightDistance) < 0) {
+
+        borderLeft.position = playerThumb.position;
+        borderLeft.style.marginLeft = playerThumb.position + 'px';
+
+    } else {
+        borderRight.offsetLeft = playerThumb.offsetLeft;
+    // borderLeft.style.marginLeft = borderLeft.offsetLeft + 'px';
+    // borderRight.style.marginLeft = borderRight.offsetLeft + 'px';
+    }
+    console.log("playerThumb.position: ", playerThumb.position, "borderLeft.position: ", borderLeft.position, "borderRight.position: ", borderRight.position);
+}
 
 // SEGMENT: ZOOM Slider
 
@@ -268,8 +290,6 @@ function playerThumbTimeFormat(trackPosition, maxValue) {
 // Elements
 let borderRightStyles = getComputedStyle(borderRight);
 borderRight.left = borderRightStyles.left;
-borderRight.position = borderRight.maxValue;
-borderRight.locked = false;
 
 let borderRightTime = document.querySelector('#right-border-time');
 let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPosition) {

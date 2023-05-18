@@ -32,6 +32,16 @@ main {
     cursor: pointer;
 }
 
+#range-box:hover > #range-box-play-btn {
+    width: 0;
+    height: 0;
+    margin-bottom: 0.05rem;
+    border-left: 0.5rem solid rgba(255,255,255,0.6);
+    border-top: 0.3rem solid transparent;
+    border-bottom: 0.3rem solid transparent;
+    transition-duration: 100ms;
+}
+
 .play-btn {
     background-image:  url(./assets/icons8-play-96.png);
 }
@@ -208,6 +218,9 @@ main {
 
 #range-box {
     position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background-color: rgba(135, 168, 229, 0.5);
 }
 
