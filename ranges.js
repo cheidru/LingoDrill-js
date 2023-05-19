@@ -216,17 +216,16 @@ function moveNearestBorderToSliderThumbPosition() {
 
     let borderLeftDistance = Math.abs(playerThumb.position - borderLeft.position);
     let borderRightDistance = Math.abs(playerThumb.position - borderRight.position);
-
+    let playerThumbMarginLeft = (playerThumb.position * progressBarLine.getBoundingClientRect().width) / playerThumb.maxValue;
 
     if ((borderLeftDistance - borderRightDistance) < 0) {
 
         borderLeft.position = playerThumb.position;
-        borderLeft.style.marginLeft = playerThumb.position + 'px';
+        borderLeft.style.marginLeft = playerThumbMarginLeft + 'px';
 
     } else {
-        borderRight.offsetLeft = playerThumb.offsetLeft;
-    // borderLeft.style.marginLeft = borderLeft.offsetLeft + 'px';
-    // borderRight.style.marginLeft = borderRight.offsetLeft + 'px';
+        borderRight.style.marginLeft = playerThumbMarginLeft;
+        borderRight.position = playerThumb.position;
     }
     console.log("playerThumb.position: ", playerThumb.position, "borderLeft.position: ", borderLeft.position, "borderRight.position: ", borderRight.position);
 }
@@ -543,7 +542,6 @@ function drawScale(precision) {
 function swipeRuler(event) {
     ruler.pointerOriginX = event.pageX;
     let actualOffsetLeft = ruler.offsetLeft;
-    // let actualOffsetRight = document.documentElement.clientWidth - ruler.offsetLeft + ruler.offsetWidth;
     
     // величина сдвига позиции курсора равна перемещению шкалы
     // и RangeSlider
@@ -654,8 +652,8 @@ function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisp
                 thumbObject.style.left = lineRightEnd - startPosition - thumbOffset  + 'px';
                 trackPosition = thumbObject.maxValue;
             } else {
-                thumbObject.style.left = pageX - startPosition - thumbOffset + 'px';
-                trackPosition = (pageX - startPosition) / sliderUnit;
+                thumbObject.style.left = event.pageX - startPosition - thumbOffset + 'px';
+                trackPosition = (event.pageX - startPosition) / sliderUnit;
             }
             thumbObject.position = trackPosition;
             if (typeof thumbObject.left !== 'undefined') thumbObject.left = thumbObject.style.left;
