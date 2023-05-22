@@ -222,10 +222,14 @@ function moveNearestBorderToSliderThumbPosition() {
 
         borderLeft.position = playerThumb.position;
         borderLeft.style.marginLeft = playerThumbMarginLeft + 'px';
+        borderLeftTime.textContent = borderLeftTimeFormat(borderLeft.position);
+        colorRange()
 
     } else {
         borderRight.style.marginLeft = playerThumbMarginLeft;
         borderRight.position = playerThumb.position;
+        borderRightTime.textContent = borderRightTimeFormat(borderRight.position);
+        colorRange()
     }
     console.log("playerThumb.position: ", playerThumb.position, "borderLeft.position: ", borderLeft.position, "borderRight.position: ", borderRight.position);
 }
