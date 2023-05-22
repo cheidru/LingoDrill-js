@@ -63,7 +63,7 @@ let rightLine = document.querySelector('#border-line-right');
 let rightLineStyles  = getComputedStyle(rightLine);
 
 
-bordersBTNisOnOff = 0; // 0 - off; 1 - on
+bordersBTNisOn = 0; // 0 - off; 1 - on
 bordersBTN.style.stroke = "black";
 borderLeft.style.visibility = "hidden";
 borderRight.style.visibility = "hidden";
@@ -192,8 +192,8 @@ volumeOffBTN.addEventListener('click', () => {
 });
 
 bordersBTN.addEventListener('click', () => {
-    if (!bordersBTNisOnOff) {
-        bordersBTNisOnOff = 1; // Borders swiched on
+    if (!bordersBTNisOn) {
+        bordersBTNisOn = 1; // Borders swiched on
         bordersBTN.style.stroke = "rgb(65, 105, 225)";
         moveNearestBorderToSliderThumbPosition();
         borderLeft.style.visibility = "visible";
@@ -202,7 +202,7 @@ bordersBTN.addEventListener('click', () => {
         playerThumb.style.visibility = "hidden";
 
     } else {
-        bordersBTNisOnOff = 0;
+        bordersBTNisOn = 0;
         bordersBTN.style.stroke = "black";
         borderLeft.style.visibility = "hidden";
         borderRight.style.visibility = "hidden";
@@ -218,15 +218,17 @@ function moveNearestBorderToSliderThumbPosition() {
     let borderRightDistance = Math.abs(playerThumb.position - borderRight.position);
     let playerThumbMarginLeft = (playerThumb.position * progressBarLine.getBoundingClientRect().width) / playerThumb.maxValue;
 
+    if (playerThumb.position == 0) return;
     if ((borderLeftDistance - borderRightDistance) < 0) {
-
+        borderLeft.style.left = playerThumbMarginLeft + 'px';
         borderLeft.position = playerThumb.position;
-        borderLeft.style.marginLeft = playerThumbMarginLeft + 'px';
         borderLeftTime.textContent = borderLeftTimeFormat(borderLeft.position);
         colorRange()
 
     } else {
-        borderRight.style.marginLeft = playerThumbMarginLeft;
+        // borderRight has CSS property Left from align-items: flex-end.
+        // if position borderRight via style.marginLeft, it will add up on Left property
+        borderRight.style.left = (playerThumbMarginLeft - borderRight.getBoundingClientRect().width) + 'px';
         borderRight.position = playerThumb.position;
         borderRightTime.textContent = borderRightTimeFormat(borderRight.position);
         colorRange()
@@ -537,7 +539,6 @@ function drawScale(precision) {
 
 
     }
-
     ruler.firstElementChild.style.marginLeft = 0;
     ruler.lastElementChild.style.marginRight = 0; 
 }
@@ -643,8 +644,6 @@ function sliderMoveHandler(thumbObject, trackObject, sliderHandlerFoo, valueDisp
             
             let lineRightEnd = trackObject.getBoundingClientRect().right;
             let startPosition = originX;
-            let pageX = event.pageX;
-            
 
             // if pointer movement should initiate other actions, anable the provided function
             if (typeof sliderHandlerFoo !== 'undefined') sliderHandlerFoo(event);
