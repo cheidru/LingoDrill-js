@@ -1,6 +1,7 @@
 html, body, p {
     all: unset;
     box-sizing: border-box;
+    user-select: none;
 }
 
 header, main {
@@ -23,11 +24,9 @@ main {
     background-color: lemonchiffon;
 }
 
-/* 
+
 #file-list li {
-    display: flex;
-    justify-content:space-between;
-} */
+}
 
 #edit-svg {
     position: relative;
@@ -44,6 +43,17 @@ main {
 }
 
 #file-exist-pop-up::backdrop {
+    background-color:rgba(85, 107, 47, .5);
+
+}
+
+#file-edit-pop-up {
+    background-color: white;
+    border-radius: 5px;
+    border-color: transparent;
+}
+
+#file-edit-pop-up::backdrop {
     background-color:rgba(85, 107, 47, .5);
 
 }

@@ -9,7 +9,7 @@ let fileDialog = document.querySelector("#add-file-dialog");
 let listOfAudio = document.querySelector("#file-list");
 let listOfStoredAudio = [];
 let popUpWarning = document.querySelector('#file-exist-pop-up');
-let popUpMenuFileEdit = document.querySelector('#file-edit');
+let popUpMenuFileEdit = document.querySelector('#file-edit-pop-up');
 
 
 function readFileDataFromDBtoScreen() {        
@@ -208,11 +208,14 @@ listOfAudio.addEventListener('click', (e) => {
                 window.open('player.html');
         } 
         else {
-                console.log("icon clicked");
+
+     
                 popUpMenuFileEdit.showModal();
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
+                        console.log("popUpMenuFileEdit.attributes.open :", popUpMenuFileEdit.attributes.open);
+                        debugger
                         if (popUpMenuFileEdit.attributes.open) {
                                 popUpMenuFileEdit.close();
                                 pageBody.style.overflow = "visible";
