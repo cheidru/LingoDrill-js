@@ -9,6 +9,7 @@ let fileDialog = document.querySelector("#add-file-dialog");
 let listOfAudio = document.querySelector("#file-list");
 let listOfStoredAudio = [];
 let popUpWarning = document.querySelector('#file-exist-pop-up');
+let popUpMenuFileEdit = document.querySelector('#file-edit');
 
 
 function readFileDataFromDBtoScreen() {        
@@ -74,11 +75,15 @@ function makeULfromDB(iDB) {
         getReq.onsuccess = (evnt) => {
                 let request = evnt.target // request === getReq
                 console.log("request: ", request);
-                listOfAudio.innerHTML = request.result
-                        .map((aRecordFromDB) => {
+                listOfAudio.innerHTML = request.result.map((aRecordFromDB) => {
                                 // fill the array of audio names in DB for duplicate prevention check
                                 listOfStoredAudio.push(aRecordFromDB.aName);
-                                return `<li data-id="${aRecordFromDB.id}">${aRecordFromDB.aName}</li>`
+                                return `<li data-id="${aRecordFromDB.id}">
+                                                <span>${aRecordFromDB.aName}</span>
+                                                <svg id="edit-svg" width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M17.6878 3.00154L20.9985 6.3122L12.3107 15H9V11.6893L17.6878 3.00154ZM17.6878 5.12286L10.5 12.3107V13.5H11.6893L18.8771 6.3122L17.6878 5.12286ZM5 5H12V6.5H6.5V17.5H17.5V12H19V19H5V5Z" fill="#1F2328"/>
+                                                </svg>
+                                        </li>`
                 }).join('\n'); // join <li>s with '\n' inbetween for better appearance in DevTool
         }
 }
@@ -89,7 +94,6 @@ fileDialog.addEventListener('change', function() {
         let file = this.files[0];
 
         if (listOfStoredAudio.includes(file.name)) {
-                console.log("Douplicate");
                 popUpWarning.showModal();
                 // delete HTMLInputElement FileList entirely to anable 'change' event of File Input
                 // if the same file is clicked in FileDialog next time 
@@ -195,10 +199,26 @@ fileDialog.addEventListener('change', function() {
 
 // Open a list item in player page
 listOfAudio.addEventListener('click', (e) => {
-        let li = e.target;
-        let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
-        console.log("Show target", e, itemID)
-        localStorage.setItem('aFileID', itemID);
-        window.open('player.html');
+        console.log("e.target: ", e.target, "e.target.name: ", e.target.name, "e.target.tagName: ", e.target.tagName);
+        if (e.target.tagName == 'SPAN') {
+                let li = e.target.closest('li');
+                let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
+                console.log("Show target", e, itemID)
+                localStorage.setItem('aFileID', itemID);
+                window.open('player.html');
+        } 
+        else {
+                console.log("icon clicked");
+                popUpMenuFileEdit.showModal();
+                // default modal dialog doesn't freese the background (maybe a bug)
+                pageBody.style.overflow = "hidden";
+                pageBody.onclick = () => {
+                        if (popUpMenuFileEdit.attributes.open) {
+                                popUpMenuFileEdit.close();
+                                pageBody.style.overflow = "visible";
+                        }
+                }
+
+        }
 
 })

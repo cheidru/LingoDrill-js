@@ -23,6 +23,20 @@ main {
     background-color: lemonchiffon;
 }
 
+/* 
+#file-list li {
+    display: flex;
+    justify-content:space-between;
+} */
+
+#edit-svg {
+    position: relative;
+    top: 0.1rem;
+    flex-shrink: 0;
+    height: 0.5rem;
+    width: 0.5rem;
+}
+
 #file-exist-pop-up {
     background-color: white;
     border-radius: 5px;
