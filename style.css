@@ -24,10 +24,6 @@ main {
     background-color: lemonchiffon;
 }
 
-
-#file-list li {
-}
-
 #edit-svg {
     position: relative;
     top: 0.1rem;
@@ -48,9 +44,49 @@ main {
 }
 
 #file-edit-pop-up {
+    padding: 0.5rem;
     background-color: white;
     border-radius: 5px;
-    border-color: transparent;
+    border: none;
+    overflow: hidden;
+}
+
+#file-edit-pop-up ul {    
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    min-width: auto;
+    min-height: auto;
+}
+
+#file-edit-pop-up li {
+    text-align: center;
+    margin: 0;
+    padding: 0.1rem;
+    cursor: pointer;
+}
+
+#file-edit-pop-up li:hover {
+    transform:scale(110%);
+    transition-duration: 0.2s;
+}
+
+#file-edit-pop-up li:last-child {
+    margin-bottom: -10%;
+}
+
+#file-edit-pop-up #title {
+    display: block;
+    margin-left: -50%;
+    margin-top: -15%;
+    line-height: 200%;
+    width: 200%;
+    background-color: lightslategray;
+    cursor: auto;
+}
+
+#file-edit-pop-up #title:hover {
+    transform: none;
 }
 
 #file-edit-pop-up::backdrop {

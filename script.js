@@ -199,23 +199,21 @@ fileDialog.addEventListener('change', function() {
 
 // Open a list item in player page
 listOfAudio.addEventListener('click', (e) => {
-        console.log("e.target: ", e.target, "e.target.name: ", e.target.name, "e.target.tagName: ", e.target.tagName);
+        e.stopPropagation();
         if (e.target.tagName == 'SPAN') {
                 let li = e.target.closest('li');
                 let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
-                console.log("Show target", e, itemID)
                 localStorage.setItem('aFileID', itemID);
                 window.open('player.html');
         } 
-        else {
-
-     
+        else {     
                 popUpMenuFileEdit.showModal();
+                // let modalTitle = querySelector('#title');
+                // modalTitle.textContent = itemID;
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
-                        console.log("popUpMenuFileEdit.attributes.open :", popUpMenuFileEdit.attributes.open);
-                        debugger
+                        // debugger
                         if (popUpMenuFileEdit.attributes.open) {
                                 popUpMenuFileEdit.close();
                                 pageBody.style.overflow = "visible";
