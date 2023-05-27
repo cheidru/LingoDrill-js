@@ -24,6 +24,7 @@ main {
     background-color: lemonchiffon;
 }
 
+
 #edit-svg {
     position: relative;
     top: 0.1rem;
@@ -35,7 +36,6 @@ main {
 #file-exist-pop-up {
     background-color: white;
     border-radius: 5px;
-    border-color: transparent;
 }
 
 #file-exist-pop-up::backdrop {
@@ -47,7 +47,6 @@ main {
     padding: 0.5rem;
     background-color: white;
     border-radius: 5px;
-    border: none;
     overflow: hidden;
 }
 

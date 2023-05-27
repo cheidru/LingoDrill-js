@@ -208,8 +208,9 @@ listOfAudio.addEventListener('click', (e) => {
         } 
         else {     
                 popUpMenuFileEdit.showModal();
-                // let modalTitle = querySelector('#title');
-                // modalTitle.textContent = itemID;
+                let modalTitle = document.querySelector('#title');
+                console.log('modalTitle.textContent: ', modalTitle.textContent, 'e.target.previousSibling: ', e.target.previousSibling, 'e.target.previousSibling.textContent: ', e.target.previousSibling.textContent);
+                modalTitle.textContent = e.target.parentNode.previousSibling.textContent;
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
