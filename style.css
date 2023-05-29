@@ -24,6 +24,9 @@ main {
     background-color: lemonchiffon;
 }
 
+dialog {
+    border: 0px solid transparent;
+}
 
 #edit-svg {
     position: relative;
@@ -71,13 +74,13 @@ main {
 }
 
 #file-edit-pop-up li:last-child {
-    margin-bottom: -10%;
+    margin-bottom: -7%;
 }
 
 #file-edit-pop-up #title {
     display: block;
     margin-left: -50%;
-    margin-top: -15%;
+    margin-top: -10%;
     line-height: 200%;
     width: 200%;
     background-color: lightslategray;

@@ -88,6 +88,30 @@ function makeULfromDB(iDB) {
         }
 }
 
+function renameAudio(name) {
+        // read NewName from input
+        // find a record with OldName in DB
+        // change the name in DB
+        // update the list of audio
+        // check and update localStorage if needed
+}
+
+function deleteRecordFromDB(name) {
+        // find a record in DB
+        // delete the record in DB
+        // update the list of audio
+        // check and update localStorage if needed
+}
+
+function addSubtitleFile(name) {
+        // open FileDialoge to show txt and str files
+        // read filename from input
+        // find a record for the audio in DB
+        // check DB if the subtitle file already exists and show
+        // warning if needed
+        // otherwise add subtitle file to DB
+}
+
 // Select an audio file from local file system
 fileDialog.addEventListener('change', function() {
 
@@ -209,8 +233,8 @@ listOfAudio.addEventListener('click', (e) => {
         else {     
                 popUpMenuFileEdit.showModal();
                 let modalTitle = document.querySelector('#title');
-                console.log('modalTitle.textContent: ', modalTitle.textContent, 'e.target.previousSibling: ', e.target.previousSibling, 'e.target.previousSibling.textContent: ', e.target.previousSibling.textContent);
-                modalTitle.textContent = e.target.parentNode.previousSibling.textContent;
+
+                modalTitle.textContent = e.target.parentNode.parentNode.firstElementChild.textContent;
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
@@ -220,6 +244,21 @@ listOfAudio.addEventListener('click', (e) => {
                                 pageBody.style.overflow = "visible";
                         }
                 }
+
+                let fileEditMenu = document.querySelector('#file-edit-pop-up-menu');
+                fileEditMenu.addEventListener('click', (e) => {
+                        switch(e.target.textContent) {
+                                case 'Rename':
+                                        renameAudio(name);
+                                        break;
+                                case 'Delete':
+                                        deleteRecordFromDB(name);
+                                        break;
+                                case 'Add/delete subtitle':
+                                        addSubtitleFile(name);
+                                        break;
+                        }
+                })
 
         }
 
