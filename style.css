@@ -28,6 +28,19 @@ dialog {
     border: 0px solid transparent;
 }
 
+dialog::backdrop {
+    background-color:rgba(85, 107, 47, .5);
+}
+
+input {
+    outline:none;
+    border-radius: 3px;
+}
+
+button {
+    font-size: 0.5rem;
+}
+
 #edit-svg {
     position: relative;
     top: 0.1rem;
@@ -36,24 +49,14 @@ dialog {
     width: 0.5rem;
 }
 
-#file-exist-pop-up {
-    background-color: white;
-    border-radius: 5px;
-}
-
-#file-exist-pop-up::backdrop {
-    background-color:rgba(85, 107, 47, .5);
-
-}
-
-#file-edit-pop-up {
+[id$="-pop-up"] {
     padding: 0.5rem;
     background-color: white;
     border-radius: 5px;
     overflow: hidden;
-}
+} 
 
-#file-edit-pop-up ul {    
+#audio-edit-pop-up ul {    
     list-style-type: none;
     margin: 0;
     padding: 0;
@@ -61,23 +64,23 @@ dialog {
     min-height: auto;
 }
 
-#file-edit-pop-up li {
+#audio-edit-pop-up li {
     text-align: center;
     margin: 0;
     padding: 0.1rem;
     cursor: pointer;
 }
 
-#file-edit-pop-up li:hover {
+#audio-edit-pop-up li:hover {
     transform:scale(110%);
     transition-duration: 0.2s;
 }
 
-#file-edit-pop-up li:last-child {
+#audio-edit-pop-up li:last-child {
     margin-bottom: -7%;
 }
 
-#file-edit-pop-up #title {
+#audio-edit-pop-up #title {
     display: block;
     margin-left: -50%;
     margin-top: -10%;
@@ -87,13 +90,24 @@ dialog {
     cursor: auto;
 }
 
-#file-edit-pop-up #title:hover {
+#audio-edit-pop-up #title:hover {
     transform: none;
 }
 
-#file-edit-pop-up::backdrop {
-    background-color:rgba(85, 107, 47, .5);
+#rename-field {
+    display: block;
+    padding: 0.3rem;
+    margin: 0.2rem;
+    font-size: 0.5rem;
+    background-color: lightgray;
+    border: transparent;
+    cursor: text;
+}
 
+#audio-rename-pop-up-btn-wrapper {
+    display: flex;
+    padding: 0 0.5rem;
+    justify-content:space-between;
 }
 
 @media (max-width: 600px) {

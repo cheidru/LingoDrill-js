@@ -31,8 +31,8 @@
             <p>The Selectd file alteady exists in the list!</p>
         </dialog>
 
-        <dialog id="file-edit-pop-up">
-            <ul id="file-edit-pop-up-menu">
+        <dialog id="audio-edit-pop-up">
+            <ul id="audio-edit-pop-up-menu">
                 <li id="title">Song Name</li>
                 <li>Rename</li>
                 <li>Delete</li>
@@ -40,13 +40,16 @@
             </ul>
         </dialog>
 
-        <dialog id="file-rename-pop-up">
+        <dialog id="audio-rename-pop-up">
             <input type="text" placeholder="Audio name" id="rename-field" name="rename">
-            <button id="rename-btn">Rename</button>
-            <button id="cancel-rename-btn">Cancel</button>
+            <div id="audio-rename-pop-up-btn-wrapper">
+                <button id="rename-btn">Rename</button>
+                <button id="cancel-rename-btn">Cancel</button>
+            </div>
+
         </dialog>
 
-        <dialog id="file-delete-pop-up">
+        <dialog id="audio-delete-pop-up">
             <p>Are you shure you want to delete the audio [name]</p>
             <button id="delete-btn">Delete</button>
             <button id="cancel-delete-btn">Cancel</button>         

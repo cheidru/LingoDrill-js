@@ -9,8 +9,10 @@ let fileDialog = document.querySelector("#add-file-dialog");
 let listOfAudio = document.querySelector("#file-list");
 let listOfStoredAudio = [];
 let popUpWarning = document.querySelector('#file-exist-pop-up');
-let popUpMenuFileEdit = document.querySelector('#file-edit-pop-up');
-
+let popUpMenuFileEdit = document.querySelector('#audio-edit-pop-up');
+let popUpAudioRename = document.querySelector('#audio-rename-pop-up');
+let popUpAudioDelete = document.querySelector('#audio-delete-pop-up');
+let popUpSubtitleAddDelete = document.querySelector('#add-delete-subtitle-pop-up');
 
 function readFileDataFromDBtoScreen() {        
         // Try to open DB
@@ -88,7 +90,22 @@ function makeULfromDB(iDB) {
         }
 }
 
-function renameAudio(name) {
+function renameAudio(id, audioName) {
+        let renameField = document.querySelector('#rename-field');
+        renameField.value = audioName;
+        popUpAudioRename.showModal();
+        // default modal dialog doesn't freese the background (maybe a bug)
+        pageBody.style.overflow = "hidden";
+        console.log("pageBody.style.overflow: ",pageBody.style.overflow);
+
+        let btnCancel = document.querySelector('#cancel-rename-btn');
+        btnCancel.onclick = () => {
+                if (popUpAudioRename.attributes.open) {
+                        popUpAudioRename.close();
+                        pageBody.style.overflow = "visible";
+                }
+        }
+
         // read NewName from input
         // find a record with OldName in DB
         // change the name in DB
@@ -96,14 +113,14 @@ function renameAudio(name) {
         // check and update localStorage if needed
 }
 
-function deleteRecordFromDB(name) {
+function deleteRecordFromDB(id) {
         // find a record in DB
         // delete the record in DB
         // update the list of audio
         // check and update localStorage if needed
 }
 
-function addSubtitleFile(name) {
+function addSubtitleFile(id) {
         // open FileDialoge to show txt and str files
         // read filename from input
         // find a record for the audio in DB
@@ -133,8 +150,6 @@ fileDialog.addEventListener('change', function() {
                 }
 
         } else {
-                // 2. add possibility to delete or change name of audio in DB
-
                 // https://www.youtube.com/watch?v=y--Rjq6QV_o 9.37, 11.23, 13.05, 14.00
 
                 let newAudioFile = {
@@ -233,29 +248,30 @@ listOfAudio.addEventListener('click', (e) => {
         else {     
                 popUpMenuFileEdit.showModal();
                 let modalTitle = document.querySelector('#title');
-
-                modalTitle.textContent = e.target.parentNode.parentNode.firstElementChild.textContent;
+                let selectedAudioName = e.target.parentNode.parentNode.firstElementChild.textContent.trim();
+                modalTitle.textContent = selectedAudioName;
+                let dbRecordID = e.target.parentNode.parentNode.dataset.id;
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
-                        // debugger
                         if (popUpMenuFileEdit.attributes.open) {
                                 popUpMenuFileEdit.close();
                                 pageBody.style.overflow = "visible";
                         }
                 }
 
-                let fileEditMenu = document.querySelector('#file-edit-pop-up-menu');
+                let fileEditMenu = document.querySelector('#audio-edit-pop-up-menu');
                 fileEditMenu.addEventListener('click', (e) => {
                         switch(e.target.textContent) {
                                 case 'Rename':
-                                        renameAudio(name);
+                                        console.log(selectedAudioName);
+                                        renameAudio(dbRecordID, selectedAudioName);
                                         break;
                                 case 'Delete':
-                                        deleteRecordFromDB(name);
+                                        deleteRecordFromDB(dbRecordID);
                                         break;
                                 case 'Add/delete subtitle':
-                                        addSubtitleFile(name);
+                                        addSubtitleFile(dbRecordID);
                                         break;
                         }
                 })
