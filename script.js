@@ -5,11 +5,12 @@ let dbError = false;
 let openDB = null;
 let db = null;
 let pageBody =  document.querySelector('body');
+let pageBodyStyles = getComputedStyle(pageBody);
 let fileDialog = document.querySelector("#add-file-dialog");
 let listOfAudio = document.querySelector("#file-list");
 let listOfStoredAudio = [];
 let popUpWarning = document.querySelector('#file-exist-pop-up');
-let popUpMenuFileEdit = document.querySelector('#audio-edit-pop-up');
+let popUpMenuAudioEdit = document.querySelector('#audio-edit-pop-up');
 let popUpAudioRename = document.querySelector('#audio-rename-pop-up');
 let popUpAudioDelete = document.querySelector('#audio-delete-pop-up');
 let popUpSubtitleAddDelete = document.querySelector('#add-delete-subtitle-pop-up');
@@ -93,17 +94,18 @@ function makeULfromDB(iDB) {
 function renameAudio(id, audioName) {
         let renameField = document.querySelector('#rename-field');
         renameField.value = audioName;
+        console.log("1/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
         popUpAudioRename.showModal();
+        console.log("2/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
         // default modal dialog doesn't freese the background (maybe a bug)
-        pageBody.style.overflow = "hidden";
-        console.log("pageBody.style.overflow: ",pageBody.style.overflow);
-
+        debugger
+        pageBody.style.overflow = 'hidden';
         let btnCancel = document.querySelector('#cancel-rename-btn');
-        btnCancel.onclick = () => {
-                if (popUpAudioRename.attributes.open) {
+        btnCancel.onclick = (e) => {
+                        e.stopPropagation();
                         popUpAudioRename.close();
+                        console.log("3/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
                         pageBody.style.overflow = "visible";
-                }
         }
 
         // read NewName from input
@@ -143,10 +145,10 @@ fileDialog.addEventListener('change', function() {
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
-                        if (popUpWarning.attributes.open) {
+                        // if (popUpWarning.attributes.open) {
                                 popUpWarning.close();
                                 pageBody.style.overflow = "visible";
-                        }
+                        // }
                 }
 
         } else {
@@ -236,8 +238,8 @@ fileDialog.addEventListener('change', function() {
         }
 })
 
-// Open a list item in player page
-listOfAudio.addEventListener('click', (e) => {
+// Open the selected item on the player page or pop-up edit menu if edit icon clicked
+listOfAudio.addEventListener('click', function AudioSelected (e) {
         e.stopPropagation();
         if (e.target.tagName == 'SPAN') {
                 let li = e.target.closest('li');
@@ -245,8 +247,9 @@ listOfAudio.addEventListener('click', (e) => {
                 localStorage.setItem('aFileID', itemID);
                 window.open('player.html');
         } 
-        else {     
-                popUpMenuFileEdit.showModal();
+        else { 
+                // Edit icon clicked    
+                popUpMenuAudioEdit.showModal();
                 let modalTitle = document.querySelector('#title');
                 let selectedAudioName = e.target.parentNode.parentNode.firstElementChild.textContent.trim();
                 modalTitle.textContent = selectedAudioName;
@@ -254,14 +257,16 @@ listOfAudio.addEventListener('click', (e) => {
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
-                        if (popUpMenuFileEdit.attributes.open) {
-                                popUpMenuFileEdit.close();
+                        // if (popUpMenuAudioEdit.attributes.open) {
+                                popUpMenuAudioEdit.close();
                                 pageBody.style.overflow = "visible";
-                        }
+                        // }
                 }
 
                 let fileEditMenu = document.querySelector('#audio-edit-pop-up-menu');
                 fileEditMenu.addEventListener('click', (e) => {
+                        popUpMenuAudioEdit.close();
+                        pageBody.style.overflow = "visible";
                         switch(e.target.textContent) {
                                 case 'Rename':
                                         console.log(selectedAudioName);
