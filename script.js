@@ -92,13 +92,14 @@ function makeULfromDB(iDB) {
 }
 
 function renameAudio(id, audioName) {
+
         let renameField = document.querySelector('#rename-field');
         renameField.value = audioName;
         console.log("1/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
         popUpAudioRename.showModal();
         console.log("2/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
         // default modal dialog doesn't freese the background (maybe a bug)
-        debugger
+        // debugger
         pageBody.style.overflow = 'hidden';
         let btnCancel = document.querySelector('#cancel-rename-btn');
         btnCancel.onclick = (e) => {
@@ -263,24 +264,13 @@ listOfAudio.addEventListener('click', function AudioSelected (e) {
                         // }
                 }
 
-                let fileEditMenu = document.querySelector('#audio-edit-pop-up-menu');
-                fileEditMenu.addEventListener('click', (e) => {
-                        popUpMenuAudioEdit.close();
-                        pageBody.style.overflow = "visible";
-                        switch(e.target.textContent) {
-                                case 'Rename':
-                                        console.log(selectedAudioName);
-                                        renameAudio(dbRecordID, selectedAudioName);
-                                        break;
-                                case 'Delete':
-                                        deleteRecordFromDB(dbRecordID);
-                                        break;
-                                case 'Add/delete subtitle':
-                                        addSubtitleFile(dbRecordID);
-                                        break;
-                        }
-                })
+                let renameMenu = document.querySelector('#audio-edit-rename');
+                let deleteMenu = document.querySelector('#audio-editdelete');
+                let subtitleMenu = document.querySelector('#audio-edit-subtitle');
 
+                renameMenu.onclick = () => {renameAudio(dbRecordID, selectedAudioName)};
+                // deleteMenu.onclick = deleteRecordFromDB(dbRecordID);
+                // subtitleMenu.onclick = addSubtitleFile(dbRecordID);
         }
 
 })
