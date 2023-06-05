@@ -56,6 +56,11 @@ button {
     overflow: hidden;
 } 
 
+#audio-edit-pop-up-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
 #audio-edit-pop-up ul {    
     list-style-type: none;
     margin: 0;
@@ -76,27 +81,27 @@ button {
     transition-duration: 0.2s;
 }
 
+#audio-edit-pop-up li:first-child {
+    margin-top: -7%;
+}
+
 #audio-edit-pop-up li:last-child {
     margin-bottom: -7%;
 }
 
 #audio-edit-pop-up #title {
     display: block;
-    margin-left: -50%;
-    margin-top: -10%;
+    text-align: center;
     line-height: 200%;
     width: 200%;
     background-color: lightslategray;
     cursor: auto;
-}
-
-#audio-edit-pop-up #title:hover {
-    transform: none;
+    transform: translate(-25%, -50%);
 }
 
 #rename-field {
     display: block;
-    padding: 0.3rem;
+    /* padding: 0.3rem; */
     margin: 0.2rem;
     font-size: 0.5rem;
     background-color: lightgray;
