@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="file-list.css">    
+    <link rel="stylesheet" href="file-list.css" id="os-css">    
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,9 +11,51 @@
 <body>
     <header>
         <a id="home-page" href="http://"></a>
-        <div id="app-name">Lingo Drill</div>
+        <!-- <div id="app-name">Lingo Drill</div> -->
+        <div id="app-name"></div>
+
+        <!-- Script will check user OS to load proper CSS file with media query
+             for PC monitor or large resolution mobile screen -->
+
+        <script>
+            let userAgent = window.navigator.userAgent;
+            // window.navigator.platform is deprecated and will be disabled in future navigator versions
+            // The alternative is navigator.userAgentData.platform, which is not 100% supported now
+            // Chome doesn't support it as yet
+            let userPlatform = window.navigator.platform;
+
+            let macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K'];
+            let windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE'];
+            let iosPlatforms = ['iPhone', 'iPad', 'iPod'];
+            let os = null;
+            let osName = '';
+
+            if ((macosPlatforms.indexOf(userPlatform) !== -1) || 
+                (windowsPlatforms.indexOf(userPlatform) !== -1)
+                // || (/Linux/.test(userPlatform))
+                )  {
+                    osName = "PC";
+                    // pcStyle.css
+
+                } else if (/Android/.test(userAgent) ||
+                            (iosPlatforms.indexOf(userPlatform) !== -1)) {
+                    osName = "mobile";
+                    let osCSS = document.querySelector('#os-css');
+                    osCSS.innerHTML = '<link rel="stylesheet" href="file-list-mobile.css" id="os-css">';
+                    console.log('mobile CSS loaded');
+                    // mobileStyle.css
+                } else {
+                    osName = "unknown OS";
+                };
+
+            let showOS = document.querySelector('#app-name');
+            showOS.textContent = osName;
+        </script>
+
+
         <a id="setup-page" href="http://"></a>
     </header>
+
 
     <main>
         <div id="file-list-wrapper">
@@ -64,8 +106,8 @@
             </ul>
         </dialog>
     </main>
-
-    
+    <!-- <script src="./whatOS.js"></script> -->
     <script src="./script.js"></script>
+
 </body>
 </html>
