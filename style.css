@@ -2,10 +2,11 @@ html, body, p {
     all: unset;
     box-sizing: border-box;
     user-select: none;
+    --main-width: 150px;
 }
 
 header, main {
-    width: 150px;
+    width: var(--main-width);
     margin: auto;
     font-size: 0.5rem;
 }
@@ -56,6 +57,10 @@ button {
     overflow: hidden;
 } 
 
+#audio-edit-pop-up {
+    width: calc(var(--main-width) * 0.8);
+}
+
 #audio-edit-pop-up-wrapper {
     display: flex;
     flex-direction: column;
@@ -89,14 +94,20 @@ button {
     margin-bottom: -7%;
 }
 
-#audio-edit-pop-up #title {
-    display: block;
-    text-align: center;
-    line-height: 200%;
-    width: 200%;
+#title-wrapper {
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    margin: -0.5rem -0.5rem 0.5rem;
+    padding: 0.5rem;
+    min-width: var(--main-width);
     background-color: lightslategray;
     cursor: auto;
-    transform: translate(-25%, -50%);
+}
+
+#audio-edit-pop-up #title {
+    width: 100%;
+    text-align: center;
 }
 
 #rename-field {
