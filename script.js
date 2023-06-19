@@ -243,16 +243,17 @@ fileDialog.addEventListener('change', function() {
 listOfAudio.addEventListener('click', function AudioSelected (e) {
         e.stopPropagation();
         if (e.target.tagName == 'SPAN') {
+                // Audio name clicked, start player
                 let li = e.target.closest('li');
                 let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
                 localStorage.setItem('aFileID', itemID);
                 window.open('player.html');
-        } 
-        else { 
+        } else { 
                 // Edit icon clicked    
                 popUpMenuAudioEdit.showModal();
                 let modalTitle = document.querySelector('#title');
                 let selectedAudioName = e.target.parentNode.parentNode.firstElementChild.textContent.trim();
+                console.log(e, selectedAudioName);
                 modalTitle.textContent = selectedAudioName;
                 let dbRecordID = e.target.parentNode.parentNode.dataset.id;
                 // default modal dialog doesn't freese the background (maybe a bug)

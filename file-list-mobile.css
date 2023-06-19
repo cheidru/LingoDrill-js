@@ -25,14 +25,14 @@
 #add-file-dialog-label {
     display: flex;
     width: auto;
-    margin: auto 0.3rem;
+    margin: 0 0.1rem;
     justify-content: center;
     gap: 1%;
     align-items: center;
     cursor: pointer; 
     padding: 0.1rem 0.2rem;
     border: 0.05rem black dashed;
-    border-radius: 0.15rem;
+    border-radius: 0.2rem;
 }
 
 #download-icon {
@@ -47,8 +47,8 @@
 
 #edit-svg {
     position: relative;
-    top: 0.12rem;
+    top: 0.2rem;
     flex-shrink: 0;
-    height: 0.5rem;
-    width: 0.5rem;
+    height: 0.7rem;
+    width: 0.7rem;
 }
