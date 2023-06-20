@@ -94,10 +94,10 @@ function makeULfromDB(iDB) {
 function renameAudio(id, audioName) {
 
         let renameField = document.querySelector('#rename-field');
+        renameField.style.width = audioName.length + 'px';
+        console.log('audioName.length :', audioName.length);
         renameField.value = audioName;
-        console.log("1/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
         popUpAudioRename.showModal();
-        console.log("2/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
         // default modal dialog doesn't freese the background (maybe a bug)
         // debugger
         pageBody.style.overflow = 'hidden';
@@ -105,7 +105,6 @@ function renameAudio(id, audioName) {
         btnCancel.onclick = (e) => {
                         e.stopPropagation();
                         popUpAudioRename.close();
-                        console.log("3/ popUpAudioRename.attributes.open: ", popUpAudioRename.attributes.open);
                         pageBody.style.overflow = "visible";
         }
 

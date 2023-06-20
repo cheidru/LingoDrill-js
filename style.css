@@ -2,7 +2,7 @@ html, body, p {
     all: unset;
     box-sizing: border-box;
     user-select: none;
-    --main-width: 150px;
+    --main-width: 180px;
 }
 
 header, main {
@@ -60,7 +60,7 @@ button {
 
 #audio-edit-pop-up ul {    
     list-style-type: none;
-    margin: 0;
+    margin: -0.5rem 0 -0.15rem;
     padding: 0;
     min-width: auto;
     min-height: auto;
@@ -78,19 +78,11 @@ button {
     transition-duration: 0.2s;
 }
 
-#audio-edit-pop-up li:first-child {
-    margin-top: -7%;
-}
-
-#audio-edit-pop-up li:last-child {
-    margin-bottom: -7%;
-}
-
 #title-wrapper {
     box-sizing: border-box;
     display: flex;
     flex-wrap: wrap;
-    margin: -0.5rem -0.5rem 0.5rem;
+    margin: -0.5rem -0.5rem 0.8rem;
     padding: 0.5rem;
     min-width: var(--main-width);
     background-color: lightslategray;
@@ -103,8 +95,6 @@ button {
 }
 
 #rename-field {
-    display: block;
-    /* padding: 0.3rem; */
     margin: 0.2rem;
     font-size: 0.5rem;
     background-color: lightgray;
