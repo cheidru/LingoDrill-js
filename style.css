@@ -74,7 +74,7 @@ button {
 }
 
 #audio-edit-pop-up li:hover {
-    transform:scale(110%);
+    transform:scale(105%);
     transition-duration: 0.2s;
 }
 
@@ -96,30 +96,32 @@ button {
 
 #rename-field {
     margin: 0.2rem;
+    padding: 0.2rem;
     font-size: 0.5rem;
     background-color: lightgray;
-    /* border: transparent; */
+    border-radius: 0.2rem;
     cursor: text;
     outline: none;
 }
 
 
-/* #rename-field {
-    display: block;
-    width:80cqW;
-    max-width: min-content;
-    padding: 0.3rem;
-    margin: 0.2rem;
-    font-size: 0.5rem;
-    background-color: lightgray;
-    outline: none;
-    cursor: text;
-} */
+[id$="rename-btn"] {
+    margin: 0 0.2rem;
+    border-radius: 0.2rem;
+    border: 0.5px solid lightgray;
+}
+
+[id$="rename-btn"]:hover {
+    transform:scale(105%);
+    transition-duration: 0.2s;
+}
 
 #audio-rename-pop-up-btn-wrapper {
     display: flex;
     padding: 0 0.5rem;
+    /* width: fit-content; */
     justify-content:space-between;
+    
 }
 
 @media (max-width: 400px) {

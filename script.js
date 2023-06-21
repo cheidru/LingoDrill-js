@@ -94,9 +94,9 @@ function makeULfromDB(iDB) {
 function renameAudio(id, audioName) {
 
         let renameField = document.querySelector('#rename-field');
-        renameField.style.width = audioName.length + 'px';
+        // renameField.style.width = audioName.length + 'px';
         console.log('audioName.length :', audioName.length);
-        renameField.value = audioName;
+        renameField.textContent = audioName;
         popUpAudioRename.showModal();
         // default modal dialog doesn't freese the background (maybe a bug)
         // debugger
@@ -109,8 +109,16 @@ function renameAudio(id, audioName) {
         }
 
         // read NewName from input
-        // find a record with OldName in DB
-        // change the name in DB
+        let btnSave = document.querySelector('#cancel-rename-btn');
+        btnSave.onclick = (e) => {
+                e.stopPropagation();
+                popUpAudioRename.close();
+                pageBody.style.overflow = "visible";
+
+                // find a record with OldName in DB
+                // change the name in DB
+        }
+
         // update the list of audio
         // check and update localStorage if needed
 }
