@@ -306,8 +306,9 @@ let borderRightTimeFormat = function makeborderRightTimeFormatString(trackPositi
 
 function colorRange() {
     // rangeBox height is equal to range border height minus time field height, minus 5px of lock svg image
-    rangeBox.style.height = (Number((borderRightStyles.height).replace('px','')) - (timeStyles.height).replace('px','') - 6) + 'px';
-    // rangeBox.style.left = (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
+
+    rangeBox.style.height = (parseFloat(borderRightStyles.height) - parseFloat(timeStyles.height) - 6) + 'px';
+    // rangeBox.style.height = (Number((borderRightStyles.height).replace('px','')) - (timeStyles.height).replace('px','') - 6) + 'px';
     rangeBox.style.left = borderLeft.isActualLeftBorder ? 
             (leftLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px' :
             (rightLine.getBoundingClientRect().x - progressBarLine.getBoundingClientRect().x) + 'px';
@@ -320,11 +321,15 @@ function rangeLeftSelect() {
     if(bordersGotIntersected()) {
         toggleBorderStyles();
         if (borderLeft.isActualLeftBorder) {
-            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) + borderLeft.getBoundingClientRect().width) + 'px';
-            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) - borderRight.getBoundingClientRect().width) + 'px';
+            borderLeft.style.left = (parseFloat(borderLeft.style.left) + borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (parseFloat(borderRight.style.left) - borderRight.getBoundingClientRect().width) + 'px';
+            // borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) + borderLeft.getBoundingClientRect().width) + 'px';
+            // borderRight.style.left = (Number(borderRight.style.left.replace('px','')) - borderRight.getBoundingClientRect().width) + 'px';
         } else {
-            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) - borderLeft.getBoundingClientRect().width) + 'px';
-            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) + borderRight.getBoundingClientRect().width) + 'px';
+            borderLeft.style.left = (parseFloat(borderLeft.style.left) - borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (parseFloat(borderRight.style.left) + borderRight.getBoundingClientRect().width) + 'px';
+            // borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) - borderLeft.getBoundingClientRect().width) + 'px';
+            // borderRight.style.left = (Number(borderRight.style.left.replace('px','')) + borderRight.getBoundingClientRect().width) + 'px';
         }
 
         borderRight.offset = borderLeft.isActualLeftBorder == true ? 2 : 0;
@@ -343,11 +348,15 @@ function rangeRightSelect() {
     if(bordersGotIntersected()) {
         toggleBorderStyles();
         if (borderLeft.isActualLeftBorder) {
-            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) + borderLeft.getBoundingClientRect().width) + 'px';
-            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) - borderRight.getBoundingClientRect().width) + 'px';
+            borderLeft.style.left = (parseFloat(borderLeft.style.left) + borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (Number(borderRight.style.left) - borderRight.getBoundingClientRect().width) + 'px';
+            // borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) + borderLeft.getBoundingClientRect().width) + 'px';
+            // borderRight.style.left = (Number(borderRight.style.left.replace('px','')) - borderRight.getBoundingClientRect().width) + 'px';
         } else {
-            borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) - borderLeft.getBoundingClientRect().width) + 'px';
-            borderRight.style.left = (Number(borderRight.style.left.replace('px','')) + borderRight.getBoundingClientRect().width) + 'px';
+            borderLeft.style.left = (parseFloat(borderLeft.style.left) - borderLeft.getBoundingClientRect().width) + 'px';
+            borderRight.style.left = (parseFloat(borderRight.style.left) + borderRight.getBoundingClientRect().width) + 'px';
+            // borderLeft.style.left = (Number(borderLeft.style.left.replace('px','')) - borderLeft.getBoundingClientRect().width) + 'px';
+            // borderRight.style.left = (Number(borderRight.style.left.replace('px','')) + borderRight.getBoundingClientRect().width) + 'px';
         }
 
         borderRight.offset = borderLeft.isActualLeftBorder == true ? 2 : 0;

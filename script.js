@@ -114,6 +114,7 @@ function renameAudio(id, audioName) {
                 e.stopPropagation();
                 popUpAudioRename.close();
                 pageBody.style.overflow = "visible";
+                changeDBRecord();
 
                 // find a record with OldName in DB
                 // change the name in DB
@@ -263,6 +264,7 @@ listOfAudio.addEventListener('click', function AudioSelected (e) {
                 console.log(e, selectedAudioName);
                 modalTitle.textContent = selectedAudioName;
                 let dbRecordID = e.target.parentNode.parentNode.dataset.id;
+                console.log("dbRecordID = ", dbRecordID);
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
