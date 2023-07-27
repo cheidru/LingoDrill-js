@@ -109,7 +109,7 @@ function renameAudio(id, audioName) {
         }
 
         // read NewName from input
-        let btnSave = document.querySelector('#cancel-rename-btn');
+        let btnSave = document.querySelector('#rename-btn');
         btnSave.onclick = (e) => {
                 e.stopPropagation();
                 popUpAudioRename.close();
@@ -121,6 +121,7 @@ function renameAudio(id, audioName) {
                 let transAct = db.transaction('audio', 'readwrite');
                 let trasactionStore = transAct.objectStore('audio');
                 // read the object with the given id
+                console.log(id);
                 let targetObject = trasactionStore.get(id);
                 // replace the object property aName
                 targetObject.aName = renameField.textContent;
@@ -295,6 +296,7 @@ listOfAudio.addEventListener('click', function AudioSelected (e) {
                 let deleteMenu = document.querySelector('#audio-editdelete');
                 let subtitleMenu = document.querySelector('#audio-edit-subtitle');
 
+                console.log(dbRecordID);
                 renameMenu.onclick = () => {renameAudio(dbRecordID, selectedAudioName)};
                 // deleteMenu.onclick = deleteRecordFromDB(dbRecordID);
                 // subtitleMenu.onclick = addSubtitleFile(dbRecordID);
