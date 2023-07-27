@@ -114,7 +114,32 @@ function renameAudio(id, audioName) {
                 e.stopPropagation();
                 popUpAudioRename.close();
                 pageBody.style.overflow = "visible";
-                changeDBRecord();
+
+
+
+                // open store for read-write
+                let transAct = db.transaction('audio', 'readwrite');
+                let trasactionStore = transAct.objectStore('audio');
+                let getReq = trasactionStore.getAll();
+
+                // read the object with the given id
+
+                // replace the object property aName
+
+                // replace the object in DB with the altered one
+
+                // re-write list of audio on screen
+
+                let request = trasactionStore.add(newAudioFile);
+
+                transAct.oncomplete = (e) => console.log("Transaction complete");
+                transAct.onerror = (err) => console.warn("Transaction error");
+
+                request.onsuccess = (e) => console.log("Addition complete");
+                request.onerror = (err) => console.warn("Addition error");
+
+
+
 
                 // find a record with OldName in DB
                 // change the name in DB
