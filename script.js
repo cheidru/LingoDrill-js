@@ -120,17 +120,13 @@ function renameAudio(id, audioName) {
                 // open store for read-write
                 let transAct = db.transaction('audio', 'readwrite');
                 let trasactionStore = transAct.objectStore('audio');
-                let getReq = trasactionStore.getAll();
-
                 // read the object with the given id
-
+                let targetObject = trasactionStore.get(id);
                 // replace the object property aName
-
+                targetObject.aName = renameField.textContent;
                 // replace the object in DB with the altered one
-
+                trasactionStore.put(targetObject, id);
                 // re-write list of audio on screen
-
-                let request = trasactionStore.add(newAudioFile);
 
                 transAct.oncomplete = (e) => console.log("Transaction complete");
                 transAct.onerror = (err) => console.warn("Transaction error");
@@ -138,11 +134,7 @@ function renameAudio(id, audioName) {
                 request.onsuccess = (e) => console.log("Addition complete");
                 request.onerror = (err) => console.warn("Addition error");
 
-
-
-
-                // find a record with OldName in DB
-                // change the name in DB
+                readFileDataFromDBtoScreen();
         }
 
         // update the list of audio
