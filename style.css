@@ -42,6 +42,15 @@ button {
     font-size: 0.5rem;
 }
 
+.edit-svg {
+    position: relative;
+    width: 0.6rem;
+    height: 0.6rem;
+    padding: 0.1rem;
+    transform: translateY(35%);
+    z-index: 0;
+}
+
 [id$="-pop-up"] {
     padding: 0.5rem;
     background-color: white;

@@ -83,7 +83,7 @@ function makeULfromDB(iDB) {
                                 listOfStoredAudio.push(aRecordFromDB.aName);
                                 return `<li data-id="${aRecordFromDB.id}">
                                                 <span>${aRecordFromDB.aName}</span>
-                                                <svg id="edit-svg" width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <svg class="edit-svg" width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <path fill-rule="evenodd" clip-rule="evenodd" d="M17.6878 3.00154L20.9985 6.3122L12.3107 15H9V11.6893L17.6878 3.00154ZM17.6878 5.12286L10.5 12.3107V13.5H11.6893L18.8771 6.3122L17.6878 5.12286ZM5 5H12V6.5H6.5V17.5H17.5V12H19V19H5V5Z" fill="#1F2328"/>
                                                 </svg>
                                         </li>`
@@ -268,21 +268,30 @@ fileDialog.addEventListener('change', function() {
 // Open the selected item on the player page or pop-up edit menu if edit icon clicked
 listOfAudio.addEventListener('click', function AudioSelected (e) {
         e.stopPropagation();
-        if (e.target.tagName == 'SPAN') {
-                // Audio name clicked, start player
-                let li = e.target.closest('li');
-                let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
-                localStorage.setItem('aFileID', itemID);
-                window.open('player.html');
-        } else { 
+        let listElementClicked = e.target.tagName;
+        console.log("e.target.tagName = ", e.target.tagName);
+        if (listElementClicked == 'svg' || listElementClicked == 'path') { 
                 // Edit icon clicked    
                 popUpMenuAudioEdit.showModal();
                 let modalTitle = document.querySelector('#title');
-                let selectedAudioName = e.target.parentNode.parentNode.firstElementChild.textContent.trim();
-                console.log(e, selectedAudioName);
+                let selectedAudioName = '';
+                let dbRecordID = '';
+
+
+                // как перехватить событие на svg
+
+                if (listElementClicked == 'path') {
+                        selectedAudioName = e.target.parentNode.parentNode.firstElementChild.textContent.trim();
+                        dbRecordID = e.target.parentNode.parentNode.dataset.id;
+                } else {
+                        selectedAudioName = e.target.parentNode.firstElementChild.textContent.trim();
+                        dbRecordID = e.target.parentNode.dataset.id;
+                }
+
+                console.log("selectedAudioName = ", selectedAudioName);
                 modalTitle.textContent = selectedAudioName;
-                let dbRecordID = e.target.parentNode.parentNode.dataset.id;
-                console.log("dbRecordID = ", dbRecordID);
+
+                console.log("dbRecordID = ", dbRecordID, e.target.parentNode);
                 // default modal dialog doesn't freese the background (maybe a bug)
                 pageBody.style.overflow = "hidden";
                 pageBody.onclick = () => {
@@ -296,10 +305,16 @@ listOfAudio.addEventListener('click', function AudioSelected (e) {
                 let deleteMenu = document.querySelector('#audio-editdelete');
                 let subtitleMenu = document.querySelector('#audio-edit-subtitle');
 
-                console.log(dbRecordID);
                 renameMenu.onclick = () => {renameAudio(dbRecordID, selectedAudioName)};
+
                 // deleteMenu.onclick = deleteRecordFromDB(dbRecordID);
                 // subtitleMenu.onclick = addSubtitleFile(dbRecordID);
+        } else if (listElementClicked == 'SPAN') {
+                // Audio name clicked, start player
+                let li = e.target.closest('li');
+                let itemID = li.dataset.id; // the same - li.getAttribute('data-id')
+                localStorage.setItem('aFileID', itemID);
+                window.open('player.html');
         }
 
 })
