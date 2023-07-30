@@ -118,24 +118,27 @@ function renameAudio(id, audioName) {
 
 
                 // open store for read-write
-                let transAct = db.transaction('audio', 'readwrite');
-                let trasactionStore = transAct.objectStore('audio');
+                let trasactionStore = db.transaction('audio', 'readwrite').objectStore('audio');
                 // read the object with the given id
                 console.log(id);
-                let targetObject = trasactionStore.get(id);
-                // replace the object property aName
-                targetObject.aName = renameField.textContent;
-                // replace the object in DB with the altered one
-                trasactionStore.put(targetObject, id);
-                // re-write list of audio on screen
+                let targetObjectRequest = trasactionStore.get(id);
 
-                transAct.oncomplete = (e) => console.log("Transaction complete");
-                transAct.onerror = (err) => console.warn("Transaction error");
+                targetObjectRequest.onsuccess = () => {
 
-                request.onsuccess = (e) => console.log("Addition complete");
-                request.onerror = (err) => console.warn("Addition error");
+                        let targetObject = targetObjectRequest.result;
 
-                readFileDataFromDBtoScreen();
+                        // replace the object property aName
+                        targetObject.aName = renameField.textContent;
+
+                        // replace the object in DB with the altered one
+                        const updateRequest = trasactionStore.put(targetObject, id);
+                        // re-write list of audio on screen
+
+                        updateRequest.onsuccess = (e) => console.log("Change complete");
+                        updateRequest.onerror = (err) => console.warn("Change error");
+
+                        readFileDataFromDBtoScreen();
+                }
         }
 
         // update the list of audio
