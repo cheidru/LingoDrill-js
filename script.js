@@ -120,12 +120,14 @@ function renameAudio(id, audioName) {
                 // open store for read-write
                 let trasactionStore = db.transaction('audio', 'readwrite').objectStore('audio');
                 // read the object with the given id
-                console.log(id);
+                console.log("id = ", id);
                 let targetObjectRequest = trasactionStore.get(id);
+                console.log("targetObjectRequest ", targetObjectRequest);
 
                 targetObjectRequest.onsuccess = () => {
 
                         let targetObject = targetObjectRequest.result;
+                        console.log("targetObject ", targetObject);
 
                         // replace the object property aName
                         targetObject.aName = renameField.textContent;
