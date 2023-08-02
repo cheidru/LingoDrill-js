@@ -80,6 +80,7 @@ function makeULfromDB(iDB) {
                 console.log("request: ", request);
                 listOfAudio.innerHTML = request.result.map((aRecordFromDB) => {
                                 // fill the array of audio names in DB for duplicate prevention check
+                                // typeof aRecordFromDB.id - number
                                 listOfStoredAudio.push(aRecordFromDB.aName);
                                 return `<li data-id="${aRecordFromDB.id}">
                                                 <span>${aRecordFromDB.aName}</span>
@@ -116,22 +117,20 @@ function renameAudio(id, audioName) {
                 pageBody.style.overflow = "visible";
 
 
-
                 // open store for read-write
-                let trasactionStore = db.transaction('audio', 'readwrite').objectStore('audio');
+                let transAct = db.transaction('audio', 'readwrite');
+                let trasactionStore = transAct.objectStore('audio');
                 // read the object with the given id
                 console.log("id = ", id);
                 let targetObjectRequest = trasactionStore.get(id);
-                console.log("targetObjectRequest ", targetObjectRequest);
 
-                targetObjectRequest.onsuccess = () => {
+                targetObjectRequest.onsuccess = (evnt) => {
 
-                        let targetObject = targetObjectRequest.result;
-                        console.log("targetObject ", targetObject);
+                        let request = evnt.target;                        
 
                         // replace the object property aName
-                        targetObject.aName = renameField.textContent;
-
+                        request.result.aName = renameField.textContent;
+                        
                         // replace the object in DB with the altered one
                         const updateRequest = trasactionStore.put(targetObject, id);
                         // re-write list of audio on screen
