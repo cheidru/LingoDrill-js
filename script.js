@@ -1,6 +1,7 @@
 // ToDo:
 // Generate list of files in DB
 
+
 let dbError = false;
 let openDB = null;
 let db = null;
