@@ -205,7 +205,6 @@ fileDialog.addEventListener('change', function() {
                 request.onsuccess = (e) => console.log("Addition complete");
                 request.onerror = (err) => console.warn("Addition error");
 
-
                         // Store object structure
 
                         // audio
