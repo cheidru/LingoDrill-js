@@ -1,0 +1,221 @@
+@font-face {
+    font-family: 'Forum';
+    src: url('./assets/fonts/Forum-Regular.ttf');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Forum Bold';
+    src: url('./assets/fonts/Forum-Regular.ttf');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('./assets/fonts/Inter-Regular.ttf');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Inter Bold';
+    src: url('./assets/fonts/Inter-Bold.ttf');
+    font-weight: bold;
+    font-style: normal;
+}
+
+/* Reset defaults */
+html, body, div, span, h1, h2, a, img, ol, ul, li,
+fieldset, form, label, table, caption, tbody, tr, th, td, footer, header, 
+menu, nav, section {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+
+#main-wrapper {
+    display: flex;
+    width: 100%;
+    height: auto;
+    padding: 5rem 0;
+    flex-direction: column;
+    background: rgb(43, 54, 24);
+}
+
+#meme-window-wrapper {
+    order: 1;
+    width: 100%;
+    height: auto;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    background: rgb(100, 27, 27);
+}
+
+#meme-windiw {
+    width: 30rem;
+    height: 30rem;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+#meme-footer {
+    display: flex;
+    flex-direction: row;
+    order: 2;
+    padding: 0 10%;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+#meme-text-window {
+    width: 50rem;
+    height: 4rem;
+    padding: 0.3rem 1rem;
+    overflow: hidden;
+    font-family: Inter;
+    font-size: 2rem;
+    color: white;
+    border-radius: 0.5rem;
+    background: rgb(73, 53, 4);
+}
+
+#meme-text-container {
+    display: flex;
+    flex-direction: row;
+    width: 200rem;    
+    margin: 0 auto;
+}
+
+.subtitle {
+    display: inline-block;
+    width: 50rem;
+}
+
+#meme-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;    
+    height: 70%;
+    margin: 0 auto;
+    background: rgb(140, 205, 140);
+
+}
+
+#meme-text-container {
+    display: flex;
+    flex-direction: row;
+    height: auto;
+    margin: 0 auto;
+    padding: 1rem;
+    height: 70%;
+}
+
+input {
+    appearance: none;
+    display: inline-block;
+    box-sizing:border-box;
+    width: 3rem;
+    height: 3rem;
+    border: 0.7rem solid rgb(43, 54, 24);
+    border-radius: 50%;
+    background: green;
+    cursor: pointer;
+}
+
+input:hover {
+    background: red;
+}
+
+input:checked {
+    background: yellow;
+}
+
+img {
+    width: 30rem;
+    height: auto;
+}
+
+#meme-pagination {
+    order: 2;
+    margin: 0 auto;
+}
+
+#meme-footer:has(input[id="bul1"]:checked) + #meme-window-wrapper #meme-container
+{
+    transform: translate(0);
+    transition: 0.5s;
+}
+
+#meme-footer:has(input[id="bul2"]:checked) + #meme-window-wrapper #meme-container
+{
+    transform: translate(-100%);
+    transition: 0.5s;
+}
+
+#meme-footer:has(input[id="bul3"]:checked) + #meme-window-wrapper #meme-container
+{
+    transform: translate(-200%);
+    transition: 0.5s;
+}
+
+#meme-footer:has(input[id="bul4"]:checked) + #meme-window-wrapper #meme-container
+{
+    transform: translate(-300%);
+    transition: 0.5s;
+}
+
+
+#meme-pagination:has(input[id="bul1"]:checked) + #meme-text-window #meme-text-container
+{
+    transform: translate(0);
+    transition: 0.5s;
+}
+#meme-pagination:has(input[id="bul2"]:checked) + #meme-text-window #meme-text-container
+{
+    transform: translate(-50rem);
+    transition: 0.5s;
+}
+
+#meme-pagination:has(input[id="bul3"]:checked) + #meme-text-window #meme-text-container
+{
+    transform: translate(-100rem);
+    transition: 0.5s;
+}
+
+#meme-pagination:has(input[id="bul4"]:checked) + #meme-text-window #meme-text-container
+{
+    transform: translate(-150rem);
+    transition: 0.5s;
+}
+
+@media (max-width: 1000px) {
+    #meme-footer {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+    
+    #meme-text-window {
+        font-size: 1.5rem;
+        text-align: center;
+    }
+
+    #meme-pagination {
+        order: 1;
+    }
+
+    #meme-text-window {
+        order: 2;
+    }
+}
+
+
+
+
+
