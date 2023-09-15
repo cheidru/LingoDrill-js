@@ -1,6 +1,7 @@
 // ToDo:
 // Generate list of files in DB
 
+
 let dbError = false;
 let openDB = null;
 let db = null;
@@ -52,7 +53,6 @@ function readFileDataFromDBtoScreen() {
                         let languageStore = db.createObjectStore('language', {keyPath: 'id', autoIncrement: 'true'});
 
                         // Create additional indexes to stores
-
                         // // Index on file addition date to range the list of files
                         // audioStore.createIndex('dateIndex', 'date', {unique: false});
                         // // Index to link to audio ID in audioStore
