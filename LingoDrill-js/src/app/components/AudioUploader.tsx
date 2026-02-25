@@ -6,6 +6,7 @@ interface AudioUploaderProps {
 
 export function AudioUploader( {onUpload}: AudioUploaderProps) {
   return (
+    // ToDo Стилизовать input, чтобы не появлялась надпись No file chosen
     <input
       type="file"
       accept="audio/*"
