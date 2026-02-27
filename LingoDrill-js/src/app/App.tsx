@@ -1,35 +1,14 @@
-import { useAudioLibrary } from "./hooks/useAudioLibrary"
-import { AudioUploader } from "./components/AudioUploader"
-import { AudioLibrary } from "./components/AudioLibrary"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import LibraryPage from "../pages/LibraryPage"
+import { FragmentEditorPage } from "../pages/FragmentEditorPage"
 
 export default function App() {
-  const { 
-    files,
-    addFile,
-    removeFile,
-    getBlob,
-    selectFile,
-    selectedFile,
-    isLoading,
-    error
-  } = useAudioLibrary()
-
   return (
-    <div>
-      <h1>Language Trainer</h1>
-
-      {isLoading && <p>Loading...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      <AudioUploader onUpload={addFile} />
-
-      <AudioLibrary
-        files={files}
-        selectedFile={selectedFile}
-        selectFile={selectFile}
-        getBlob={getBlob}
-        onDelete={removeFile}
-      />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LibraryPage />} />
+        <Route path="/file/:id/fragments" element={<FragmentEditorPage />} />
+      </Routes>
+    </BrowserRouter>
   )
 }

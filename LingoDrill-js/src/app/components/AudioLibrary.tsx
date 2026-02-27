@@ -1,110 +1,72 @@
-import { useState, useEffect } from "react"
-import type { AudioFile, AudioFileId } from "../../core/domain/types"
+import React from "react"
+import type { AudioFile } from "../hooks/useAudioLibrary"
 
 interface AudioLibraryProps {
   files: AudioFile[]
-  getBlob: (id: AudioFileId) => Promise<Blob | undefined>
-  onDelete: (id: AudioFileId) => Promise<void> | void
   selectedFile: AudioFile | null
-  selectFile: (id: AudioFileId) => void
+  selectFile: (id: string) => void
+  onDelete: (id: string) => void
 }
 
-export function AudioLibrary({ 
-  files, 
-  getBlob,
-  onDelete,
+export const AudioLibrary: React.FC<AudioLibraryProps> = ({
+  files,
   selectedFile,
   selectFile,
- }: AudioLibraryProps) {
-  const [currentUrl, setCurrentUrl] = useState<string | null>(null)
-  const [currentFileId, setCurrentFileId] = useState<AudioFileId | null>(null)
-
-  async function play(id: string) {
-    const blob = await getBlob(id)
-    if (!blob) return
-
-    // убираем старый URL перед созданием нового,
-    // если он существует
-    if (currentUrl) {
-      URL.revokeObjectURL(currentUrl)
-    }
-
-    const url = URL.createObjectURL(blob)
-    setCurrentUrl(url)
-    setCurrentFileId(id)
+  onDelete,
+}) => {
+  if (files.length === 0) {
+    return <p>No audio files uploaded yet.</p>
   }
-
-  // Очищаем память при удалении файла из списка
-  async function handleDelete(id: AudioFileId) {
-    await onDelete(id)
-
-    if (currentFileId === id) {
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl)
-      }
-      setCurrentUrl(null)
-      setCurrentFileId(null)
-    }
-  }
-
-  // cleanup при unmount
-  useEffect(() => {
-    return () => {
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl)
-      }
-    }
-  }, [currentUrl])
-
-
-
 
   return (
     <div>
-      {files.map(file => {
-        const isActive = selectedFile?.id === file.id
+      <h3>Audio Library</h3>
 
-        return (
-          <div
-            key={file.id}
-            // ToDo Перенести инлайн стиль в css
-            style={{
-              border: isActive ? "2px solid blue" : "1px solid gray",
-              padding: 8,
-              marginBottom: 4,
-              cursor: "pointer",
-            }}
-            onClick={() => selectFile(file.id)}
-          >
-            {file.name}
+      <ul style={{ listStyle: "none", padding: 0 }}>
+        {files.map((file) => {
+          const isSelected = selectedFile?.id === file.id
 
-            <button onClick={(e) => {
-              e.stopPropagation()
-              play(file.id)
-              }
-            }>
-              Play
-            </button>
+          return (
+            <li
+              key={file.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 12px",
+                marginBottom: "4px",
+                cursor: "pointer",
+                backgroundColor: isSelected ? "#e6f2ff" : "#f5f5f5",
+                border: isSelected
+                  ? "1px solid #3399ff"
+                  : "1px solid #ddd",
+                borderRadius: 4,
+              }}
+              onClick={() => selectFile(file.id)}
+            >
+              <span>{file.name}</span>
 
-            <button onClick={(e) => {
-              e.stopPropagation()
-              handleDelete(file.id)
-              }
-            }>
-              Delete
-            </button>
-          </div>
-        )
-      })}
-
-      {currentUrl && (
-        <audio
-          key={currentFileId} // заставляет пересоздать элемент
-          src={currentUrl}
-          controls
-          autoPlay
-        />
-      )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(file.id)
+                }}
+                style={{
+                  marginLeft: 12,
+                  backgroundColor: "#ff4d4f",
+                  color: "white",
+                  border: "none",
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

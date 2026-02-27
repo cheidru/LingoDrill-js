@@ -1,15 +1,14 @@
 import { dbPromise } from "./db"
-import { nanoid } from "nanoid"
 import { computeSHA256 } from "../../core/storage/hash"
 import type { AudioFile, AudioFileId } from "../../core/domain/types"
 
 export class IndexedDBAudioStorage {
   // Сохранение аудиофайла в db
-  async save(file: File): Promise<AudioFile> {
+  // Теперь можно передавать id, чтобы не было рассинхронизации
+  async save(file: File, id: string): Promise<AudioFile> {
     const db = await dbPromise
-    const id = nanoid()
 
-    const meta = {
+    const meta: AudioFile = {
       id,
       name: file.name,
       mimeType: file.type,
@@ -17,10 +16,6 @@ export class IndexedDBAudioStorage {
       hash: "", // временно пустой
       createdAt: Date.now(),
     }
-
-    // Версионирование базы данных
-    // const DB_NAME = "language-trainer"
-    // const DB_VERSION = 1
 
     await db.put("audioMeta", meta)
     await db.put("audioBlobs", file, id)
@@ -36,9 +31,10 @@ export class IndexedDBAudioStorage {
     return db.getAll("audioMeta")
   }
 
-  async getBlob(id: AudioFileId): Promise<Blob> {
+  async getBlob(id: AudioFileId): Promise<Blob | null> {
     const db = await dbPromise
-    return db.get("audioBlobs", id)
+    const blob = await db.get("audioBlobs", id)
+    return blob ?? null
   }
 
   async delete(id: AudioFileId): Promise<void> {
@@ -48,13 +44,13 @@ export class IndexedDBAudioStorage {
   }
 
   private async computeAndUpdateHash(id: string, file: File) {
-  const hash = await computeSHA256(file)
-  const db = await dbPromise
+    const hash = await computeSHA256(file)
+    const db = await dbPromise
 
-  const meta = await db.get("audioMeta", id)
-  if (!meta) return
+    const meta = await db.get("audioMeta", id)
+    if (!meta) return
 
-  meta.hash = hash
-  await db.put("audioMeta", meta)
+    meta.hash = hash
+    await db.put("audioMeta", meta)
   }
 }
