@@ -18,11 +18,13 @@ export type WaveformFragment = {
 }
 
 type Props = {
-  data: number[]            // RMS массив 0..1
-  duration: number          // длительность аудио в секундах
+  data: number[]
+  duration: number
   height?: number
-  fragments?: WaveformFragment[]  // уже сохранённые фрагменты
+  fragments?: WaveformFragment[]
   onSelect?: (start: number, end: number) => void
+  currentTime?: number
+  playingFragment?: { start: number; end: number } | null
 }
 
 export function Waveform({
@@ -31,6 +33,8 @@ export function Waveform({
   height = 200,
   fragments = [],
   onSelect,
+  currentTime,
+  playingFragment,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -39,14 +43,6 @@ export function Waveform({
     endX: number
     active: boolean
   } | null>(null)
-
-  const getSecondsFromX = useCallback(
-    (x: number, width: number) => {
-      const clamped = Math.max(0, Math.min(x, width))
-      return (clamped / width) * duration
-    },
-    [duration]
-  )
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -60,9 +56,9 @@ export function Waveform({
 
     ctx.clearRect(0, 0, width, h)
 
-    // ===== Waveform =====
-    const barWidth = width / data.length
+    if (!data.length || !duration) return
 
+    const barWidth = width / data.length
     ctx.fillStyle = "#4a90e2"
 
     data.forEach((value, i) => {
@@ -75,96 +71,102 @@ export function Waveform({
       )
     })
 
-    // ===== Saved fragments overlay =====
-    ctx.fillStyle = "rgba(255, 165, 0, 0.3)"
-
+    // Saved fragments
+    ctx.fillStyle = "rgba(255,165,0,0.3)"
     fragments.forEach((f) => {
       const startX = (f.start / duration) * width
       const endX = (f.end / duration) * width
       ctx.fillRect(startX, 0, endX - startX, h)
     })
 
-    // ===== Active selection =====
+    // Playback progress
+    if (playingFragment && currentTime !== undefined) {
+      const { start, end } = playingFragment
+
+      const clampedTime = Math.min(
+        Math.max(currentTime, start),
+        end
+      )
+
+      if (clampedTime > start) {
+        const startX = (start / duration) * width
+        const endX = (end / duration) * width
+
+        const progress =
+          (clampedTime - start) / (end - start)
+
+        const progressX =
+          startX + (endX - startX) * progress
+
+        ctx.fillStyle = "rgba(0,200,0,0.5)"
+        ctx.fillRect(startX, 0, progressX - startX, h)
+      }
+    }
+
+    // Selection
     if (selection) {
       const { startX, endX } = selection
       const left = Math.min(startX, endX)
       const right = Math.max(startX, endX)
 
-      ctx.fillStyle = "rgba(0, 255, 0, 0.3)"
+      ctx.fillStyle = "rgba(0,255,0,0.3)"
       ctx.fillRect(left, 0, right - left, h)
     }
-  }, [data, fragments, selection, duration])
+  }, [data, fragments, selection, duration, currentTime, playingFragment])
 
   useEffect(() => {
     draw()
   }, [draw])
 
-  // ===== Mouse Handlers =====
+  const getSeconds = (x: number, width: number) =>
+    (Math.max(0, Math.min(x, width)) / width) * duration
 
   const handleMouseDown = (e: MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
-
-    setSelection({
-      startX: x,
-      endX: x,
-      active: true,
-    })
+    setSelection({ startX: x, endX: x, active: true })
   }
 
   const handleMouseMove = (e: MouseEvent<HTMLCanvasElement>) => {
     if (!selection?.active) return
-
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
-
     setSelection((prev) =>
-      prev
-        ? { ...prev, endX: x }
-        : null
+      prev ? { ...prev, endX: x } : null
     )
   }
 
   const handleMouseUp = () => {
     if (!selection) return
-
     const canvas = canvasRef.current
     if (!canvas) return
 
     const width = canvas.width
-
-    const startSec = getSecondsFromX(selection.startX, width)
-    const endSec = getSecondsFromX(selection.endX, width)
-
-    const start = Math.min(startSec, endSec)
-    const end = Math.max(startSec, endSec)
+    const start = getSeconds(selection.startX, width)
+    const end = getSeconds(selection.endX, width)
 
     setSelection(null)
 
     if (onSelect && Math.abs(end - start) > 0.05) {
-      onSelect(start, end)
+      onSelect(Math.min(start, end), Math.max(start, end))
     }
   }
 
   return (
-    <div style={{ width: "100%" }}>
-      <canvas
-        ref={canvasRef}
-        width={1000}
-        height={height}
-        style={{
-          width: "100%",
-          height,
-          cursor: "crosshair",
-          border: "1px solid #ccc",
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={() =>
-          setSelection(null)
-        }
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={1000}
+      height={height}
+      style={{
+        width: "100%",
+        height,
+        border: "1px solid #ccc",
+        cursor: "crosshair",
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => setSelection(null)}
+    />
   )
 }
