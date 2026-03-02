@@ -9,6 +9,14 @@ export interface AudioFile {
   hash: string
   createdAt: number
 }
+export interface Fragment {
+  id: string
+  audioId: AudioFileId
+  start: number   // в секундах
+  end: number     // в секундах
+  repeat: number  // количество повторений
+  enabled: boolean
+}
 
 
 

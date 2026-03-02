@@ -88,7 +88,6 @@ export class WebAudioEngine implements AudioEngine {
 
   play(): void {
     if (!this.buffer) return
-    console.log("PLAY from offset:", this.pausedOffset)
     this.stopSourceOnly()
     this.createSource(this.pausedOffset)
   }
@@ -134,15 +133,11 @@ export class WebAudioEngine implements AudioEngine {
   }
 
   pause(): void {
-    console.log("PAUSE called. source:", this.source)
-    if (!this.source) return
-    console.log("PAUSE: source is null")
+      if (!this.source) return
     const elapsed =
       (this.context.currentTime - this.startTime) * this.playbackRate
 
     this.pausedOffset = this.startOffset + elapsed
-
-    console.log("PAUSE offset:", this.pausedOffset)
 
     this.stopSourceOnly()
     this.playing = false
