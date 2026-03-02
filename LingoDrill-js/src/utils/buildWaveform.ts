@@ -1,3 +1,5 @@
+// utils/buildWaveform.ts
+
 /**
  * Строит нормализованный RMS waveform из AudioBuffer.
  *

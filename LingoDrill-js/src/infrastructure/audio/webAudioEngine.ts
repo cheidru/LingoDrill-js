@@ -1,19 +1,24 @@
+// infrastructure/audio/webAudioEngine.ts
+
 import type { AudioEngine, Fragment } from "../../core/audio/audioEngine"
 
 export class WebAudioEngine implements AudioEngine {
   private context = new AudioContext()
   private buffer: AudioBuffer | null = null
   private source: AudioBufferSourceNode | null = null
+  private gainNode = this.context.createGain()
+
   private playbackRate = 1
   private playing = false
 
-  // Для корректного currentTime
-  private startOffset = 0
   private startTime = 0
+  private startOffset = 0
+  private pausedOffset = 0
+
   private fragmentEnd: number | null = null
 
   private onEndedCallback: (() => void) | null = null
-  private gainNode = this.context.createGain()
+  private isStoppingManually = false
 
   constructor() {
     this.gainNode.connect(this.context.destination)
@@ -30,13 +35,14 @@ export class WebAudioEngine implements AudioEngine {
   async load(blob: Blob): Promise<void> {
     const arrayBuffer = await blob.arrayBuffer()
     this.buffer = await this.context.decodeAudioData(arrayBuffer)
+
     this.startOffset = 0
+    this.pausedOffset = 0
     this.fragmentEnd = null
   }
 
-  play(): void {
+  private createSource(offset: number, duration?: number) {
     if (!this.buffer) return
-    this.stop()
 
     this.source = this.context.createBufferSource()
     this.source.buffer = this.buffer
@@ -44,29 +50,59 @@ export class WebAudioEngine implements AudioEngine {
     this.source.connect(this.gainNode)
 
     this.startTime = this.context.currentTime
-    this.startOffset = 0
-    this.fragmentEnd = null
-
-    this.source.start(0, this.startOffset)
-    this.playing = true
+    this.startOffset = offset
 
     this.source.onended = () => {
+      if (this.isStoppingManually) return
+
       this.playing = false
+      this.pausedOffset = 0
       this.fragmentEnd = null
+
       if (this.onEndedCallback) this.onEndedCallback()
     }
+
+    if (duration !== undefined) {
+      this.source.start(0, offset, duration)
+    } else {
+      this.source.start(0, offset)
+    }
+
+    this.playing = true
+  }
+
+  private stopSourceOnly() {
+    if (!this.source) return
+
+    this.isStoppingManually = true
+
+    try {
+      this.source.stop()
+    } catch(e) {console.log(e)}
+
+    this.source.disconnect()
+    this.source = null
+
+    // this.isStoppingManually = false
+  }
+
+  play(): void {
+    if (!this.buffer) return
+    console.log("PLAY from offset:", this.pausedOffset)
+    this.stopSourceOnly()
+    this.createSource(this.pausedOffset)
   }
 
   playFragment(fragment: Fragment): void {
     if (!this.buffer) return
-    this.stop()
+
+    this.stopSourceOnly()
 
     const duration = fragment.end - fragment.start
-    let repeatsLeft = fragment.repeat
+    const repeatsLeft = fragment.repeat
 
     const playOnce = () => {
-      if (!this.buffer) return
-      if (repeatsLeft <= 0) return
+      if (!this.buffer || repeatsLeft <= 0) return
 
       this.source = this.context.createBufferSource()
       this.source.buffer = this.buffer
@@ -81,36 +117,43 @@ export class WebAudioEngine implements AudioEngine {
       this.playing = true
 
       this.source.onended = () => {
-        repeatsLeft--
-        if (repeatsLeft > 0) {
-          playOnce()
-        } else {
-          this.playing = false
-          this.fragmentEnd = null
-          if (this.onEndedCallback) this.onEndedCallback()
+        if (this.isStoppingManually) {
+          this.isStoppingManually = false
+          return
         }
-      }
+
+        this.playing = false
+        this.pausedOffset = 0
+        this.fragmentEnd = null
+
+        if (this.onEndedCallback) this.onEndedCallback()
+      }   
     }
 
     playOnce()
   }
 
-  stop(): void {
-    if (this.source) {
-      try {
-        this.source.stop()
-      } catch {
-        /* игнор если уже остановлен */
-      }
-      this.source.disconnect()
-      this.source = null
-    }
+  pause(): void {
+    console.log("PAUSE called. source:", this.source)
+    if (!this.source) return
+    console.log("PAUSE: source is null")
+    const elapsed =
+      (this.context.currentTime - this.startTime) * this.playbackRate
+
+    this.pausedOffset = this.startOffset + elapsed
+
+    console.log("PAUSE offset:", this.pausedOffset)
+
+    this.stopSourceOnly()
     this.playing = false
-    this.fragmentEnd = null
   }
 
-  pause(): void {
-    this.stop()
+  stop(): void {
+    this.stopSourceOnly()
+    this.playing = false
+    this.pausedOffset = 0
+    this.startOffset = 0
+    this.fragmentEnd = null
   }
 
   setPlaybackRate(rate: number): void {
@@ -119,12 +162,20 @@ export class WebAudioEngine implements AudioEngine {
 
   getCurrentTime(): number {
     if (!this.buffer) return 0
-    if (!this.source) return this.startOffset
-    const elapsed = (this.context.currentTime - this.startTime) * this.playbackRate
+
+    if (!this.playing) {
+      return this.pausedOffset
+    }
+
+    const elapsed =
+      (this.context.currentTime - this.startTime) * this.playbackRate
+
     let time = this.startOffset + elapsed
+
     if (this.fragmentEnd !== null && time > this.fragmentEnd) {
       time = this.fragmentEnd
     }
+
     return time
   }
 

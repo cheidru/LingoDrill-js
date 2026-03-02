@@ -1,3 +1,5 @@
+// components/AudioPlayer.tsx
+
 import { useNavigate } from "react-router-dom"
 
 type Props = {
@@ -6,6 +8,7 @@ type Props = {
   isPlaying: boolean
   duration: number
   onPlay: () => void
+  onPause: () => void
   onStop: () => void
   volume: number
   onVolumeChange: (v: number) => void
@@ -17,6 +20,7 @@ export function AudioPlayer({
   isPlaying,
   duration,
   onPlay,
+  onPause,
   onStop,
   volume,
   onVolumeChange,
@@ -33,11 +37,11 @@ export function AudioPlayer({
         <>
           <p>Duration: {duration.toFixed(2)} sec</p>
 
-          <button onClick={onPlay} disabled={isPlaying}>
-            Play
+          <button onClick={isPlaying ? onPause : onPlay}>
+            {isPlaying ? "Pause" : "Play"}
           </button>
 
-          <button onClick={onStop}>
+          <button onClick={onStop} style={{ marginLeft: 8 }}>
             Stop
           </button>
 

@@ -1,3 +1,5 @@
+// infrastructure/indexeddb/IndexedDBAudioStorage.ts
+
 import { dbPromise } from "./db"
 import { computeSHA256 } from "../../core/storage/hash"
 import type { AudioFile, AudioFileId } from "../../core/domain/types"

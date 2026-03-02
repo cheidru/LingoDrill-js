@@ -1,3 +1,4 @@
+// core/audio/audioEngine.ts
 export interface Fragment {
   start: number   // seconds
   end: number     // seconds

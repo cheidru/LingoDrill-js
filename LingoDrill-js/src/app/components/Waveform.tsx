@@ -1,3 +1,5 @@
+// components/Waveform.tsx
+
 // рендерит waveform через <canvas>
 // поддерживает drag-selection (мышь)
 // отображает текущую выделенную область

@@ -1,3 +1,5 @@
+// infrastructure/indexeddb/db.ts
+
 import { openDB } from "idb"
 
 export const dbPromise = openDB("language-trainer", 1, {

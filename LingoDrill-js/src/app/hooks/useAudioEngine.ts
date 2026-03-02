@@ -1,3 +1,5 @@
+// hooks/useAudioEngine.ts
+
 import { useEffect, useRef, useState, useCallback } from "react"
 import { WebAudioEngine } from "../../infrastructure/audio/webAudioEngine"
 import type { Fragment } from "../../core/audio/audioEngine"
@@ -17,24 +19,27 @@ export function useAudioEngine(
     return stored ? Number(stored) : 0.8
   })
 
+  // Engine создаётся один раз
   useEffect(() => {
     const engine = new WebAudioEngine()
     engineRef.current = engine
 
     engine.setOnEnded(() => {
       setIsPlaying(false)
-      setCurrentTime(0)
     })
-
-    engine.setVolume(volume)
 
     return () => {
       engine.destroy()
       engineRef.current = null
     }
+  }, [])
+
+  // Volume обновляется отдельно
+  useEffect(() => {
+    engineRef.current?.setVolume(volume)
   }, [volume])
 
-  // playback clock
+  // Playback clock
   useEffect(() => {
     let raf: number
 
@@ -77,6 +82,11 @@ export function useAudioEngine(
     setIsPlaying(true)
   }, [isReady])
 
+  const pause = useCallback(() => {
+    engineRef.current?.pause()
+    setIsPlaying(false)
+  }, [])
+
   const stop = useCallback(() => {
     engineRef.current?.stop()
     setIsPlaying(false)
@@ -96,7 +106,6 @@ export function useAudioEngine(
   const setVolume = useCallback((v: number) => {
     setVolumeState(v)
     localStorage.setItem("audio-volume", String(v))
-    engineRef.current?.setVolume(v)
   }, [])
 
   return {
@@ -106,6 +115,7 @@ export function useAudioEngine(
     currentTime,
     loadById,
     play,
+    pause,
     stop,
     playFragment,
     volume,

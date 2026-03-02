@@ -1,3 +1,5 @@
+// app/App.tsx
+
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import LibraryPage from "../pages/LibraryPage"
 import { FragmentEditorPage } from "../pages/FragmentEditorPage"

@@ -1,3 +1,5 @@
+// pages/LibraryPage.tsx
+
 import { useCallback } from "react"
 import { useAudioLibrary } from "../app/hooks/useAudioLibrary"
 import { useAudioEngine } from "../app/hooks/useAudioEngine"
@@ -26,6 +28,7 @@ export default function LibraryPage() {
     stop,
     setVolume,
     volume,
+    pause
   } = useAudioEngine(getBlob)
 
   // Единственная точка загрузки engine
@@ -73,6 +76,7 @@ export default function LibraryPage() {
             isPlaying={isPlaying}
             duration={duration}
             onPlay={play}
+            onPause={pause}
             onStop={stop}
             volume={volume}
             onVolumeChange={setVolume}

@@ -1,3 +1,5 @@
+// components/AudioUploader.tsx
+
 type UploadHandler = (file: File) => Promise<void> | void
 
 interface AudioUploaderProps {
