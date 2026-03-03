@@ -53,8 +53,6 @@ export function useAudioLibrary() {
       setError(null)
 
       const id = crypto.randomUUID()
-
-      await storageRef.current.save(file, id)
       const savedFile = await storageRef.current.save(file, id)
       setFiles(prev => [...prev, { id: savedFile.id, name: savedFile.name }])
     } catch {

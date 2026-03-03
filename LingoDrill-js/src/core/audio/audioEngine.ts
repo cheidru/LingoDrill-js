@@ -1,5 +1,7 @@
 // core/audio/audioEngine.ts
-export interface Fragment {
+
+/** Фрагмент для воспроизведения (подмножество полей из domain Fragment) */
+export type PlayableFragment = {
   start: number   // seconds
   end: number     // seconds
   repeat: number  // number of repetitions
@@ -10,7 +12,7 @@ export interface AudioEngine {
   play(): void
   pause(): void
   stop(): void  
-  playFragment(fragment: Fragment): void
+  playFragment(fragment: PlayableFragment): void
   setPlaybackRate(rate: number): void
   getCurrentTime(): number
   getDuration(): number

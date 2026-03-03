@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { WebAudioEngine } from "../../infrastructure/audio/webAudioEngine"
-import type { Fragment } from "../../core/audio/audioEngine"
+import type { PlayableFragment } from "../../core/audio/audioEngine"
 
 export function useAudioEngine(
   getBlob: (id: string) => Promise<Blob | null>
@@ -11,6 +11,7 @@ export function useAudioEngine(
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
 
@@ -26,6 +27,7 @@ export function useAudioEngine(
 
     engine.setOnEnded(() => {
       setIsPlaying(false)
+      setIsPaused(false)
     })
 
     return () => {
@@ -60,6 +62,7 @@ export function useAudioEngine(
 
       engine.stop()
       setIsPlaying(false)
+      setIsPaused(false)
       setIsReady(false)
       setCurrentTime(0)
 
@@ -80,25 +83,29 @@ export function useAudioEngine(
     if (!engine || !isReady) return
     engine.play()
     setIsPlaying(true)
+    setIsPaused(false)
   }, [isReady])
 
   const pause = useCallback(() => {
     engineRef.current?.pause()
     setIsPlaying(false)
+    setIsPaused(true)
   }, [])
 
   const stop = useCallback(() => {
     engineRef.current?.stop()
     setIsPlaying(false)
+    setIsPaused(false)
     setCurrentTime(0)
   }, [])
 
   const playFragment = useCallback(
-    (fragment: Fragment) => {
+    (fragment: PlayableFragment) => {
       const engine = engineRef.current
       if (!engine || !isReady) return
       engine.playFragment(fragment)
       setIsPlaying(true)
+      setIsPaused(false)
     },
     [isReady]
   )
@@ -111,6 +118,7 @@ export function useAudioEngine(
   return {
     isReady,
     isPlaying,
+    isPaused,
     duration,
     currentTime,
     loadById,

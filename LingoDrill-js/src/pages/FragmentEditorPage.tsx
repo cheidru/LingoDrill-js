@@ -4,18 +4,11 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useAudioLibrary } from "../app/hooks/useAudioLibrary"
 import { useAudioEngine } from "../app/hooks/useAudioEngine"
+import { useFragments } from "../app/hooks/useFragments"
 import { Waveform } from "../app/components/Waveform"
 import type { WaveformFragment } from "../app/components/Waveform"
 import { buildWaveform } from "../utils/buildWaveform"
-import type { Fragment } from "../core/audio/audioEngine"
-import { nanoid } from "nanoid"
-
-type LocalFragment = {
-  id: string
-  start: number
-  end: number
-  repeat: number
-}
+import type { PlayableFragment } from "../core/audio/audioEngine"
 
 export function FragmentEditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,14 +18,25 @@ export function FragmentEditorPage() {
   const {
     loadById,
     playFragment,
+    pause,
+    play,
     stop,
     isReady,
+    isPlaying,
+    isPaused,
     duration,
     currentTime,
   } = useAudioEngine(getBlob)
 
+  // Фрагменты теперь персистентны через IndexedDB
+  const {
+    fragments,
+    addFragment,
+    deleteFragment,
+    updateFragment,
+  } = useFragments(id ?? null)
+
   const [waveformData, setWaveformData] = useState<number[]>([])
-  const [fragments, setFragments] = useState<LocalFragment[]>([])
   const [playingFragment, setPlayingFragment] =
     useState<{ start: number; end: number } | null>(null)
 
@@ -55,49 +59,61 @@ export function FragmentEditorPage() {
     load()
   }, [id, getBlob, loadById])
 
-  // добавление нового фрагмента
-  const addFragment = useCallback((start: number, end: number) => {
-    setFragments(prev => [
-      ...prev,
-      { id: nanoid(), start, end, repeat: 1 },
-    ])
-  }, [])
-
-  // редактирование существующего фрагмента (start/end)
-  const updateFragment = useCallback((updated: LocalFragment) => {
-    setFragments(prev =>
-      prev.map(f => (f.id === updated.id ? updated : f))
-    )
-  }, [])
+  // добавление нового фрагмента через waveform selection
+  const handleSelect = useCallback((start: number, end: number) => {
+    addFragment(start, end)
+  }, [addFragment])
 
   // удаление фрагмента
-  const deleteFragment = useCallback((id: string) => {
-    setFragments(prev => prev.filter(f => f.id !== id))
+  const handleDelete = useCallback((fragId: string) => {
+    deleteFragment(fragId)
     stop()
     setPlayingFragment(null)
-  }, [stop])
+  }, [deleteFragment, stop])
 
-  // изменение repeat (клик по счетчику)
-  const incrementRepeat = useCallback((id: string) => {
-    setFragments(prev =>
-      prev.map(f =>
-        f.id === id ? { ...f, repeat: f.repeat + 1 } : f
-      )
-    )
-  }, [])
+  // изменение repeat
+  const incrementRepeat = useCallback((fragId: string) => {
+    const f = fragments.find(fr => fr.id === fragId)
+    if (!f) return
+    updateFragment({ ...f, repeat: f.repeat + 1 })
+  }, [fragments, updateFragment])
 
-  const decrementRepeat = useCallback((id: string) => {
-    setFragments(prev =>
-      prev.map(f =>
-        f.id === id
-          ? { ...f, repeat: Math.max(1, f.repeat - 1) }
-          : f
-      )
-    )
-  }, [])
+  const decrementRepeat = useCallback((fragId: string) => {
+    const f = fragments.find(fr => fr.id === fragId)
+    if (!f) return
+    updateFragment({ ...f, repeat: Math.max(1, f.repeat - 1) })
+  }, [fragments, updateFragment])
 
-  const handlePlay = useCallback((f: LocalFragment) => {
-    const fragment: Fragment = {
+  // редактирование границ фрагмента (drag на waveform)
+  const handleEdit = useCallback((fragId: string, newStart: number, newEnd: number) => {
+    const f = fragments.find(fr => fr.id === fragId)
+    if (!f) return
+    updateFragment({ ...f, start: newStart, end: newEnd })
+  }, [fragments, updateFragment])
+
+  const handlePlayPause = useCallback((f: typeof fragments[number]) => {
+    // Если этот фрагмент уже играет — ставим паузу
+    if (
+      isPlaying &&
+      playingFragment?.start === f.start &&
+      playingFragment.end === f.end
+    ) {
+      pause()
+      return
+    }
+
+    // Если этот фрагмент на паузе — возобновляем (доигрывает текущий повтор + оставшиеся)
+    if (
+      isPaused &&
+      playingFragment?.start === f.start &&
+      playingFragment.end === f.end
+    ) {
+      play()
+      return
+    }
+
+    // Иначе — запускаем фрагмент заново (новый фрагмент или все повторы завершились)
+    const fragment: PlayableFragment = {
       start: f.start,
       end: f.end,
       repeat: f.repeat,
@@ -105,7 +121,7 @@ export function FragmentEditorPage() {
 
     setPlayingFragment({ start: f.start, end: f.end })
     playFragment(fragment)
-  }, [playFragment])
+  }, [playFragment, pause, play, isPlaying, isPaused, playingFragment])
 
   const waveformFragments: WaveformFragment[] =
     fragments.map(f => ({
@@ -129,12 +145,8 @@ export function FragmentEditorPage() {
             data={waveformData}
             duration={duration}
             fragments={waveformFragments}
-            onSelect={addFragment}
-            onEdit={(id, newStart, newEnd) => {
-              const f = fragments.find(f => f.id === id)
-              if (!f) return
-              updateFragment({ ...f, start: newStart, end: newEnd })
-            }}
+            onSelect={handleSelect}
+            onEdit={handleEdit}
             currentTime={currentTime}
             playingFragment={playingFragment}
           />
@@ -158,14 +170,15 @@ export function FragmentEditorPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <button onClick={() => handlePlay(f)}>
-                    {playingFragment?.start === f.start &&
+                  <button onClick={() => handlePlayPause(f)}>
+                    {isPlaying &&
+                    playingFragment?.start === f.start &&
                     playingFragment.end === f.end
                       ? "Pause"
                       : "Play"}
                   </button>
 
-                  <button onClick={() => deleteFragment(f.id)}>
+                  <button onClick={() => handleDelete(f.id)}>
                     Delete
                   </button>
 

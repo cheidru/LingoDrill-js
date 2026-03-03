@@ -1,6 +1,6 @@
 // infrastructure/audio/webAudioEngine.ts
 
-import type { AudioEngine, Fragment } from "../../core/audio/audioEngine"
+import type { AudioEngine, PlayableFragment } from "../../core/audio/audioEngine"
 
 export class WebAudioEngine implements AudioEngine {
   private context = new AudioContext()
@@ -19,6 +19,10 @@ export class WebAudioEngine implements AudioEngine {
 
   private onEndedCallback: (() => void) | null = null
   private isStoppingManually = false
+
+  // Состояние для repeat — сохраняется при pause, используется при resume
+  private currentFragment: PlayableFragment | null = null
+  private repeatsLeft = 0
 
   constructor() {
     this.gainNode.connect(this.context.destination)
@@ -39,6 +43,8 @@ export class WebAudioEngine implements AudioEngine {
     this.startOffset = 0
     this.pausedOffset = 0
     this.fragmentEnd = null
+    this.currentFragment = null
+    this.repeatsLeft = 0
   }
 
   private createSource(offset: number, duration?: number) {
@@ -58,6 +64,8 @@ export class WebAudioEngine implements AudioEngine {
       this.playing = false
       this.pausedOffset = 0
       this.fragmentEnd = null
+      this.currentFragment = null
+      this.repeatsLeft = 0
 
       if (this.onEndedCallback) this.onEndedCallback()
     }
@@ -78,30 +86,21 @@ export class WebAudioEngine implements AudioEngine {
 
     try {
       this.source.stop()
-    } catch(e) {console.log(e)}
+    } catch (e) {
+      console.log(e)
+    }
 
     this.source.disconnect()
     this.source = null
-
-    // this.isStoppingManually = false
   }
 
   play(): void {
     if (!this.buffer) return
     this.stopSourceOnly()
-    this.createSource(this.pausedOffset)
-  }
 
-  playFragment(fragment: Fragment): void {
-    if (!this.buffer) return
-
-    this.stopSourceOnly()
-
-    const duration = fragment.end - fragment.start
-    const repeatsLeft = fragment.repeat
-
-    const playOnce = () => {
-      if (!this.buffer || repeatsLeft <= 0) return
+    // Если был фрагмент с repeat — возобновляем с поддержкой повторов
+    if (this.currentFragment !== null && this.fragmentEnd !== null && this.pausedOffset < this.fragmentEnd) {
+      const remaining = this.fragmentEnd - this.pausedOffset
 
       this.source = this.context.createBufferSource()
       this.source.buffer = this.buffer
@@ -109,31 +108,98 @@ export class WebAudioEngine implements AudioEngine {
       this.source.connect(this.gainNode)
 
       this.startTime = this.context.currentTime
-      this.startOffset = fragment.start
-      this.fragmentEnd = fragment.end
+      this.startOffset = this.pausedOffset
 
-      this.source.start(0, fragment.start, duration)
+      this.source.start(0, this.pausedOffset, remaining)
       this.playing = true
+      this.isStoppingManually = false
+
+      const fragment = this.currentFragment
+      const repsLeft = this.repeatsLeft
 
       this.source.onended = () => {
-        if (this.isStoppingManually) {
-          this.isStoppingManually = false
-          return
-        }
+        if (this.isStoppingManually) return
 
+        if (repsLeft > 0) {
+          // Запускаем следующий повтор
+          this.playRepeatCycle(fragment, repsLeft)
+        } else {
+          this.playing = false
+          this.pausedOffset = 0
+          this.fragmentEnd = null
+          this.currentFragment = null
+          this.repeatsLeft = 0
+          if (this.onEndedCallback) this.onEndedCallback()
+        }
+      }
+    } else {
+      this.createSource(this.pausedOffset)
+      this.isStoppingManually = false
+    }
+  }
+
+  /**
+   * Запускает цикл повторов фрагмента.
+   */
+  private playRepeatCycle(fragment: PlayableFragment, repeatsLeft: number) {
+    if (!this.buffer || repeatsLeft <= 0) {
+      this.playing = false
+      this.pausedOffset = 0
+      this.fragmentEnd = null
+      this.currentFragment = null
+      this.repeatsLeft = 0
+      if (this.onEndedCallback) this.onEndedCallback()
+      return
+    }
+
+    const duration = fragment.end - fragment.start
+
+    this.source = this.context.createBufferSource()
+    this.source.buffer = this.buffer
+    this.source.playbackRate.value = this.playbackRate
+    this.source.connect(this.gainNode)
+
+    this.startTime = this.context.currentTime
+    this.startOffset = fragment.start
+    this.fragmentEnd = fragment.end
+    this.currentFragment = fragment
+    this.repeatsLeft = repeatsLeft - 1
+
+    this.source.start(0, fragment.start, duration)
+    this.playing = true
+    this.isStoppingManually = false
+
+    const repsLeft = this.repeatsLeft
+
+    this.source.onended = () => {
+      if (this.isStoppingManually) return
+
+      if (repsLeft > 0) {
+        this.playRepeatCycle(fragment, repsLeft)
+      } else {
         this.playing = false
         this.pausedOffset = 0
         this.fragmentEnd = null
-
+        this.currentFragment = null
+        this.repeatsLeft = 0
         if (this.onEndedCallback) this.onEndedCallback()
-      }   
+      }
     }
+  }
 
-    playOnce()
+  playFragment(fragment: PlayableFragment): void {
+    if (!this.buffer) return
+
+    this.stopSourceOnly()
+    this.currentFragment = fragment
+    this.repeatsLeft = fragment.repeat
+
+    this.playRepeatCycle(fragment, this.repeatsLeft)
   }
 
   pause(): void {
-      if (!this.source) return
+    if (!this.source) return
+
     const elapsed =
       (this.context.currentTime - this.startTime) * this.playbackRate
 
@@ -141,6 +207,8 @@ export class WebAudioEngine implements AudioEngine {
 
     this.stopSourceOnly()
     this.playing = false
+    // isStoppingManually остаётся true — onended должен быть проигнорирован
+    // pausedOffset, fragmentEnd, currentFragment, repeatsLeft сохранены
   }
 
   stop(): void {
@@ -149,6 +217,9 @@ export class WebAudioEngine implements AudioEngine {
     this.pausedOffset = 0
     this.startOffset = 0
     this.fragmentEnd = null
+    this.currentFragment = null
+    this.repeatsLeft = 0
+    this.isStoppingManually = false
   }
 
   setPlaybackRate(rate: number): void {
