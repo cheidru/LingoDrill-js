@@ -348,23 +348,10 @@ export function Waveform({
     const canvas = canvasRef.current
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
-    const mouseXFrac = (e.clientX - rect.left) / rect.width // 0..1 on canvas
+    const mouseXFrac = (e.clientX - rect.left) / rect.width
 
-    // Seconds under cursor before zoom
-    const secUnderCursor = visibleStart + mouseXFrac * visibleDuration
-
-    const zoomDelta = e.deltaY < 0 ? 1.15 : 1 / 1.15
-    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * zoomDelta))
-
-    // New visible duration
-    const newVisDur = duration / newZoom
-
-    // Adjust scroll so secUnderCursor stays at same mouseXFrac
-    let newScrollOffset = (secUnderCursor - mouseXFrac * newVisDur) / duration
-    newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
-
-    setZoom(newZoom)
-    setScrollOffset(newScrollOffset)
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15
+    applyZoom(zoomFactor, mouseXFrac)
   }
 
   // --- Pinch zoom (touch) ---
@@ -407,7 +394,17 @@ export function Waveform({
     lastPinchDist.current = null
   }
 
-  // --- Scrollbar for panning when zoomed ---
+  // --- Zoom helpers ---
+
+  const applyZoom = useCallback((zoomFactor: number, anchorFrac: number = 0.5) => {
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * zoomFactor))
+    const secUnderAnchor = visibleStart + anchorFrac * visibleDuration
+    const newVisDur = duration / newZoom
+    let newScrollOffset = (secUnderAnchor - anchorFrac * newVisDur) / duration
+    newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
+    setZoom(newZoom)
+    setScrollOffset(newScrollOffset)
+  }, [zoom, visibleStart, visibleDuration, duration])
 
   const handleScrollbarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
@@ -423,6 +420,36 @@ export function Waveform({
       onTouchEnd={handleTouchEnd}
       style={{ position: "relative" }}
     >
+      {/* Zoom controls */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 6,
+      }}>
+        <span style={{ fontWeight: 500, fontSize: 13 }}>Zoom</span>
+        <button
+          onClick={() => applyZoom(1 / 1.3)}
+          disabled={zoom <= MIN_ZOOM}
+          style={{ width: 28, height: 28, fontSize: 16, lineHeight: "1", padding: 0, cursor: "pointer" }}
+        >
+          −
+        </button>
+        <span style={{ fontSize: 12, color: "#888", minWidth: 36, textAlign: "center" }}>
+          {zoom.toFixed(1)}×
+        </span>
+        <button
+          onClick={() => applyZoom(1.3)}
+          disabled={zoom >= MAX_ZOOM}
+          style={{ width: 28, height: 28, fontSize: 16, lineHeight: "1", padding: 0, cursor: "pointer" }}
+        >
+          +
+        </button>
+        <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>
+          (use Mouse wheel for zoom)
+        </span>
+      </div>
+
       <canvas
         ref={canvasRef}
         width={1000}
@@ -441,20 +468,15 @@ export function Waveform({
       />
       {/* Scrollbar — only visible when zoomed */}
       {zoom > 1 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>
-            {zoom.toFixed(1)}×
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.001}
-            value={scrollOffset}
-            onChange={handleScrollbarChange}
-            style={{ flex: 1 }}
-          />
-        </div>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.001}
+          value={scrollOffset}
+          onChange={handleScrollbarChange}
+          style={{ width: "100%", marginTop: 4 }}
+        />
       )}
     </div>
   )
