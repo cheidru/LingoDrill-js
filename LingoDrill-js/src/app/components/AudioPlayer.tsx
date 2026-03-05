@@ -61,7 +61,7 @@ export function AudioPlayer({
           <div style={{ marginTop: 16 }}>
             <button
               onClick={() =>
-                navigate(`/file/${fileId}/fragments`)
+                navigate(`/file/${fileId}/sequences`)
               }
             >
               Fragments
