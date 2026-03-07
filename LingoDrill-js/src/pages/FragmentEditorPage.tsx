@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { useAudioLibrary } from "../app/hooks/useAudioLibrary"
-import { useAudioEngine } from "../app/hooks/useAudioEngine"
+import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { Waveform } from "../app/components/Waveform"
@@ -19,11 +18,11 @@ export function FragmentEditorPage() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId?: string }>()
   const navigate = useNavigate()
 
-  const { getBlob, addFile, files } = useAudioLibrary()
   const {
+    getBlob, addFile, files,
     loadById, playFragment, pause, play, stop,
     isReady, isPlaying, isPaused, duration, currentTime,
-  } = useAudioEngine(getBlob)
+  } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles } = useSubtitles(audioId ?? null)

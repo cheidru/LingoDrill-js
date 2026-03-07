@@ -1,8 +1,7 @@
 // pages/LibraryPage.tsx
 
 import { useCallback } from "react"
-import { useAudioLibrary } from "../app/hooks/useAudioLibrary"
-import { useAudioEngine } from "../app/hooks/useAudioEngine"
+import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { AudioUploader } from "../app/components/AudioUploader"
 import { AudioLibrary } from "../app/components/AudioLibrary"
 import { AudioPlayer } from "../app/components/AudioPlayer"
@@ -16,10 +15,6 @@ export default function LibraryPage() {
     addFile,
     removeFile,
     selectFile,
-    getBlob,
-  } = useAudioLibrary()
-
-  const {
     isReady,
     isPlaying,
     duration,
@@ -28,10 +23,9 @@ export default function LibraryPage() {
     stop,
     setVolume,
     volume,
-    pause
-  } = useAudioEngine(getBlob)
+    pause,
+  } = useSharedAudioEngine()
 
-  // Единственная точка загрузки engine
   const handleSelect = useCallback(
     async (id: string) => {
       selectFile(id)
@@ -86,8 +80,3 @@ export default function LibraryPage() {
     </div>
   )
 }
-
-// Safari требует user interaction для AudioContext.
-// Если появится ошибка "AudioContext was not allowed 
-// to start", нужно будет вызывать context.resume() 
-// внутри play().

@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
-import { useAudioLibrary } from "../app/hooks/useAudioLibrary"
-import { useAudioEngine } from "../app/hooks/useAudioEngine"
+import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 
@@ -89,11 +88,10 @@ export function FragmentLibraryPage() {
   const { id: audioId } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { getBlob } = useAudioLibrary()
   const {
     loadById, playFragment, pause, play, stop,
     isReady, isPlaying, isPaused, duration, setOnEnded,
-  } = useAudioEngine(getBlob)
+  } = useSharedAudioEngine()
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles, addSubtitleFile } = useSubtitles(audioId ?? null)

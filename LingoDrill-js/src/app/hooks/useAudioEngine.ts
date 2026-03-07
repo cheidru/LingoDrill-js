@@ -9,6 +9,8 @@ export function useAudioEngine(
 ) {
   const engineRef = useRef<WebAudioEngine | null>(null)
   const onEndedCallbackRef = useRef<(() => void) | null>(null)
+  const bufferCacheRef = useRef<Map<string, AudioBuffer>>(new Map())
+  const loadedIdRef = useRef<string | null>(null)
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -66,15 +68,47 @@ export function useAudioEngine(
       engine.stop()
       setIsPlaying(false)
       setIsPaused(false)
-      setIsReady(false)
       setCurrentTime(0)
 
-      if (!id) return
+      if (!id) {
+        setIsReady(false)
+        loadedIdRef.current = null
+        return
+      }
 
+      // Если тот же файл уже загружен — ничего не делаем
+      if (loadedIdRef.current === id && engine.getDuration() > 0) {
+        setDuration(engine.getDuration())
+        setIsReady(true)
+        return
+      }
+
+      setIsReady(false)
+
+      // Проверяем кеш декодированных буферов
+      const cached = bufferCacheRef.current.get(id)
+      if (cached) {
+        engine.loadFromBuffer(cached)
+        loadedIdRef.current = id
+        setDuration(engine.getDuration())
+        setIsReady(true)
+        return
+      }
+
+      // Загружаем blob и декодируем один раз
       const blob = await getBlob(id)
       if (!blob) return
 
-      await engine.load(blob)
+      const arrayBuffer = await blob.arrayBuffer()
+      const ctx = new AudioContext()
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
+      await ctx.close()
+
+      // Кешируем и загружаем в engine
+      bufferCacheRef.current.set(id, audioBuffer)
+      engine.loadFromBuffer(audioBuffer)
+      loadedIdRef.current = id
+
       setDuration(engine.getDuration())
       setIsReady(true)
     },

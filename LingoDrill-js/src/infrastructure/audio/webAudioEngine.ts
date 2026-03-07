@@ -47,6 +47,17 @@ export class WebAudioEngine implements AudioEngine {
     this.repeatsLeft = 0
   }
 
+  /** Загрузка из уже декодированного AudioBuffer (без повторного декодирования) */
+  loadFromBuffer(audioBuffer: AudioBuffer): void {
+    this.buffer = audioBuffer
+
+    this.startOffset = 0
+    this.pausedOffset = 0
+    this.fragmentEnd = null
+    this.currentFragment = null
+    this.repeatsLeft = 0
+  }
+
   private createSource(offset: number, duration?: number) {
     if (!this.buffer) return
 
