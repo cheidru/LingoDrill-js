@@ -8,6 +8,7 @@ export function useAudioEngine(
   getBlob: (id: string) => Promise<Blob | null>
 ) {
   const engineRef = useRef<WebAudioEngine | null>(null)
+  const onEndedCallbackRef = useRef<(() => void) | null>(null)
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -28,6 +29,8 @@ export function useAudioEngine(
     engine.setOnEnded(() => {
       setIsPlaying(false)
       setIsPaused(false)
+      // Вызываем внешний callback если установлен
+      onEndedCallbackRef.current?.()
     })
 
     return () => {
@@ -115,6 +118,11 @@ export function useAudioEngine(
     localStorage.setItem("audio-volume", String(v))
   }, [])
 
+  /** Register a callback that fires when playback ends naturally */
+  const setOnEnded = useCallback((cb: (() => void) | null) => {
+    onEndedCallbackRef.current = cb
+  }, [])
+
   return {
     isReady,
     isPlaying,
@@ -128,5 +136,6 @@ export function useAudioEngine(
     playFragment,
     volume,
     setVolume,
+    setOnEnded,
   }
 }

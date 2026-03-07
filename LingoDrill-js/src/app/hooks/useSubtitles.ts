@@ -15,15 +15,14 @@ export function useSubtitles(audioId: AudioFileId | null) {
   }, [])
 
   useEffect(() => {
-    if (!audioId || !storageRef.current) {
-      setSubtitleFiles([])
-      return
-    }
+    if (!audioId || !storageRef.current) return
+    let cancelled = false
     const load = async () => {
       const all = await storageRef.current!.getAllByAudio(audioId)
-      setSubtitleFiles(all)
+      if (!cancelled) setSubtitleFiles(all)
     }
     load()
+    return () => { cancelled = true }
   }, [audioId])
 
   const addSubtitleFile = useCallback(async (file: File): Promise<SubtitleFile | null> => {

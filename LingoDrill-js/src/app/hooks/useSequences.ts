@@ -8,7 +8,7 @@ import { nanoid } from "nanoid"
 export function useSequences(audioId: AudioFileId | null) {
   const storageRef = useRef<IndexedDBSequenceStorage | null>(null)
   const [sequences, setSequences] = useState<Sequence[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     storageRef.current = new IndexedDBSequenceStorage()
@@ -16,18 +16,18 @@ export function useSequences(audioId: AudioFileId | null) {
   }, [])
 
   useEffect(() => {
-    if (!audioId || !storageRef.current) {
-      setSequences([])
-      setIsLoading(false)
-      return
-    }
+    if (!audioId || !storageRef.current) return
+    let cancelled = false
     const load = async () => {
       setIsLoading(true)
       const all = await storageRef.current!.getAllByAudio(audioId)
-      setSequences(all)
-      setIsLoading(false)
+      if (!cancelled) {
+        setSequences(all)
+        setIsLoading(false)
+      }
     }
     load()
+    return () => { cancelled = true }
   }, [audioId])
 
   const addSequence = useCallback(async (fragments: SequenceFragment[]): Promise<Sequence | null> => {

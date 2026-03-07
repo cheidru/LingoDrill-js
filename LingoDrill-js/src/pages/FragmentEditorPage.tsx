@@ -1,6 +1,6 @@
 // pages/FragmentEditorPage.tsx
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useAudioLibrary } from "../app/hooks/useAudioLibrary"
 import { useAudioEngine } from "../app/hooks/useAudioEngine"
@@ -9,6 +9,8 @@ import { useSubtitles } from "../app/hooks/useSubtitles"
 import { Waveform } from "../app/components/Waveform"
 import type { WaveformFragment } from "../app/components/Waveform"
 import { buildWaveform } from "../utils/buildWaveform"
+import { detectSpeechSegments } from "../utils/detectSpeech"
+import { trimSilence } from "../utils/trimSilence"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import type { SequenceFragment, FragmentSubtitle, SubtitleFile } from "../core/domain/types"
 import { nanoid } from "nanoid"
@@ -17,7 +19,7 @@ export function FragmentEditorPage() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId?: string }>()
   const navigate = useNavigate()
 
-  const { getBlob } = useAudioLibrary()
+  const { getBlob, addFile, files } = useAudioLibrary()
   const {
     loadById, playFragment, pause, play, stop,
     isReady, isPlaying, isPaused, duration, currentTime,
@@ -46,6 +48,11 @@ export function FragmentEditorPage() {
   const [subPromptMode, setSubPromptMode] = useState(false)
   const [pendingSubFile, setPendingSubFile] = useState<SubtitleFile | null>(null)
 
+  // --- VAD auto-detect state ---
+  const [vadDetecting, setVadDetecting] = useState(false)
+  const [vadProgress, setVadProgress] = useState(0)
+  const [vadDone, setVadDone] = useState(false)
+
   // Load audio and waveform
   useEffect(() => {
     if (!audioId) return
@@ -71,6 +78,7 @@ export function FragmentEditorPage() {
       setFragments(seq.fragments.map(f => ({ ...f, subtitles: f.subtitles ?? [] })))
       currentSeqIdRef.current = seq.id
       setSequenceLoaded(true)
+      if (seq.fragments.length > 0) setVadDone(true)
     }
   }, [seqId, sequences, sequenceLoaded])
 
@@ -78,11 +86,12 @@ export function FragmentEditorPage() {
 
   const persistSequence = useCallback(async (updatedFragments: SequenceFragment[]) => {
     if (!audioId) return
+    const sorted = [...updatedFragments].sort((a, b) => a.start - b.start)
     if (currentSeqIdRef.current) {
       const seq = sequences.find(s => s.id === currentSeqIdRef.current)
-      if (seq) await updateSequence({ ...seq, fragments: updatedFragments })
+      if (seq) await updateSequence({ ...seq, fragments: sorted })
     } else {
-      const newSeq = await addSequence(updatedFragments)
+      const newSeq = await addSequence(sorted)
       if (newSeq) {
         currentSeqIdRef.current = newSeq.id
         window.history.replaceState(null, "", `/file/${audioId}/editor/${newSeq.id}`)
@@ -272,10 +281,207 @@ export function FragmentEditorPage() {
     await persistSequence(updatedAll)
   }, [fragments, persistSequence])
 
-  // --- Waveform fragments ---
+  // --- Auto-detect speech fragments via VAD ---
+
+  const handleAutoDetect = useCallback(async () => {
+    if (!audioId || vadDetecting) return
+
+    const blob = await getBlob(audioId)
+    if (!blob) return
+
+    setVadDetecting(true)
+    setVadProgress(0)
+
+    try {
+      const buffer = await blob.arrayBuffer()
+      const ctx = new AudioContext()
+      const audioBuffer = await ctx.decodeAudioData(buffer)
+      await ctx.close()
+
+      const segments = await detectSpeechSegments(audioBuffer, (p) => {
+        setVadProgress(p)
+      })
+
+      if (segments.length === 0) {
+        alert("No speech segments detected.")
+        return
+      }
+
+      // Create SequenceFragments from detected segments
+      const newFragments: SequenceFragment[] = segments.map(seg => ({
+        id: nanoid(),
+        start: seg.start,
+        end: seg.end,
+        repeat: 1,
+        speed: 1,
+        subtitles: [],
+      }))
+
+      // Append to existing or replace
+      const updated = [...fragments, ...newFragments]
+      setFragments(updated)
+      await persistSequence(updated)
+      setVadDone(true)
+    } catch (err) {
+      console.error("VAD detection failed:", err)
+      alert("Speech detection failed. See console for details.")
+    } finally {
+      setVadDetecting(false)
+      setVadProgress(0)
+    }
+  }, [audioId, vadDetecting, getBlob, fragments, persistSequence])
+
+  // --- Trim silence ---
+
+  const [trimming, setTrimming] = useState(false)
+
+  const handleTrimSilence = useCallback(async () => {
+    if (!audioId || trimming || vadDetecting) return
+
+    const blob = await getBlob(audioId)
+    if (!blob) return
+
+    setTrimming(true)
+
+    try {
+      const buffer = await blob.arrayBuffer()
+      const ctx = new AudioContext()
+      const audioBuffer = await ctx.decodeAudioData(buffer)
+      await ctx.close()
+
+      let segments: { start: number; end: number }[]
+
+      if (fragments.length > 0) {
+        // Используем границы существующих фрагментов (возможно, отредактированных вручную)
+        segments = fragments.map(f => ({ start: f.start, end: f.end }))
+      } else {
+        // Фрагментов нет — запускаем VAD-детекцию
+        setVadDetecting(true)
+        setVadProgress(0)
+
+        segments = await detectSpeechSegments(audioBuffer, (p) => {
+          setVadProgress(p)
+        })
+
+        setVadDetecting(false)
+        setVadProgress(0)
+
+        if (segments.length === 0) {
+          alert("No speech segments detected — nothing to trim.")
+          return
+        }
+      }
+
+      // Trim and create new file
+      const { blob: trimmedBlob, segmentMap, newDuration } = trimSilence(audioBuffer, segments)
+
+      const sourceFile = files.find(f => f.id === audioId)
+      const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
+      const trimmedName = `${baseName}_trimmed.wav`
+      const trimmedFile = new File([trimmedBlob], trimmedName, { type: "audio/wav" })
+      await addFile(trimmedFile)
+
+      const removedDuration = audioBuffer.duration - newDuration
+      const pct = Math.round((removedDuration / audioBuffer.duration) * 100)
+      alert(
+        `Done! Created "${trimmedName}"\n` +
+        `Original: ${audioBuffer.duration.toFixed(1)}s → Trimmed: ${newDuration.toFixed(1)}s\n` +
+        `Removed ${removedDuration.toFixed(1)}s of silence (${pct}%)\n` +
+        `${segmentMap.length} speech segments preserved.\n\n` +
+        `The new file is available in your Audio Library.`
+      )
+    } catch (err) {
+      console.error("Trim silence failed:", err)
+      alert("Trim failed. See console for details.")
+    } finally {
+      setTrimming(false)
+      setVadDetecting(false)
+      setVadProgress(0)
+    }
+  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, files])
+
+  // --- Waveform and display fragments ---
 
   const waveformFragments: WaveformFragment[] =
     fragments.map(f => ({ id: f.id, start: f.start, end: f.end, repeat: f.repeat }))
+
+  // Список фрагментов для отображения:
+  // - редактируемый фрагмент всегда первый
+  // - остальные отсортированы по start
+  const displayFragments = useMemo(() => {
+    const sorted = [...fragments].sort((a, b) => a.start - b.start)
+    if (!editingId) return sorted
+    const editingFrag = sorted.find(f => f.id === editingId)
+    if (!editingFrag) return sorted
+    const rest = sorted.filter(f => f.id !== editingId)
+    return [editingFrag, ...rest]
+  }, [fragments, editingId])
+
+  // --- FLIP animation for fragment list ---
+  const fragmentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
+  const prevRectsRef = useRef<Map<string, DOMRect>>(new Map())
+
+  // Capture positions before render
+  const capturePositions = useCallback(() => {
+    const rects = new Map<string, DOMRect>()
+    fragmentRefsMap.current.forEach((el, id) => {
+      rects.set(id, el.getBoundingClientRect())
+    })
+    prevRectsRef.current = rects
+  }, [])
+
+  // Animate after render
+  useEffect(() => {
+    const prevRects = prevRectsRef.current
+    if (prevRects.size === 0) return
+
+    fragmentRefsMap.current.forEach((el, id) => {
+      const prevRect = prevRects.get(id)
+      if (!prevRect) return
+
+      const newRect = el.getBoundingClientRect()
+      const deltaY = prevRect.top - newRect.top
+
+      if (Math.abs(deltaY) < 2) return
+
+      el.style.transition = "none"
+      el.style.transform = `translateY(${deltaY}px)`
+      el.style.zIndex = id === editingId ? "10" : "1"
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 300ms ease"
+          el.style.transform = ""
+          el.addEventListener("transitionend", () => {
+            el.style.zIndex = ""
+            el.style.transition = ""
+          }, { once: true })
+        })
+      })
+    })
+
+    prevRectsRef.current = new Map()
+  }, [displayFragments, editingId])
+
+  // Capture before editing changes
+  const startEditingWithAnim = useCallback((fragId: string) => {
+    capturePositions()
+    startEditing(fragId)
+  }, [capturePositions, startEditing])
+
+  const handleSaveWithAnim = useCallback(async () => {
+    capturePositions()
+    await handleSave()
+  }, [capturePositions, handleSave])
+
+  const handleFragmentClickWithAnim = useCallback((fragId: string) => {
+    if (subPromptMode && pendingSubFile) {
+      handleFragmentClick(fragId)
+      return
+    }
+    capturePositions()
+    startEditing(fragId)
+  }, [capturePositions, startEditing, subPromptMode, pendingSubFile, handleFragmentClick])
 
   return (
     <div style={{ padding: 24 }}>
@@ -306,7 +512,7 @@ export function FragmentEditorPage() {
             duration={duration}
             fragments={waveformFragments}
             onSelect={addFragment}
-            onFragmentClick={handleFragmentClick}
+            onFragmentClick={handleFragmentClickWithAnim}
             onClickOutside={handleClickOutside}
             onEditDrag={handleEditDrag}
             editingId={editingId}
@@ -314,14 +520,65 @@ export function FragmentEditorPage() {
             playingFragment={playingFragment}
           />
 
-          <div style={{ marginTop: 20 }}>
-            {fragments.map(f => {
+          {/* Auto-detect and trim buttons */}
+          <div style={{ marginTop: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <button
+              onClick={handleAutoDetect}
+              disabled={vadDetecting || trimming || vadDone}
+              style={{
+                padding: "6px 16px",
+                cursor: vadDetecting || trimming || vadDone ? "not-allowed" : "pointer",
+                opacity: vadDetecting || trimming || vadDone ? 0.6 : 1,
+              }}
+            >
+              {vadDetecting && !trimming ? "Detecting..." : vadDone ? "Auto-detect speech ✓" : "Auto-detect speech"}
+            </button>
+
+            <button
+              onClick={handleTrimSilence}
+              disabled={vadDetecting || trimming}
+              style={{
+                padding: "6px 16px",
+                cursor: vadDetecting || trimming ? "wait" : "pointer",
+                opacity: vadDetecting || trimming ? 0.6 : 1,
+              }}
+            >
+              {trimming ? "Trimming..." : "Trim silence"}
+            </button>
+
+            {(vadDetecting) && (
+              <div style={{ flex: "0 0 200px" }}>
+                <div style={{
+                  height: 6, backgroundColor: "#e0e0e0", borderRadius: 3, overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%", width: `${Math.round(vadProgress * 100)}%`,
+                    backgroundColor: trimming ? "#ff9800" : "#4caf50",
+                    borderRadius: 3, transition: "width 0.3s",
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, color: "#888" }}>
+                  {trimming ? "Detecting speech..." : "Detecting..."} {Math.round(vadProgress * 100)}%
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginTop: 20, position: "relative" }}>
+            {displayFragments.map(f => {
               const isEditing = f.id === editingId
 
               return (
-                <div key={f.id}>
+                <div
+                  key={f.id}
+                  ref={el => {
+                    if (el) fragmentRefsMap.current.set(f.id, el)
+                    else fragmentRefsMap.current.delete(f.id)
+                  }}
+                  style={{ position: "relative" }}
+                >
                   <div
-                    onClick={() => { if (!isEditing) startEditing(f.id) }}
+                    onClick={() => { if (!isEditing) startEditingWithAnim(f.id) }}
                     style={{
                       border: isEditing ? "1px solid #0078ff" : "1px solid #ccc",
                       backgroundColor: isEditing ? "rgba(0, 120, 255, 0.05)" : "transparent",
@@ -338,7 +595,7 @@ export function FragmentEditorPage() {
 
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
                       {isEditing && (
-                        <button onClick={handleSave} style={{
+                        <button onClick={handleSaveWithAnim} style={{
                           backgroundColor: "#0078ff", color: "white", border: "none",
                           padding: "4px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 500,
                         }}>Save</button>

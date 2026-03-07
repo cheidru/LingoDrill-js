@@ -92,7 +92,7 @@ export function FragmentLibraryPage() {
   const { getBlob } = useAudioLibrary()
   const {
     loadById, playFragment, pause, play, stop,
-    isReady, isPlaying, isPaused, duration,
+    isReady, isPlaying, isPaused, duration, setOnEnded,
   } = useAudioEngine(getBlob)
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
@@ -112,29 +112,41 @@ export function FragmentLibraryPage() {
 
   // --- Sequence playback ---
 
+  const playingSeqIdRef = useRef<string | null>(null)
+  const playingFragIdxRef = useRef(0)
+
   const playSequenceFragment = useCallback((seq: Sequence, fragIdx: number) => {
     if (fragIdx >= seq.fragments.length) {
-      setPlayingSeqId(null); setPlayingFragIdx(0); stop(); return
+      setPlayingSeqId(null); setPlayingFragIdx(0)
+      playingSeqIdRef.current = null; playingFragIdxRef.current = 0
+      stop(); return
     }
     const f = seq.fragments[fragIdx]
     const fragment: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
     setPlayingSeqId(seq.id)
     setPlayingFragIdx(fragIdx)
+    playingSeqIdRef.current = seq.id
+    playingFragIdxRef.current = fragIdx
     playFragment(fragment)
   }, [playFragment, stop])
 
+  // Register onEnded callback to auto-play next fragment
   useEffect(() => {
-    if (!playingSeqId) return
-    if (isPlaying || isPaused) return
-    const seq = sequences.find(s => s.id === playingSeqId)
-    if (!seq) return
-    const nextIdx = playingFragIdx + 1
-    if (nextIdx < seq.fragments.length) {
-      playSequenceFragment(seq, nextIdx)
-    } else {
-      setPlayingSeqId(null); setPlayingFragIdx(0)
-    }
-  }, [isPlaying, isPaused, playingSeqId, playingFragIdx, sequences, playSequenceFragment])
+    setOnEnded(() => {
+      const seqId = playingSeqIdRef.current
+      if (!seqId) return
+      const seq = sequences.find(s => s.id === seqId)
+      if (!seq) return
+      const nextIdx = playingFragIdxRef.current + 1
+      if (nextIdx < seq.fragments.length) {
+        playSequenceFragment(seq, nextIdx)
+      } else {
+        setPlayingSeqId(null); setPlayingFragIdx(0)
+        playingSeqIdRef.current = null; playingFragIdxRef.current = 0
+      }
+    })
+    return () => setOnEnded(null)
+  }, [sequences, playSequenceFragment, setOnEnded])
 
   const handlePlay = useCallback((seq: Sequence) => {
     if (playingSeqId === seq.id && isPaused) { play(); return }

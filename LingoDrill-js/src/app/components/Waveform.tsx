@@ -10,7 +10,7 @@
 
 // app/components/Waveform.tsx
 import { useRef, useEffect, useState, useCallback } from "react"
-import type { MouseEvent, WheelEvent, TouchEvent } from "react"
+import type { MouseEvent } from "react"
 
 export type WaveformFragment = {
   id: string
@@ -73,8 +73,7 @@ export function Waveform({
   // Cursor
   const [cursor, setCursor] = useState("crosshair")
 
-  // Pinch zoom state
-  const lastPinchDist = useRef<number | null>(null)
+  // Pinch zoom state managed inside useEffect
 
   // --- Coordinate helpers ---
 
@@ -340,84 +339,95 @@ export function Waveform({
     }
   }
 
-  // --- Zoom (wheel) ---
-
-  const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
-    e.preventDefault()
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const mouseXFrac = (e.clientX - rect.left) / rect.width
-
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15
-    applyZoom(zoomFactor, mouseXFrac)
-  }
-
-  // --- Pinch zoom (touch) ---
-
-  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      lastPinchDist.current = Math.sqrt(dx * dx + dy * dy)
-    }
-  }
-
-  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length === 2 && lastPinchDist.current !== null) {
-      e.preventDefault()
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      const scale = dist / lastPinchDist.current
-
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width
-
-      const secUnderMid = visibleStart + midX * visibleDuration
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * scale))
-      const newVisDur = duration / newZoom
-
-      let newScrollOffset = (secUnderMid - midX * newVisDur) / duration
-      newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
-
-      setZoom(newZoom)
-      setScrollOffset(newScrollOffset)
-      lastPinchDist.current = dist
-    }
-  }
-
-  const handleTouchEnd = () => {
-    lastPinchDist.current = null
-  }
-
   // --- Zoom helpers ---
 
   const applyZoom = useCallback((zoomFactor: number, anchorFrac: number = 0.5) => {
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * zoomFactor))
-    const secUnderAnchor = visibleStart + anchorFrac * visibleDuration
+    const visDur = visibleEnd - visibleStart
+    const secUnderAnchor = visibleStart + anchorFrac * visDur
     const newVisDur = duration / newZoom
     let newScrollOffset = (secUnderAnchor - anchorFrac * newVisDur) / duration
     newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
     setZoom(newZoom)
     setScrollOffset(newScrollOffset)
-  }, [zoom, visibleStart, visibleDuration, duration])
+  }, [zoom, visibleStart, visibleEnd, duration])
 
   const handleScrollbarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
     setScrollOffset(Math.max(0, Math.min(val, 1 - 1 / zoom)))
   }
 
+  // --- Zoom (wheel) — native listener for { passive: false } ---
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
+      const mouseXFrac = (e.clientX - rect.left) / rect.width
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15
+      applyZoom(zoomFactor, mouseXFrac)
+    }
+
+    container.addEventListener("wheel", handleWheel, { passive: false })
+    return () => container.removeEventListener("wheel", handleWheel)
+  }, [applyZoom])
+
+  // --- Pinch zoom (touch) — native listeners for { passive: false } ---
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let pinchDist: number | null = null
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        pinchDist = Math.sqrt(dx * dx + dy * dy)
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchDist !== null) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const scale = dist / pinchDist
+
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width
+
+        applyZoom(scale, midX)
+        pinchDist = dist
+      }
+    }
+
+    const handleTouchEnd = () => {
+      pinchDist = null
+    }
+
+    container.addEventListener("touchstart", handleTouchStart)
+    container.addEventListener("touchmove", handleTouchMove, { passive: false })
+    container.addEventListener("touchend", handleTouchEnd)
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart)
+      container.removeEventListener("touchmove", handleTouchMove)
+      container.removeEventListener("touchend", handleTouchEnd)
+    }
+  }, [applyZoom])
+
   return (
     <div
       ref={containerRef}
-      onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       style={{ position: "relative" }}
     >
       {/* Zoom controls */}
