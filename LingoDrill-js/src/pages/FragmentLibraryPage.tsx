@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
+import { VolumeControl } from "../app/components/VolumeControl"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 
@@ -89,8 +90,10 @@ export function FragmentLibraryPage() {
   const navigate = useNavigate()
 
   const {
+    files,
     loadById, playFragment, pause, play, stop,
     isReady, isPlaying, isPaused, duration, setOnEnded,
+    volume, setVolume,
   } = useSharedAudioEngine()
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
@@ -193,6 +196,11 @@ export function FragmentLibraryPage() {
     <div style={{ padding: 24 }}>
       <button onClick={() => navigate("/")}>← Back</button>
       <h2>Fragment Library</h2>
+      {audioId && (
+        <p style={{ fontSize: 14, color: "#888", marginTop: -8 }}>
+          for {files.find(f => f.id === audioId)?.name ?? "unknown file"}
+        </p>
+      )}
 
       {!isReady && <p>Loading audio...</p>}
 
@@ -201,20 +209,21 @@ export function FragmentLibraryPage() {
           <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center" }}>
             <button onClick={() => navigate(`/file/${audioId}/editor`)}>+ New Sequence</button>
 
-            <label style={{
-              padding: "6px 12px", border: "1px solid #ccc", borderRadius: 4,
-              cursor: "pointer", fontSize: 13,
-            }}>
+            <button onClick={() => fileInputRef.current?.click()}>
               + Add Subtitles
-              <input ref={fileInputRef} type="file" accept=".txt,.sub,.srt"
-                style={{ display: "none" }} onChange={handleSubtitleUpload} />
-            </label>
+            </button>
+            <input ref={fileInputRef} type="file" accept=".txt,.sub,.srt"
+              style={{ display: "none" }} onChange={handleSubtitleUpload} />
 
             {subtitleFiles.length > 0 && (
               <span style={{ fontSize: 12, color: "#888" }}>
                 {subtitleFiles.length} subtitle file(s): {subtitleFiles.map(f => f.name).join(", ")}
               </span>
             )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <VolumeControl volume={volume} onVolumeChange={setVolume} />
           </div>
 
           {sequences.length === 0 && (

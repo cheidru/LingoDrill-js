@@ -2,11 +2,16 @@
 
 import type { AudioEngine, PlayableFragment } from "../../core/audio/audioEngine"
 
+/** Пауза в секундах между повторами фрагмента (при repeat > 1) */
+// TODO: в дальнейшем сделать настраиваемой через UI настроек
+const FRAGMENT_TRAILING_PAUSE = 1
+
 export class WebAudioEngine implements AudioEngine {
   private context = new AudioContext()
   private buffer: AudioBuffer | null = null
   private source: AudioBufferSourceNode | null = null
   private gainNode = this.context.createGain()
+  private pauseTimer: ReturnType<typeof setTimeout> | null = null
 
   private playbackRate = 1
   private playing = false
@@ -91,6 +96,11 @@ export class WebAudioEngine implements AudioEngine {
   }
 
   private stopSourceOnly() {
+    if (this.pauseTimer !== null) {
+      clearTimeout(this.pauseTimer)
+      this.pauseTimer = null
+    }
+
     if (!this.source) return
 
     this.isStoppingManually = true
@@ -132,8 +142,12 @@ export class WebAudioEngine implements AudioEngine {
         if (this.isStoppingManually) return
 
         if (repsLeft > 0) {
-          // Запускаем следующий повтор
-          this.playRepeatCycle(fragment, repsLeft)
+          // Пауза между повторами
+          this.pauseTimer = setTimeout(() => {
+            this.pauseTimer = null
+            if (this.isStoppingManually) return
+            this.playRepeatCycle(fragment, repsLeft)
+          }, FRAGMENT_TRAILING_PAUSE * 1000)
         } else {
           this.playing = false
           this.pausedOffset = 0
@@ -186,7 +200,12 @@ export class WebAudioEngine implements AudioEngine {
       if (this.isStoppingManually) return
 
       if (repsLeft > 0) {
-        this.playRepeatCycle(fragment, repsLeft)
+        // Пауза между повторами
+        this.pauseTimer = setTimeout(() => {
+          this.pauseTimer = null
+          if (this.isStoppingManually) return
+          this.playRepeatCycle(fragment, repsLeft)
+        }, FRAGMENT_TRAILING_PAUSE * 1000)
       } else {
         this.playing = false
         this.pausedOffset = 0

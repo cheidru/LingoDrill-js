@@ -1,6 +1,7 @@
 // components/AudioPlayer.tsx
 
 import { useNavigate } from "react-router-dom"
+import { VolumeControl } from "./VolumeControl"
 
 type Props = {
   fileId: string
@@ -46,16 +47,7 @@ export function AudioPlayer({
           </button>
 
           <div style={{ marginTop: 12 }}>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={(e) =>
-                onVolumeChange(Number(e.target.value))
-              }
-            />
+            <VolumeControl volume={volume} onVolumeChange={onVolumeChange} />
           </div>
 
           <div style={{ marginTop: 16 }}>

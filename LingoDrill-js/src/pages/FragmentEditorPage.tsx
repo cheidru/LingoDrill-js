@@ -49,7 +49,7 @@ export function FragmentEditorPage() {
 
   // --- VAD auto-detect state ---
   const [vadDetecting, setVadDetecting] = useState(false)
-  const [vadProgress, setVadProgress] = useState(0)
+  const [, setVadProgress] = useState(0)
   const [vadDone, setVadDone] = useState(false)
 
   // Load audio and waveform
@@ -258,7 +258,9 @@ export function FragmentEditorPage() {
 
     const updatedAll = fragments.map(f => {
       if (f.id !== subModalFragId) return f
-      return { ...f, subtitles: [...f.subtitles, newSub] }
+      // Удаляем предыдущий отрезок из того же файла субтитров, оставляем из других файлов
+      const filtered = f.subtitles.filter(s => s.subtitleFileId !== subModalFile.id)
+      return { ...f, subtitles: [...filtered, newSub] }
     })
 
     setFragments(updatedAll)
@@ -282,11 +284,31 @@ export function FragmentEditorPage() {
 
   // --- Auto-detect speech fragments via VAD ---
 
-  const handleAutoDetect = useCallback(async () => {
+  const [showAutoDetectConfirm, setShowAutoDetectConfirm] = useState(false)
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
+
+  const handleDeleteAllFragments = useCallback(async () => {
+    setShowDeleteAllConfirm(false)
+    setFragments([])
+    setEditingId(null)
+    savedBoundsRef.current = null
+    stop()
+    setPlayingFragment(null)
+    setVadDone(false)
+    await persistSequence([])
+  }, [stop, persistSequence])
+
+  const handleAutoDetectRun = useCallback(async () => {
+    setShowAutoDetectConfirm(false)
     if (!audioId || vadDetecting) return
 
     const blob = await getBlob(audioId)
     if (!blob) return
+
+    // Удаляем существующие фрагменты
+    setFragments([])
+    setEditingId(null)
+    savedBoundsRef.current = null
 
     setVadDetecting(true)
     setVadProgress(0)
@@ -306,7 +328,6 @@ export function FragmentEditorPage() {
         return
       }
 
-      // Create SequenceFragments from detected segments
       const newFragments: SequenceFragment[] = segments.map(seg => ({
         id: nanoid(),
         start: seg.start,
@@ -316,19 +337,26 @@ export function FragmentEditorPage() {
         subtitles: [],
       }))
 
-      // Append to existing or replace
-      const updated = [...fragments, ...newFragments]
-      setFragments(updated)
-      await persistSequence(updated)
+      setFragments(newFragments)
+      await persistSequence(newFragments)
       setVadDone(true)
     } catch (err) {
+      // TODO обработка ошибки при сбое в библиотеке Auto-detect speech
       console.error("VAD detection failed:", err)
       alert("Speech detection failed. See console for details.")
     } finally {
       setVadDetecting(false)
       setVadProgress(0)
     }
-  }, [audioId, vadDetecting, getBlob, fragments, persistSequence])
+  }, [audioId, vadDetecting, getBlob, persistSequence])
+
+  const handleAutoDetectClick = useCallback(() => {
+    if (fragments.length > 0) {
+      setShowAutoDetectConfirm(true)
+    } else {
+      handleAutoDetectRun()
+    }
+  }, [fragments.length, handleAutoDetectRun])
 
   // --- Trim silence ---
 
@@ -522,7 +550,7 @@ export function FragmentEditorPage() {
           {/* Auto-detect and trim buttons */}
           <div style={{ marginTop: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button
-              onClick={handleAutoDetect}
+              onClick={handleAutoDetectClick}
               disabled={vadDetecting || trimming || vadDone}
               style={{
                 padding: "6px 16px",
@@ -545,20 +573,32 @@ export function FragmentEditorPage() {
               {trimming ? "Trimming..." : "Trim silence"}
             </button>
 
+            <button
+              onClick={() => fragments.length > 0 ? setShowDeleteAllConfirm(true) : undefined}
+              disabled={vadDetecting || trimming || fragments.length === 0}
+              style={{
+                padding: "6px 16px",
+                cursor: vadDetecting || trimming || fragments.length === 0 ? "not-allowed" : "pointer",
+                opacity: vadDetecting || trimming || fragments.length === 0 ? 0.6 : 1,
+                color: fragments.length > 0 ? "#d32f2f" : undefined,
+              }}
+            >
+              Delete all fragments
+            </button>
+
             {(vadDetecting) && (
-              <div style={{ flex: "0 0 200px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{
-                  height: 6, backgroundColor: "#e0e0e0", borderRadius: 3, overflow: "hidden",
-                }}>
-                  <div style={{
-                    height: "100%", width: `${Math.round(vadProgress * 100)}%`,
-                    backgroundColor: trimming ? "#ff9800" : "#4caf50",
-                    borderRadius: 3, transition: "width 0.3s",
-                  }} />
-                </div>
-                <span style={{ fontSize: 11, color: "#888" }}>
-                  {trimming ? "Detecting speech..." : "Detecting..."} {Math.round(vadProgress * 100)}%
+                  width: 20, height: 20,
+                  border: "3px solid #ccc",
+                  borderTopColor: trimming ? "#ff9800" : "#4caf50",
+                  borderRadius: "50%",
+                  animation: "vadSpin 0.8s linear infinite",
+                }} />
+                <span style={{ fontSize: 12, color: "#888" }}>
+                  {trimming ? "Detecting speech..." : "Detecting..."}
                 </span>
+                <style>{`@keyframes vadSpin { to { transform: rotate(360deg) } }`}</style>
               </div>
             )}
           </div>
@@ -601,7 +641,12 @@ export function FragmentEditorPage() {
                       )}
 
                       <button onClick={() => handleSubClick(f.id)} title="Attach subtitles"
-                        style={{ padding: "4px 8px", fontSize: 12 }}>
+                        disabled={subtitleFiles.length === 0}
+                        style={{
+                          padding: "4px 8px", fontSize: 12,
+                          cursor: subtitleFiles.length === 0 ? "not-allowed" : "pointer",
+                          opacity: subtitleFiles.length === 0 ? 0.4 : 1,
+                        }}>
                         Sub
                       </button>
 
@@ -700,6 +745,68 @@ export function FragmentEditorPage() {
                 padding: "6px 16px", borderRadius: 4, cursor: "pointer",
               }}>
                 Attach Selected
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-detect confirmation modal */}
+      {showAutoDetectConfirm && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+        }}>
+          <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320, textAlign: "center" }}>
+            <p style={{ marginBottom: 16 }}>
+              Auto-detect will remove all existing fragments in this sequence and replace them with detected speech segments.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                onClick={handleAutoDetectRun}
+                style={{
+                  backgroundColor: "#0078ff", color: "white", border: "none",
+                  padding: "6px 16px", borderRadius: 4, cursor: "pointer",
+                }}
+              >
+                Proceed
+              </button>
+              <button
+                onClick={() => setShowAutoDetectConfirm(false)}
+                style={{ padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete all fragments confirmation modal */}
+      {showDeleteAllConfirm && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+        }}>
+          <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320, textAlign: "center" }}>
+            <p style={{ marginBottom: 16 }}>
+              Delete all {fragments.length} fragments in this sequence?
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                onClick={handleDeleteAllFragments}
+                style={{
+                  backgroundColor: "#d32f2f", color: "white", border: "none",
+                  padding: "6px 16px", borderRadius: 4, cursor: "pointer",
+                }}
+              >
+                Delete all
+              </button>
+              <button
+                onClick={() => setShowDeleteAllConfirm(false)}
+                style={{ padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}
+              >
+                Cancel
               </button>
             </div>
           </div>
