@@ -18,9 +18,11 @@ export default function LibraryPage() {
     isReady,
     isPlaying,
     duration,
+    currentTime,
     loadById,
     play,
     stop,
+    seekTo,
     setVolume,
     volume,
     pause,
@@ -47,8 +49,8 @@ export default function LibraryPage() {
   )
 
   return (
-    <div>
-      <h1>LingoDrill</h1>
+    <div style={{ padding: 24 }}>
+      <h2>Audio Library</h2>
 
       {isLoading && <p>Loading...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
@@ -69,9 +71,11 @@ export default function LibraryPage() {
             isReady={isReady}
             isPlaying={isPlaying}
             duration={duration}
+            currentTime={currentTime}
             onPlay={play}
             onPause={pause}
             onStop={stop}
+            onSeek={seekTo}
             volume={volume}
             onVolumeChange={setVolume}
           />

@@ -1,13 +1,3 @@
-// рендерит waveform через <canvas>
-// поддерживает drag-selection (мышь)
-// отображает текущую выделенную область
-// конвертирует пиксели → секунды
-// позволяет прокинуть сохранённые фрагменты
-// не содержит бизнес-логики (чистый UI) 
-// ✔ Рисует waveform Используя RMS значения 0..1.
-// ✔ Отображает сохранённые фрагменты - Передаются через fragments.
-// ✔ Позволяет выделить новый фрагмент мышью
-
 // app/components/Waveform.tsx
 import { useRef, useEffect, useState, useCallback } from "react"
 import type { MouseEvent } from "react"
@@ -36,6 +26,12 @@ type Props = {
   editingId?: string | null
   currentTime?: number
   playingFragment?: { start: number; end: number } | null
+  /** Показывать красную линию прогресса воспроизведения всего файла */
+  showPlaybackCursor?: boolean
+  /** Текущее состояние воспроизведения (для отображения курсора) */
+  isFilePlaying?: boolean
+  /** Callback при перетаскивании курсора воспроизведения */
+  onSeek?: (time: number) => void
 }
 
 const HANDLE_RADIUS = 6
@@ -55,6 +51,9 @@ export function Waveform({
   editingId = null,
   currentTime,
   playingFragment,
+  showPlaybackCursor = false,
+  isFilePlaying = false,
+  onSeek,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -69,6 +68,9 @@ export function Waveform({
 
   // Dragging handle of editing fragment
   const [dragging, setDragging] = useState<{ id: string; side: "start" | "end" } | null>(null)
+
+  // Dragging playback cursor
+  const [draggingCursor, setDraggingCursor] = useState(false)
 
   // Cursor
   const [cursor, setCursor] = useState("crosshair")
@@ -200,7 +202,29 @@ export function Waveform({
       ctx.lineWidth = 1
       ctx.strokeRect(left, 0, right - left, h)
     }
-  }, [data, fragments, selection, duration, currentTime, playingFragment, editingId, visibleStart, visibleEnd, secondsToPx])
+
+    // Playback cursor (red line with handle for full file playback)
+    if (showPlaybackCursor && currentTime !== undefined && currentTime > 0 && (isFilePlaying || currentTime < duration)) {
+      const cursorX = secondsToPx(currentTime)
+      if (cursorX >= 0 && cursorX <= width) {
+        ctx.strokeStyle = "#f44336"
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(cursorX, 0)
+        ctx.lineTo(cursorX, h)
+        ctx.stroke()
+
+        // Handle (circle at middle)
+        ctx.beginPath()
+        ctx.arc(cursorX, h / 2, 6, 0, Math.PI * 2)
+        ctx.fillStyle = "#f44336"
+        ctx.fill()
+        ctx.strokeStyle = "#fff"
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+    }
+  }, [data, fragments, selection, duration, currentTime, playingFragment, editingId, visibleStart, visibleEnd, secondsToPx, showPlaybackCursor, isFilePlaying])
 
   useEffect(() => { draw() }, [draw])
 
@@ -243,6 +267,15 @@ export function Waveform({
   const handleMouseDown = (e: MouseEvent<HTMLCanvasElement>) => {
     const x = getCanvasX(e)
 
+    // 0) Check if clicking on playback cursor handle
+    if (showPlaybackCursor && currentTime !== undefined && onSeek) {
+      const cursorX = secondsToPx(currentTime)
+      if (Math.abs(x - cursorX) <= HANDLE_HIT_AREA) {
+        setDraggingCursor(true)
+        return
+      }
+    }
+
     // 1) If editing — check handles first
     if (editingId) {
       const side = getEditingHandleUnderPointer(x)
@@ -275,7 +308,24 @@ export function Waveform({
   const handleMouseMove = (e: MouseEvent<HTMLCanvasElement>) => {
     const x = getCanvasX(e)
 
+    // Dragging playback cursor
+    if (draggingCursor && onSeek) {
+      const time = pxToSeconds(x)
+      onSeek(time)
+      setCursor("ew-resize")
+      return
+    }
+
     // Update cursor
+    if (showPlaybackCursor && currentTime !== undefined && onSeek) {
+      const cursorX = secondsToPx(currentTime)
+      if (Math.abs(x - cursorX) <= HANDLE_HIT_AREA) {
+        setCursor("pointer")
+        // Skip other cursor checks
+        if (!dragging && !isSelecting) return
+      }
+    }
+
     if (editingId) {
       const side = getEditingHandleUnderPointer(x)
       if (side) {
@@ -310,6 +360,11 @@ export function Waveform({
   }
 
   const handleMouseUp = () => {
+    if (draggingCursor) {
+      setDraggingCursor(false)
+      return
+    }
+
     if (dragging) {
       setDragging(null)
       return
@@ -330,6 +385,7 @@ export function Waveform({
   }
 
   const handleMouseLeave = () => {
+    if (draggingCursor) setDraggingCursor(false)
     if (isSelecting) {
       setSelection(null)
       setIsSelecting(false)

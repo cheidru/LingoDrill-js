@@ -252,6 +252,21 @@ export class WebAudioEngine implements AudioEngine {
     this.isStoppingManually = false
   }
 
+  seekTo(time: number): void {
+    if (!this.buffer) return
+    const wasPlaying = this.playing
+    this.stopSourceOnly()
+    this.pausedOffset = Math.max(0, Math.min(time, this.buffer.duration))
+    this.fragmentEnd = null
+    this.currentFragment = null
+    this.repeatsLeft = 0
+    this.isStoppingManually = false
+    if (wasPlaying) {
+      this.createSource(this.pausedOffset)
+      this.playing = true
+    }
+  }
+
   setPlaybackRate(rate: number): void {
     this.playbackRate = rate
   }

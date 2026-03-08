@@ -12,6 +12,7 @@ export interface AudioEngine {
   play(): void
   pause(): void
   stop(): void  
+  seekTo(time: number): void
   playFragment(fragment: PlayableFragment): void
   setPlaybackRate(rate: number): void
   getCurrentTime(): number

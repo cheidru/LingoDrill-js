@@ -152,6 +152,13 @@ export function useAudioEngine(
     localStorage.setItem("audio-volume", String(v))
   }, [])
 
+  const seekTo = useCallback((time: number) => {
+    const engine = engineRef.current
+    if (!engine || !isReady) return
+    engine.seekTo(time)
+    setCurrentTime(time)
+  }, [isReady])
+
   /** Register a callback that fires when playback ends naturally */
   const setOnEnded = useCallback((cb: (() => void) | null) => {
     onEndedCallbackRef.current = cb
@@ -167,6 +174,7 @@ export function useAudioEngine(
     play,
     pause,
     stop,
+    seekTo,
     playFragment,
     volume,
     setVolume,

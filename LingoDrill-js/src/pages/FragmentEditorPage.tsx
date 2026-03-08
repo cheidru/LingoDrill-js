@@ -6,6 +6,7 @@ import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { Waveform } from "../app/components/Waveform"
+import { VolumeControl } from "../app/components/VolumeControl"
 import type { WaveformFragment } from "../app/components/Waveform"
 import { buildWaveform } from "../utils/buildWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
@@ -14,14 +15,21 @@ import type { PlayableFragment } from "../core/audio/audioEngine"
 import type { SequenceFragment, FragmentSubtitle, SubtitleFile } from "../core/domain/types"
 import { nanoid } from "nanoid"
 
+function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, "0")}`
+}
+
 export function FragmentEditorPage() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId?: string }>()
   const navigate = useNavigate()
 
   const {
     getBlob, addFile, files,
-    loadById, playFragment, pause, play, stop,
+    loadById, playFragment, pause, play, stop, seekTo,
     isReady, isPlaying, isPaused, duration, currentTime,
+    volume, setVolume,
   } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
@@ -427,6 +435,29 @@ export function FragmentEditorPage() {
     }
   }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, files])
 
+  // --- File playback (full file, not fragment) ---
+  const [isFilePlayback, setIsFilePlayback] = useState(false)
+
+  const handleFilePlay = useCallback(() => {
+    setIsFilePlayback(true)
+    setPlayingFragment(null)
+    play()
+  }, [play])
+
+  const handleFilePause = useCallback(() => {
+    pause()
+  }, [pause])
+
+  const handleFileStop = useCallback(() => {
+    stop()
+    setIsFilePlayback(false)
+  }, [stop])
+
+  const handleFileSeek = useCallback((time: number) => {
+    seekTo(time)
+    setIsFilePlayback(true)
+  }, [seekTo])
+
   // --- Waveform and display fragments ---
 
   const waveformFragments: WaveformFragment[] =
@@ -530,7 +561,19 @@ export function FragmentEditorPage() {
         </div>
       )}
 
-      {!isReady && <p>Loading...</p>}
+      {!isReady && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "20px 0" }}>
+          <div style={{
+            width: 24, height: 24,
+            border: "3px solid #ccc",
+            borderTopColor: "#4a90e2",
+            borderRadius: "50%",
+            animation: "wfSpin 0.8s linear infinite",
+          }} />
+          <span style={{ color: "#888" }}>Loading waveform...</span>
+          <style>{`@keyframes wfSpin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      )}
 
       {isReady && (
         <>
@@ -545,7 +588,26 @@ export function FragmentEditorPage() {
             editingId={editingId}
             currentTime={currentTime}
             playingFragment={playingFragment}
+            showPlaybackCursor={isFilePlayback}
+            isFilePlaying={isFilePlayback && isPlaying}
+            onSeek={handleFileSeek}
           />
+
+          {/* File player controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, marginBottom: 4 }}>
+            <button onClick={isFilePlayback && isPlaying ? handleFilePause : handleFilePlay}>
+              {isFilePlayback && isPlaying ? "⏸ Pause" : "▶ Play all"}
+            </button>
+            <button onClick={handleFileStop} disabled={!isFilePlayback}>
+              ⏹ Stop
+            </button>
+            <VolumeControl volume={volume} onVolumeChange={setVolume} />
+            {isFilePlayback && (
+              <span style={{ fontSize: 12, color: "#888" }}>
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            )}
+          </div>
 
           {/* Auto-detect and trim buttons */}
           <div style={{ marginTop: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
