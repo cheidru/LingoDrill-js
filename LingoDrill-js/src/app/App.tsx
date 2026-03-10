@@ -10,7 +10,7 @@ import { FragmentEditorPage } from "../pages/FragmentEditorPage"
 export default function App() {
   return (
     // <BrowserRouter>
-    <BrowserRouter basename='/LingoDrill-js/LingoDrill-js'>
+    <BrowserRouter basename="/LingoDrill-js">
       <AudioEngineProvider>
         <Header />
         <Routes>
