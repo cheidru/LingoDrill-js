@@ -36,6 +36,7 @@ export function FragmentEditorPage() {
   const { subtitleFiles } = useSubtitles(audioId ?? null)
 
   const [waveformData, setWaveformData] = useState<number[]>([])
+  const [waveformLoading, setWaveformLoading] = useState(true)
   const [playingFragment, setPlayingFragment] =
     useState<{ start: number; end: number } | null>(null)
 
@@ -63,17 +64,29 @@ export function FragmentEditorPage() {
   // Load audio and waveform
   useEffect(() => {
     if (!audioId) return
+    let cancelled = false
+
     const load = async () => {
+      setWaveformLoading(true)
       await loadById(audioId)
+
       const blob = await getBlob(audioId)
-      if (!blob) return
+      if (!blob || cancelled) return
+
       const buffer = await blob.arrayBuffer()
       const ctx = new AudioContext()
       const audioBuffer = await ctx.decodeAudioData(buffer)
-      setWaveformData(buildWaveform(audioBuffer, 1000))
       await ctx.close()
+
+      if (cancelled) return
+
+      const data = buildWaveform(audioBuffer, 1000)
+      setWaveformData(data)
+      setWaveformLoading(false)
     }
     load()
+
+    return () => { cancelled = true }
   }, [audioId, getBlob, loadById])
 
   // Load sequence fragments
@@ -561,7 +574,7 @@ export function FragmentEditorPage() {
         </div>
       )}
 
-      {!isReady && (
+      {waveformLoading && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "20px 0" }}>
           <div style={{
             width: 24, height: 24,
@@ -575,7 +588,7 @@ export function FragmentEditorPage() {
         </div>
       )}
 
-      {isReady && (
+      {!waveformLoading && isReady && (
         <>
           <Waveform
             data={waveformData}

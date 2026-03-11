@@ -433,23 +433,80 @@ export function Waveform({
     return () => container.removeEventListener("wheel", handleWheel)
   }, [applyZoom])
 
-  // --- Pinch zoom (touch) — native listeners for { passive: false } ---
+  // --- Touch events (pinch zoom + single-finger selection/drag/tap) ---
+
+  // Refs для доступа к актуальным значениям из touch handlers
+  const stateRef = useRef({
+    editingId, fragments, selection, isSelecting, dragging, draggingCursor,
+    showPlaybackCursor, currentTime, onSeek, onEditDrag, onFragmentClick, onClickOutside, onSelect,
+  })
+  useEffect(() => {
+    stateRef.current = {
+      editingId, fragments, selection, isSelecting, dragging, draggingCursor,
+      showPlaybackCursor, currentTime, onSeek, onEditDrag, onFragmentClick, onClickOutside, onSelect,
+    }
+  })
 
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
     let pinchDist: number | null = null
+    let touchAction: "none" | "select" | "drag-handle" | "drag-cursor" | "tap" = "none"
+    let touchStartX = 0
+    let touchMoved = false
+
+    const getTouchX = (touch: Touch) => {
+      const rect = canvas.getBoundingClientRect()
+      const scaleX = canvas.width / rect.width
+      return (touch.clientX - rect.left) * scaleX
+    }
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
+        // Pinch zoom
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         pinchDist = Math.sqrt(dx * dx + dy * dy)
+        touchAction = "none"
+        return
       }
+
+      if (e.touches.length !== 1) return
+
+      const x = getTouchX(e.touches[0])
+      touchStartX = x
+      touchMoved = false
+      const s = stateRef.current
+
+      // Check playback cursor
+      if (s.showPlaybackCursor && s.currentTime !== undefined && s.onSeek) {
+        const cursorX = secondsToPx(s.currentTime)
+        if (Math.abs(x - cursorX) <= HANDLE_HIT_AREA * 2) {
+          touchAction = "drag-cursor"
+          setDraggingCursor(true)
+          e.preventDefault()
+          return
+        }
+      }
+
+      // Check editing handles
+      if (s.editingId) {
+        const side = getEditingHandleUnderPointer(x)
+        if (side) {
+          touchAction = "drag-handle"
+          setDragging({ id: s.editingId, side })
+          e.preventDefault()
+          return
+        }
+      }
+
+      // Tentatively a tap or selection start
+      touchAction = "tap"
     }
 
     const handleTouchMove = (e: TouchEvent) => {
+      // Pinch zoom
       if (e.touches.length === 2 && pinchDist !== null) {
         e.preventDefault()
         const dx = e.touches[0].clientX - e.touches[1].clientX
@@ -457,29 +514,107 @@ export function Waveform({
         const dist = Math.sqrt(dx * dx + dy * dy)
         const scale = dist / pinchDist
 
-        const canvas = canvasRef.current
-        if (!canvas) return
         const rect = canvas.getBoundingClientRect()
         const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width
 
         applyZoom(scale, midX)
         pinchDist = dist
+        return
+      }
+
+      if (e.touches.length !== 1) return
+      const x = getTouchX(e.touches[0])
+      const s = stateRef.current
+
+      // Drag playback cursor
+      if (touchAction === "drag-cursor" && s.onSeek) {
+        e.preventDefault()
+        s.onSeek(pxToSeconds(x))
+        return
+      }
+
+      // Drag editing handle
+      if (touchAction === "drag-handle" && s.dragging) {
+        e.preventDefault()
+        const f = s.fragments.find(fr => fr.id === s.dragging!.id)
+        if (!f || !s.onEditDrag) return
+        const newTime = pxToSeconds(x)
+        if (s.dragging.side === "start" && newTime < f.end) {
+          s.onEditDrag(f.id, newTime, f.end)
+        }
+        if (s.dragging.side === "end" && newTime > f.start) {
+          s.onEditDrag(f.id, f.start, newTime)
+        }
+        return
+      }
+
+      // If was tap but moved enough — start selection
+      if (touchAction === "tap" && Math.abs(x - touchStartX) > 5) {
+        touchAction = "select"
+        touchMoved = true
+        setIsSelecting(true)
+        setSelection({ startX: touchStartX, endX: x })
+        e.preventDefault()
+        return
+      }
+
+      // Continue selection
+      if (touchAction === "select") {
+        e.preventDefault()
+        setSelection(prev => prev ? { ...prev, endX: x } : null)
       }
     }
 
-    const handleTouchEnd = () => {
-      pinchDist = null
+    const handleTouchEnd = (e: TouchEvent) => {
+      // Pinch end
+      if (pinchDist !== null && e.touches.length < 2) {
+        pinchDist = null
+      }
+
+      const s = stateRef.current
+
+      if (touchAction === "drag-cursor") {
+        setDraggingCursor(false)
+      }
+
+      if (touchAction === "drag-handle") {
+        setDragging(null)
+      }
+
+      if (touchAction === "select" && s.selection) {
+        const start = pxToSeconds(s.selection.startX)
+        const end = pxToSeconds(s.selection.endX)
+        setSelection(null)
+        setIsSelecting(false)
+        if (s.onSelect && Math.abs(end - start) > 0.05) {
+          s.onSelect(Math.min(start, end), Math.max(start, end))
+        }
+      }
+
+      // Tap (no movement) — handle fragment click / click outside
+      if (touchAction === "tap" && !touchMoved) {
+        const fragId = getFragmentUnderPointer(touchStartX)
+        if (fragId) {
+          if (fragId !== s.editingId) {
+            s.onFragmentClick?.(fragId)
+          }
+        } else if (s.editingId) {
+          s.onClickOutside?.()
+        }
+      }
+
+      touchAction = "none"
     }
 
-    container.addEventListener("touchstart", handleTouchStart)
-    container.addEventListener("touchmove", handleTouchMove, { passive: false })
-    container.addEventListener("touchend", handleTouchEnd)
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false })
+    canvas.addEventListener("touchmove", handleTouchMove, { passive: false })
+    canvas.addEventListener("touchend", handleTouchEnd)
     return () => {
-      container.removeEventListener("touchstart", handleTouchStart)
-      container.removeEventListener("touchmove", handleTouchMove)
-      container.removeEventListener("touchend", handleTouchEnd)
+      canvas.removeEventListener("touchstart", handleTouchStart)
+      canvas.removeEventListener("touchmove", handleTouchMove)
+      canvas.removeEventListener("touchend", handleTouchEnd)
     }
-  }, [applyZoom])
+  }, [applyZoom, pxToSeconds, secondsToPx, getEditingHandleUnderPointer, getFragmentUnderPointer])
 
   return (
     <div
@@ -512,7 +647,7 @@ export function Waveform({
           +
         </button>
         <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>
-          (use Mouse wheel for zoom)
+          (scroll to zoom, pinch on touch)
         </span>
       </div>
 
