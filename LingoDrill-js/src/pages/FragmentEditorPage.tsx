@@ -28,8 +28,8 @@ export function FragmentEditorPage() {
   const {
     getBlob, addFile, files,
     loadById, playFragment, pause, play, stop, seekTo,
-    isReady, isPlaying, isPaused, duration, currentTime,
-    volume, setVolume,
+    isReady, isFragmentsReady, isPlaying, isPaused, duration, currentTime,
+    volume, setVolume, getAudioBuffer,
   } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
@@ -61,16 +61,19 @@ export function FragmentEditorPage() {
   const [, setVadProgress] = useState(0)
   const [vadDone, setVadDone] = useState(false)
 
-  // Load audio and waveform
+  // Load audio
+  useEffect(() => {
+    if (!audioId) return
+    loadById(audioId)
+  }, [audioId, loadById])
+
+  // Build waveform: from cache, or from AudioBuffer when ready
   useEffect(() => {
     if (!audioId) return
     let cancelled = false
 
     const load = async () => {
-      setWaveformLoading(true)
-      await loadById(audioId)
-
-      // Пробуем загрузить waveform из кеша
+      // Пробуем загрузить waveform из кеша DB
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const cache = new WaveformCacheStorage()
       const cached = await cache.get(audioId)
@@ -81,28 +84,33 @@ export function FragmentEditorPage() {
         return
       }
 
-      // Кеша нет — строим waveform
-      const blob = await getBlob(audioId)
-      if (!blob || cancelled) return
+      // Кеша нет — ждём AudioBuffer от фонового декодирования
+      if (!isFragmentsReady) return
 
-      const buffer = await blob.arrayBuffer()
-      const ctx = new AudioContext()
-      const audioBuffer = await ctx.decodeAudioData(buffer)
-      await ctx.close()
+      const audioBuffer = getAudioBuffer(audioId)
+      if (!audioBuffer || cancelled) return
 
-      if (cancelled) return
+      // Грубый waveform — мгновенно
+      const coarseData = buildWaveform(audioBuffer, 100)
+      if (!cancelled) {
+        setWaveformData(coarseData)
+        setWaveformLoading(false)
+      }
 
-      const data = buildWaveform(audioBuffer, 1000)
-      setWaveformData(data)
-      setWaveformLoading(false)
-
-      // Сохраняем в кеш для следующего раза
-      await cache.save(audioId, data)
+      // Детальный waveform — в фоне
+      setTimeout(() => {
+        if (cancelled) return
+        const detailedData = buildWaveform(audioBuffer, 1000)
+        if (!cancelled) {
+          setWaveformData(detailedData)
+          cache.save(audioId, detailedData)
+        }
+      }, 0)
     }
     load()
 
     return () => { cancelled = true }
-  }, [audioId, getBlob, loadById])
+  }, [audioId, isFragmentsReady, getAudioBuffer, getBlob])
 
   // Load sequence fragments
   useEffect(() => {
@@ -638,10 +646,23 @@ export function FragmentEditorPage() {
           </div>
 
           {/* Auto-detect and trim buttons */}
+          {!isFragmentsReady && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#888" }}>
+              <div style={{
+                width: 14, height: 14,
+                border: "2px solid #ccc",
+                borderTopColor: "#ff9800",
+                borderRadius: "50%",
+                animation: "bgDecode 0.8s linear infinite",
+              }} />
+              Decoding audio for fragments...
+              <style>{`@keyframes bgDecode { to { transform: rotate(360deg) } }`}</style>
+            </div>
+          )}
           <div style={{ marginTop: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button
               onClick={handleAutoDetectClick}
-              disabled={vadDetecting || trimming || vadDone}
+              disabled={vadDetecting || trimming || vadDone || !isFragmentsReady}
               style={{
                 padding: "6px 16px",
                 cursor: vadDetecting || trimming || vadDone ? "not-allowed" : "pointer",

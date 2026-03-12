@@ -92,7 +92,7 @@ export function FragmentLibraryPage() {
   const {
     files,
     loadById, playFragment, pause, play, stop,
-    isReady, isPlaying, isPaused, duration, setOnEnded,
+    isReady, isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
     volume, setVolume,
   } = useSharedAudioEngine()
 
@@ -226,6 +226,20 @@ export function FragmentLibraryPage() {
             <VolumeControl volume={volume} onVolumeChange={setVolume} />
           </div>
 
+          {!isFragmentsReady && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12, color: "#888" }}>
+              <div style={{
+                width: 14, height: 14,
+                border: "2px solid #ccc",
+                borderTopColor: "#ff9800",
+                borderRadius: "50%",
+                animation: "bgDec 0.8s linear infinite",
+              }} />
+              Decoding audio — playback will be available shortly...
+              <style>{`@keyframes bgDec { to { transform: rotate(360deg) } }`}</style>
+            </div>
+          )}
+
           {sequences.length === 0 && (
             <p style={{ color: "#888" }}>No sequences yet. Create one in the Fragment Editor.</p>
           )}
@@ -247,8 +261,13 @@ export function FragmentLibraryPage() {
                   />
 
                   <button onClick={() => isThisPlaying ? handlePause() : handlePlay(seq)}
-                    title={isThisPlaying ? "Pause" : "Play"}
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                    title={isThisPlaying ? "Pause" : isFragmentsReady ? "Play" : "Decoding..."}
+                    disabled={!isFragmentsReady && !isThisPlaying}
+                    style={{
+                      background: "none", border: "none", padding: 4,
+                      cursor: !isFragmentsReady && !isThisPlaying ? "not-allowed" : "pointer",
+                      opacity: !isFragmentsReady && !isThisPlaying ? 0.3 : 1,
+                    }}>
                     {isThisPlaying ? <PauseIcon /> : <PlayIcon />}
                   </button>
 
