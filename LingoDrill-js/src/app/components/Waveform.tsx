@@ -62,6 +62,12 @@ export function Waveform({
   const [zoom, setZoom] = useState(1)          // 1 = full view
   const [scrollOffset, setScrollOffset] = useState(0) // 0..1 — left edge in normalized coords
 
+  // Refs для чтения актуальных zoom/scrollOffset из touch-обработчиков
+  const zoomRef = useRef(zoom)
+  const scrollOffsetRef = useRef(scrollOffset)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+  useEffect(() => { scrollOffsetRef.current = scrollOffset }, [scrollOffset])
+
   // Selection (new fragment)
   const [selection, setSelection] = useState<{ startX: number; endX: number } | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
@@ -452,9 +458,12 @@ export function Waveform({
     if (!canvas) return
 
     let pinchDist: number | null = null
-    let touchAction: "none" | "select" | "drag-handle" | "drag-cursor" | "tap" = "none"
+    let touchAction: "none" | "select" | "drag-handle" | "drag-cursor" | "tap" | "swipe-scroll" = "none"
     let touchStartX = 0
+    let touchStartY = 0
     let touchMoved = false
+    // null = undecided, true = horizontal, false = vertical
+    let swipeDirection: boolean | null = null
 
     const getTouchX = (touch: Touch) => {
       const rect = canvas.getBoundingClientRect()
@@ -464,7 +473,8 @@ export function Waveform({
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        // Pinch zoom
+        // Pinch zoom — prevent page zoom
+        e.preventDefault()
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         pinchDist = Math.sqrt(dx * dx + dy * dy)
@@ -476,7 +486,9 @@ export function Waveform({
 
       const x = getTouchX(e.touches[0])
       touchStartX = x
+      touchStartY = e.touches[0].clientY
       touchMoved = false
+      swipeDirection = null
       const s = stateRef.current
 
       // Check playback cursor
@@ -524,6 +536,8 @@ export function Waveform({
 
       if (e.touches.length !== 1) return
       const x = getTouchX(e.touches[0])
+      const currentClientX = e.touches[0].clientX
+      const currentClientY = e.touches[0].clientY
       const s = stateRef.current
 
       // Drag playback cursor
@@ -548,13 +562,50 @@ export function Waveform({
         return
       }
 
-      // If was tap but moved enough — start selection
-      if (touchAction === "tap" && Math.abs(x - touchStartX) > 5) {
-        touchAction = "select"
-        touchMoved = true
-        setIsSelecting(true)
-        setSelection({ startX: touchStartX, endX: x })
+      // Determine swipe direction on first significant movement
+      if (touchAction === "tap" && swipeDirection === null) {
+        const rawDx = Math.abs(currentClientX - (touchStartX * canvas.getBoundingClientRect().width / canvas.width + canvas.getBoundingClientRect().left))
+        const rawDy = Math.abs(currentClientY - touchStartY)
+
+        if (rawDx > 5 || rawDy > 5) {
+          swipeDirection = rawDx > rawDy
+
+          // Horizontal swipe when zoomed in — scroll waveform
+          if (swipeDirection && zoomRef.current > 1) {
+            touchAction = "swipe-scroll"
+            touchMoved = true
+            e.preventDefault()
+            return
+          }
+
+          // Otherwise start selection
+          if (!swipeDirection || zoomRef.current <= 1) {
+            if (rawDx > 5) {
+              touchAction = "select"
+              touchMoved = true
+              setIsSelecting(true)
+              setSelection({ startX: touchStartX, endX: x })
+              e.preventDefault()
+            }
+            return
+          }
+        }
+        return
+      }
+
+      // Continue swipe-scroll
+      if (touchAction === "swipe-scroll") {
         e.preventDefault()
+        const canvasWidth = canvas.width
+        // deltaX in canvas pixels
+        const deltaX = x - touchStartX
+        touchStartX = x // update for incremental delta
+
+        const currentZoom = zoomRef.current
+        const currentOffset = scrollOffsetRef.current
+        const newOffset = currentOffset - (deltaX / canvasWidth) / currentZoom
+        const clampedOffset = Math.max(0, Math.min(1 - 1 / currentZoom, newOffset))
+        setScrollOffset(clampedOffset)
         return
       }
 
@@ -604,6 +655,7 @@ export function Waveform({
       }
 
       touchAction = "none"
+      swipeDirection = null
     }
 
     canvas.addEventListener("touchstart", handleTouchStart, { passive: false })
