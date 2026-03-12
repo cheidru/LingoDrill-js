@@ -1,1 +1,0 @@
-import{d as t}from"./index-f8Tg3yB7.js";class s{async get(a){return await(await t).get("waveformCache",a)??null}async save(a,e){await(await t).put("waveformCache",e,a)}async delete(a){await(await t).delete("waveformCache",a)}}export{s as WaveformCacheStorage};
