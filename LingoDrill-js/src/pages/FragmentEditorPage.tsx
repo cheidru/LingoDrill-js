@@ -70,6 +70,18 @@ export function FragmentEditorPage() {
       setWaveformLoading(true)
       await loadById(audioId)
 
+      // Пробуем загрузить waveform из кеша
+      const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
+      const cache = new WaveformCacheStorage()
+      const cached = await cache.get(audioId)
+
+      if (cached && cached.length > 0 && !cancelled) {
+        setWaveformData(cached)
+        setWaveformLoading(false)
+        return
+      }
+
+      // Кеша нет — строим waveform
       const blob = await getBlob(audioId)
       if (!blob || cancelled) return
 
@@ -83,6 +95,9 @@ export function FragmentEditorPage() {
       const data = buildWaveform(audioBuffer, 1000)
       setWaveformData(data)
       setWaveformLoading(false)
+
+      // Сохраняем в кеш для следующего раза
+      await cache.save(audioId, data)
     }
     load()
 
