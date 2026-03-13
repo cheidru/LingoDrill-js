@@ -578,189 +578,88 @@ export function FragmentEditorPage() {
   }, [capturePositions, startEditing, subPromptMode, pendingSubFile, handleFragmentClick])
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="page">
       <button onClick={() => navigate(`/file/${audioId}/sequences`)}>← Back</button>
 
       <h2>Fragment Editor {seqId ? "(Edit Sequence)" : "(New Sequence)"}</h2>
 
-      {/* Subtitle prompt overlay */}
       {subPromptMode && (
-        <div style={{
-          padding: "10px 16px",
-          backgroundColor: "#fff3cd",
-          border: "1px solid #ffc107",
-          borderRadius: 4,
-          marginBottom: 12,
-          fontSize: 14,
-        }}>
+        <div className="subtitle-prompt">
           Click on a fragment to attach subtitles. <button onClick={() => { setSubPromptMode(false); setPendingSubFile(null) }}>Cancel</button>
         </div>
       )}
 
       {waveformLoading && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "20px 0" }}>
-          <div style={{
-            width: 24, height: 24,
-            border: "3px solid #ccc",
-            borderTopColor: "#4a90e2",
-            borderRadius: "50%",
-            animation: "wfSpin 0.8s linear infinite",
-          }} />
-          <span style={{ color: "#888" }}>Loading waveform...</span>
-          <style>{`@keyframes wfSpin { to { transform: rotate(360deg) } }`}</style>
+        <div className="frag-editor__loading">
+          <div className="spinner spinner--wf" />
+          <span>Loading waveform...</span>
         </div>
       )}
 
       {!waveformLoading && isReady && (
         <>
           <Waveform
-            data={waveformData}
-            duration={duration}
-            fragments={waveformFragments}
-            onSelect={addFragment}
-            onFragmentClick={handleFragmentClickWithAnim}
-            onClickOutside={handleClickOutside}
-            onEditDrag={handleEditDrag}
-            editingId={editingId}
-            currentTime={currentTime}
-            playingFragment={playingFragment}
-            showPlaybackCursor={isFilePlayback}
-            isFilePlaying={isFilePlayback && isPlaying}
+            data={waveformData} duration={duration} fragments={waveformFragments}
+            onSelect={addFragment} onFragmentClick={handleFragmentClickWithAnim}
+            onClickOutside={handleClickOutside} onEditDrag={handleEditDrag}
+            editingId={editingId} currentTime={currentTime} playingFragment={playingFragment}
+            showPlaybackCursor={isFilePlayback} isFilePlaying={isFilePlayback && isPlaying}
             onSeek={handleFileSeek}
           />
 
-          {/* File player controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, marginBottom: 4 }}>
+          <div className="file-player">
             <button onClick={isFilePlayback && isPlaying ? handleFilePause : handleFilePlay}>
               {isFilePlayback && isPlaying ? "⏸ Pause" : "▶ Play all"}
             </button>
-            <button onClick={handleFileStop} disabled={!isFilePlayback}>
-              ⏹ Stop
-            </button>
+            <button onClick={handleFileStop} disabled={!isFilePlayback}>⏹ Stop</button>
             <VolumeControl volume={volume} onVolumeChange={setVolume} />
             {isFilePlayback && (
-              <span style={{ fontSize: 12, color: "#888" }}>
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
+              <span className="file-player__time">{formatTime(currentTime)} / {formatTime(duration)}</span>
             )}
           </div>
 
-          {/* Auto-detect and trim buttons */}
           {!isFragmentsReady && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#888" }}>
-              <div style={{
-                width: 14, height: 14,
-                border: "2px solid #ccc",
-                borderTopColor: "#ff9800",
-                borderRadius: "50%",
-                animation: "bgDecode 0.8s linear infinite",
-              }} />
+            <div className="decode-indicator">
+              <div className="spinner spinner--decode" />
               Decoding audio for fragments...
-              <style>{`@keyframes bgDecode { to { transform: rotate(360deg) } }`}</style>
             </div>
           )}
-          <div style={{ marginTop: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <button
-              onClick={handleAutoDetectClick}
-              disabled={vadDetecting || trimming || vadDone || !isFragmentsReady}
-              style={{
-                padding: "6px 16px",
-                cursor: vadDetecting || trimming || vadDone ? "not-allowed" : "pointer",
-                opacity: vadDetecting || trimming || vadDone ? 0.6 : 1,
-              }}
-            >
+
+          <div className="action-bar">
+            <button className="action-bar__btn" onClick={handleAutoDetectClick}
+              disabled={vadDetecting || trimming || vadDone || !isFragmentsReady}>
               {vadDetecting && !trimming ? "Detecting..." : vadDone ? "Auto-detect speech ✓" : "Auto-detect speech"}
             </button>
-
-            <button
-              onClick={handleTrimSilence}
-              disabled={vadDetecting || trimming}
-              style={{
-                padding: "6px 16px",
-                cursor: vadDetecting || trimming ? "wait" : "pointer",
-                opacity: vadDetecting || trimming ? 0.6 : 1,
-              }}
-            >
+            <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming}>
               {trimming ? "Trimming..." : "Trim silence"}
             </button>
-
-            <button
+            <button className="action-bar__btn action-bar__btn--danger"
               onClick={() => fragments.length > 0 ? setShowDeleteAllConfirm(true) : undefined}
-              disabled={vadDetecting || trimming || fragments.length === 0}
-              style={{
-                padding: "6px 16px",
-                cursor: vadDetecting || trimming || fragments.length === 0 ? "not-allowed" : "pointer",
-                opacity: vadDetecting || trimming || fragments.length === 0 ? 0.6 : 1,
-                color: fragments.length > 0 ? "#d32f2f" : undefined,
-              }}
-            >
+              disabled={vadDetecting || trimming || fragments.length === 0}>
               Delete all fragments
             </button>
-
-            {(vadDetecting) && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 20, height: 20,
-                  border: "3px solid #ccc",
-                  borderTopColor: trimming ? "#ff9800" : "#4caf50",
-                  borderRadius: "50%",
-                  animation: "vadSpin 0.8s linear infinite",
-                }} />
-                <span style={{ fontSize: 12, color: "#888" }}>
-                  {trimming ? "Detecting speech..." : "Detecting..."}
-                </span>
-                <style>{`@keyframes vadSpin { to { transform: rotate(360deg) } }`}</style>
+            {vadDetecting && (
+              <div className="vad-indicator">
+                <div className={`spinner spinner--vad ${trimming ? "spinner--vad-trim" : "spinner--vad-detect"}`} />
+                <span>{trimming ? "Detecting speech..." : "Detecting..."}</span>
               </div>
             )}
           </div>
 
-          <div style={{ marginTop: 20, position: "relative" }}>
+          <div className="fragment-list">
             {displayFragments.map(f => {
               const isEditing = f.id === editingId
-
               return (
-                <div
-                  key={f.id}
-                  ref={el => {
-                    if (el) fragmentRefsMap.current.set(f.id, el)
-                    else fragmentRefsMap.current.delete(f.id)
-                  }}
-                  style={{ position: "relative" }}
-                >
-                  <div
-                    onClick={() => { if (!isEditing) startEditingWithAnim(f.id) }}
-                    style={{
-                      border: isEditing ? "1px solid #0078ff" : "1px solid #ccc",
-                      backgroundColor: isEditing ? "rgba(0, 120, 255, 0.05)" : "transparent",
-                      padding: 8,
-                      marginBottom: f.subtitles.length > 0 ? 0 : 8,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      justifyContent: "space-between",
-                      cursor: isEditing ? "default" : "pointer",
-                    }}
-                  >
-                    <div>{f.start.toFixed(2)} – {f.end.toFixed(2)}</div>
-
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                      {isEditing && (
-                        <button onClick={handleSaveWithAnim} style={{
-                          backgroundColor: "#0078ff", color: "white", border: "none",
-                          padding: "4px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 500,
-                        }}>Save</button>
-                      )}
-
-                      <button onClick={() => handleSubClick(f.id)} title="Attach subtitles"
-                        disabled={subtitleFiles.length === 0}
-                        style={{
-                          padding: "4px 8px", fontSize: 12,
-                          cursor: subtitleFiles.length === 0 ? "not-allowed" : "pointer",
-                          opacity: subtitleFiles.length === 0 ? 0.4 : 1,
-                        }}>
-                        Sub
-                      </button>
-
+                <div key={f.id} ref={el => { if (el) fragmentRefsMap.current.set(f.id, el); else fragmentRefsMap.current.delete(f.id) }}
+                  className="fragment-panel">
+                  <div onClick={() => { if (!isEditing) startEditingWithAnim(f.id) }}
+                    className={`fragment-row${isEditing ? " fragment-row--editing" : ""}`}
+                    style={{ marginBottom: f.subtitles.length > 0 ? 0 : 6 }}>
+                    <div className="fragment-row__time">{f.start.toFixed(2)} – {f.end.toFixed(2)}</div>
+                    <div className="fragment-row__actions" onClick={e => e.stopPropagation()}>
+                      {isEditing && <button className="btn-save" onClick={handleSaveWithAnim}>Save</button>}
+                      <button className="btn-sub" onClick={() => handleSubClick(f.id)} title="Attach subtitles"
+                        disabled={subtitleFiles.length === 0}>Sub</button>
                       <button onClick={() => handlePlayPause(f)}>
                         {isPlaying && playingFragment?.start === f.start && playingFragment.end === f.end ? "Pause" : "Play"}
                       </button>
@@ -770,24 +669,16 @@ export function FragmentEditorPage() {
                       <button onClick={() => incrementRepeat(f.id)}>+</button>
                     </div>
                   </div>
-
-                  {/* Show attached subtitles */}
                   {f.subtitles.length > 0 && (
-                    <div style={{
-                      borderLeft: "1px solid #ccc", borderRight: "1px solid #ccc", borderBottom: "1px solid #ccc",
-                      padding: "4px 8px", marginBottom: 8, fontSize: 12, color: "#555",
-                    }}>
+                    <div className="subtitle-display">
                       {f.subtitles.map((sub, i) => {
                         const file = subtitleFiles.find(sf => sf.id === sub.subtitleFileId)
                         const text = file ? file.content.slice(sub.charStart, sub.charEnd) : "(file not found)"
                         return (
-                          <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginBottom: 2 }}>
-                            <span style={{ color: "#888", flexShrink: 0 }}>{sub.subtitleFileName}:</span>
-                            <span style={{ whiteSpace: "pre-wrap", flex: 1 }}>{text}</span>
-                            <button onClick={() => handleRemoveSubtitle(f.id, i)}
-                              style={{ fontSize: 10, padding: "1px 4px", color: "#d32f2f", cursor: "pointer", flexShrink: 0 }}>
-                              ×
-                            </button>
+                          <div key={i} className="subtitle-display__row">
+                            <span className="subtitle-display__name">{sub.subtitleFileName}:</span>
+                            <span className="subtitle-display__text">{text}</span>
+                            <button className="btn-remove-sub" onClick={() => handleRemoveSubtitle(f.id, i)}>×</button>
                           </div>
                         )
                       })}
@@ -800,125 +691,55 @@ export function FragmentEditorPage() {
         </>
       )}
 
-      {/* Subtitle modal: choose file */}
       {subModalFragId && subModalStep === "choose-file" && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-        }}>
-          <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320 }}>
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ textAlign: "left" }}>
             <h3 style={{ marginTop: 0 }}>Choose subtitle file</h3>
             {subtitleFiles.map(sf => (
               <div key={sf.id} style={{ marginBottom: 8 }}>
-                <button onClick={() => handleSubFileChosen(sf)} style={{ cursor: "pointer" }}>
-                  {sf.name}
-                </button>
+                <button onClick={() => handleSubFileChosen(sf)}>{sf.name}</button>
               </div>
             ))}
-            <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}
-              style={{ marginTop: 12 }}>Cancel</button>
+            <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }} style={{ marginTop: 12 }}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Subtitle modal: select text */}
       {subModalFragId && subModalStep === "select-text" && subModalFile && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-        }}>
-          <div style={{
-            background: "white", padding: 24, borderRadius: 8,
-            maxWidth: 600, maxHeight: "80vh", display: "flex", flexDirection: "column",
-          }}>
-            <h3 style={{ marginTop: 0 }}>
-              Select subtitle text for fragment
-            </h3>
+        <div className="modal-overlay">
+          <div className="modal-box modal-box--wide">
+            <h3 style={{ marginTop: 0 }}>Select subtitle text for fragment</h3>
             <p style={{ fontSize: 12, color: "#888", margin: "0 0 12px" }}>
               File: {subModalFile.name} — Highlight the relevant text, then click "Attach Selected"
             </p>
-            <div
-              id="subtitle-text-container"
-              style={{
-                flex: 1, overflow: "auto", border: "1px solid #ccc", padding: 12,
-                fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap", userSelect: "text",
-                cursor: "text",
-              }}
-            >
-              {subModalFile.content}
-            </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 16, justifyContent: "flex-end" }}>
-              <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>
-                Cancel
-              </button>
-              <button onClick={handleSubTextSelected} style={{
-                backgroundColor: "#0078ff", color: "white", border: "none",
-                padding: "6px 16px", borderRadius: 4, cursor: "pointer",
-              }}>
-                Attach Selected
-              </button>
+            <div id="subtitle-text-container" className="subtitle-content">{subModalFile.content}</div>
+            <div className="modal-actions" style={{ justifyContent: "flex-end" }}>
+              <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+              <button className="btn-primary" onClick={handleSubTextSelected}>Attach Selected</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Auto-detect confirmation modal */}
       {showAutoDetectConfirm && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-        }}>
-          <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320, textAlign: "center" }}>
-            <p style={{ marginBottom: 16 }}>
-              Auto-detect will remove all existing fragments in this sequence and replace them with detected speech segments.
-            </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button
-                onClick={handleAutoDetectRun}
-                style={{
-                  backgroundColor: "#0078ff", color: "white", border: "none",
-                  padding: "6px 16px", borderRadius: 4, cursor: "pointer",
-                }}
-              >
-                Proceed
-              </button>
-              <button
-                onClick={() => setShowAutoDetectConfirm(false)}
-                style={{ padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <p>Auto-detect will remove all existing fragments and replace them with detected speech segments.</p>
+            <div className="modal-actions">
+              <button className="btn-primary" onClick={handleAutoDetectRun}>Proceed</button>
+              <button onClick={() => setShowAutoDetectConfirm(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete all fragments confirmation modal */}
       {showDeleteAllConfirm && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-        }}>
-          <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320, textAlign: "center" }}>
-            <p style={{ marginBottom: 16 }}>
-              Delete all {fragments.length} fragments in this sequence?
-            </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button
-                onClick={handleDeleteAllFragments}
-                style={{
-                  backgroundColor: "#d32f2f", color: "white", border: "none",
-                  padding: "6px 16px", borderRadius: 4, cursor: "pointer",
-                }}
-              >
-                Delete all
-              </button>
-              <button
-                onClick={() => setShowDeleteAllConfirm(false)}
-                style={{ padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <p>Delete all {fragments.length} fragments in this sequence?</p>
+            <div className="modal-actions">
+              <button className="btn-danger" onClick={handleDeleteAllFragments}>Delete all</button>
+              <button onClick={() => setShowDeleteAllConfirm(false)}>Cancel</button>
             </div>
           </div>
         </div>

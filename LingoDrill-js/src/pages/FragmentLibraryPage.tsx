@@ -190,14 +190,14 @@ export function FragmentLibraryPage() {
   const currentPlayingFrag = playingSeq && playingFragIdx < playingSeq.fragments.length
     ? playingSeq.fragments[playingFragIdx] : null
 
-  if (isLoading) return <div style={{ padding: 24 }}>Loading...</div>
+  if (isLoading) return <div style={{ padding: "16px clamp(12px, 4vw, 24px)", maxWidth: "100%", overflow: "hidden" }}>Loading...</div>
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="page">
       <button onClick={() => navigate("/")}>← Back</button>
       <h2>Fragment Library</h2>
       {audioId && (
-        <p style={{ fontSize: 14, color: "#888", marginTop: -8 }}>
+        <p className="file-info">
           for {files.find(f => f.id === audioId)?.name ?? "unknown file"}
         </p>
       )}
@@ -206,19 +206,12 @@ export function FragmentLibraryPage() {
 
       {isReady && (
         <>
-          <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center" }}>
+          <div className="toolbar">
             <button onClick={() => navigate(`/file/${audioId}/editor`)}>+ New Sequence</button>
-
-            <button onClick={() => fileInputRef.current?.click()}>
-              + Add Subtitles
-            </button>
-            <input ref={fileInputRef} type="file" accept=".txt,.sub,.srt"
-              style={{ display: "none" }} onChange={handleSubtitleUpload} />
-
+            <button onClick={() => fileInputRef.current?.click()}>+ Add Subtitles</button>
+            <input ref={fileInputRef} type="file" accept=".txt,.sub,.srt" style={{ display: "none" }} onChange={handleSubtitleUpload} />
             {subtitleFiles.length > 0 && (
-              <span style={{ fontSize: 12, color: "#888" }}>
-                {subtitleFiles.length} subtitle file(s): {subtitleFiles.map(f => f.name).join(", ")}
-              </span>
+              <span className="file-info">{subtitleFiles.length} subtitle file(s): {subtitleFiles.map(f => f.name).join(", ")}</span>
             )}
           </div>
 
@@ -227,21 +220,14 @@ export function FragmentLibraryPage() {
           </div>
 
           {!isFragmentsReady && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12, color: "#888" }}>
-              <div style={{
-                width: 14, height: 14,
-                border: "2px solid #ccc",
-                borderTopColor: "#ff9800",
-                borderRadius: "50%",
-                animation: "bgDec 0.8s linear infinite",
-              }} />
+            <div className="decode-indicator">
+              <div className="spinner spinner--decode" />
               Decoding audio — playback will be available shortly...
-              <style>{`@keyframes bgDec { to { transform: rotate(360deg) } }`}</style>
             </div>
           )}
 
           {sequences.length === 0 && (
-            <p style={{ color: "#888" }}>No sequences yet. Create one in the Fragment Editor.</p>
+            <p className="empty-state">No sequences yet. Create one in the Fragment Editor.</p>
           )}
 
           {sequences.map(seq => {
@@ -250,44 +236,28 @@ export function FragmentLibraryPage() {
             const isThisActive = isThisPlaying || isThisPaused
 
             return (
-              <div key={seq.id} style={{ marginBottom: 4 }}>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "8px 0", borderBottom: "1px solid #eee",
-                }}>
-                  <SequenceBar
-                    sequence={seq} duration={duration}
-                    playingFragIdx={isThisActive ? playingFragIdx : null}
-                  />
+              <div key={seq.id} className="seq-card">
+                <div className="seq-bar-wrap" style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
+                  <SequenceBar sequence={seq} duration={duration} playingFragIdx={isThisActive ? playingFragIdx : null} />
 
                   <button onClick={() => isThisPlaying ? handlePause() : handlePlay(seq)}
                     title={isThisPlaying ? "Pause" : isFragmentsReady ? "Play" : "Decoding..."}
                     disabled={!isFragmentsReady && !isThisPlaying}
-                    style={{
-                      background: "none", border: "none", padding: 4,
-                      cursor: !isFragmentsReady && !isThisPlaying ? "not-allowed" : "pointer",
-                      opacity: !isFragmentsReady && !isThisPlaying ? 0.3 : 1,
-                    }}>
+                    className="seq-controls__btn"
+                    style={{ opacity: !isFragmentsReady && !isThisPlaying ? 0.3 : 1 }}>
                     {isThisPlaying ? <PauseIcon /> : <PlayIcon />}
                   </button>
 
-                  <button onClick={handleStop} title="Stop"
-                    disabled={!isThisActive}
-                    style={{
-                      background: "none", border: "none", padding: 4,
-                      cursor: isThisActive ? "pointer" : "default",
-                      opacity: isThisActive ? 1 : 0.3,
-                    }}>
+                  <button onClick={handleStop} title="Stop" disabled={!isThisActive}
+                    className="seq-controls__btn" style={{ opacity: isThisActive ? 1 : 0.3 }}>
                     <StopIcon />
                   </button>
 
-                  <button onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)}
-                    title="Edit" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                  <button onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit" className="seq-controls__btn">
                     <EditIcon />
                   </button>
 
-                  <button onClick={() => setConfirmDeleteId(seq.id)} title="Delete"
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#d32f2f" }}>
+                  <button onClick={() => setConfirmDeleteId(seq.id)} title="Delete" className="seq-controls__btn" style={{ color: "#d32f2f" }}>
                     <DeleteIcon />
                   </button>
 
@@ -296,16 +266,14 @@ export function FragmentLibraryPage() {
                       onChange={e => setEditingLabelValue(e.target.value)}
                       onBlur={() => saveLabel(seq)}
                       onKeyDown={e => { if (e.key === "Enter") saveLabel(seq); if (e.key === "Escape") setEditingLabelId(null) }}
-                      style={{ width: 100, fontSize: 13, padding: "2px 4px" }} />
+                      className="seq-label-input" />
                   ) : (
-                    <span onDoubleClick={() => startEditLabel(seq)} title="Double-click to rename"
-                      style={{ fontSize: 13, cursor: "text", minWidth: 30 }}>{seq.label}</span>
+                    <span onDoubleClick={() => startEditLabel(seq)} title="Double-click to rename" className="seq-label">{seq.label}</span>
                   )}
 
                   <span style={{ fontSize: 11, color: "#888" }}>({seq.fragments.length} frag.)</span>
                 </div>
 
-                {/* Subtitle display under the playing sequence */}
                 {isThisActive && currentPlayingFrag && playingSeqId === seq.id && (
                   <SubtitleDisplay fragment={currentPlayingFrag} subtitleFiles={subtitleFiles} />
                 )}
@@ -315,19 +283,12 @@ export function FragmentLibraryPage() {
 
           {/* Delete confirmation modal */}
           {confirmDeleteId && (
-            <div style={{
-              position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-              background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-            }}>
-              <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 300, textAlign: "center" }}>
+            <div className="modal-overlay">
+              <div className="modal-box">
                 <p>Delete this sequence?</p>
-                <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16 }}>
-                  <button onClick={() => handleDelete(confirmDeleteId)}
-                    style={{ backgroundColor: "#d32f2f", color: "white", border: "none", padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}>
-                    Delete
-                  </button>
-                  <button onClick={() => setConfirmDeleteId(null)}
-                    style={{ padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}>Cancel</button>
+                <div className="modal-actions">
+                  <button className="btn-danger" onClick={() => handleDelete(confirmDeleteId)}>Delete</button>
+                  <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>
                 </div>
               </div>
             </div>

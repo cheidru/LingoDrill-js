@@ -1,4 +1,4 @@
-// components/AudioUploader.tsx
+// app/components/AudioUploader.tsx
 
 type UploadHandler = (file: File) => Promise<void> | void
 

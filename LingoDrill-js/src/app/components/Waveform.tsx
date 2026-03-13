@@ -404,15 +404,18 @@ export function Waveform({
   // --- Zoom helpers ---
 
   const applyZoom = useCallback((zoomFactor: number, anchorFrac: number = 0.5) => {
-    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * zoomFactor))
-    const visDur = visibleEnd - visibleStart
-    const secUnderAnchor = visibleStart + anchorFrac * visDur
+    const currentZoom = zoomRef.current
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * zoomFactor))
+    const currentOffset = scrollOffsetRef.current
+    const visDur = duration / currentZoom
+    const visStart = currentOffset * duration
+    const secUnderAnchor = visStart + anchorFrac * visDur
     const newVisDur = duration / newZoom
     let newScrollOffset = (secUnderAnchor - anchorFrac * newVisDur) / duration
     newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
     setZoom(newZoom)
     setScrollOffset(newScrollOffset)
-  }, [zoom, visibleStart, visibleEnd, duration])
+  }, [duration])
 
   const handleScrollbarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
@@ -461,6 +464,7 @@ export function Waveform({
     let touchAction: "none" | "select" | "drag-handle" | "drag-cursor" | "tap" | "swipe-scroll" = "none"
     let touchStartX = 0
     let touchStartY = 0
+    let touchStartClientX = 0
     let touchMoved = false
     // null = undecided, true = horizontal, false = vertical
     let swipeDirection: boolean | null = null
@@ -486,6 +490,7 @@ export function Waveform({
 
       const x = getTouchX(e.touches[0])
       touchStartX = x
+      touchStartClientX = e.touches[0].clientX
       touchStartY = e.touches[0].clientY
       touchMoved = false
       swipeDirection = null
@@ -564,31 +569,30 @@ export function Waveform({
 
       // Determine swipe direction on first significant movement
       if (touchAction === "tap" && swipeDirection === null) {
-        const rawDx = Math.abs(currentClientX - (touchStartX * canvas.getBoundingClientRect().width / canvas.width + canvas.getBoundingClientRect().left))
+        const rawDx = Math.abs(currentClientX - touchStartClientX)
         const rawDy = Math.abs(currentClientY - touchStartY)
 
-        if (rawDx > 5 || rawDy > 5) {
+        if (rawDx > 8 || rawDy > 8) {
           swipeDirection = rawDx > rawDy
 
           // Horizontal swipe when zoomed in — scroll waveform
           if (swipeDirection && zoomRef.current > 1) {
             touchAction = "swipe-scroll"
             touchMoved = true
+            touchStartClientX = currentClientX
             e.preventDefault()
             return
           }
 
-          // Otherwise start selection
-          if (!swipeDirection || zoomRef.current <= 1) {
-            if (rawDx > 5) {
-              touchAction = "select"
-              touchMoved = true
-              setIsSelecting(true)
-              setSelection({ startX: touchStartX, endX: x })
-              e.preventDefault()
-            }
-            return
+          // Otherwise start selection (horizontal drag on non-zoomed = new fragment)
+          if (rawDx > 8) {
+            touchAction = "select"
+            touchMoved = true
+            setIsSelecting(true)
+            setSelection({ startX: touchStartX, endX: x })
+            e.preventDefault()
           }
+          return
         }
         return
       }
@@ -596,14 +600,14 @@ export function Waveform({
       // Continue swipe-scroll
       if (touchAction === "swipe-scroll") {
         e.preventDefault()
-        const canvasWidth = canvas.width
-        // deltaX in canvas pixels
-        const deltaX = x - touchStartX
-        touchStartX = x // update for incremental delta
+        const deltaClientX = currentClientX - touchStartClientX
+        touchStartClientX = currentClientX
 
+        const rect = canvas.getBoundingClientRect()
         const currentZoom = zoomRef.current
         const currentOffset = scrollOffsetRef.current
-        const newOffset = currentOffset - (deltaX / canvasWidth) / currentZoom
+        // Convert pixel delta to normalized offset
+        const newOffset = currentOffset - (deltaClientX / rect.width) * (1 / currentZoom)
         const clampedOffset = Math.max(0, Math.min(1 - 1 / currentZoom, newOffset))
         setScrollOffset(clampedOffset)
         return
@@ -671,49 +675,23 @@ export function Waveform({
   return (
     <div
       ref={containerRef}
-      style={{ position: "relative" }}
+      className="waveform-container"
     >
       {/* Zoom controls */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 6,
-      }}>
-        <span style={{ fontWeight: 500, fontSize: 13 }}>Zoom</span>
-        <button
-          onClick={() => applyZoom(1 / 1.3)}
-          disabled={zoom <= MIN_ZOOM}
-          style={{ width: 28, height: 28, fontSize: 16, lineHeight: "1", padding: 0, cursor: "pointer" }}
-        >
-          −
-        </button>
-        <span style={{ fontSize: 12, color: "#888", minWidth: 36, textAlign: "center" }}>
-          {zoom.toFixed(1)}×
-        </span>
-        <button
-          onClick={() => applyZoom(1.3)}
-          disabled={zoom >= MAX_ZOOM}
-          style={{ width: 28, height: 28, fontSize: 16, lineHeight: "1", padding: 0, cursor: "pointer" }}
-        >
-          +
-        </button>
-        <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>
-          (scroll to zoom, pinch on touch)
-        </span>
+      <div className="waveform-zoom">
+        <span className="waveform-zoom__label">Zoom</span>
+        <button onClick={() => applyZoom(1 / 1.3)} disabled={zoom <= MIN_ZOOM} className="waveform-zoom__btn">−</button>
+        <span className="waveform-zoom__value">{zoom.toFixed(1)}×</span>
+        <button onClick={() => applyZoom(1.3)} disabled={zoom >= MAX_ZOOM} className="waveform-zoom__btn">+</button>
+        <span className="waveform-zoom__hint">(scroll to zoom, pinch on touch)</span>
       </div>
 
       <canvas
         ref={canvasRef}
         width={1000}
         height={height}
-        style={{
-          width: "100%",
-          height,
-          border: "1px solid #ccc",
-          cursor,
-          display: "block",
-        }}
+        className="waveform-canvas"
+        style={{ height, cursor }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -728,7 +706,7 @@ export function Waveform({
           step={0.001}
           value={scrollOffset}
           onChange={handleScrollbarChange}
-          style={{ width: "100%", marginTop: 4 }}
+          className="waveform-scrollbar"
         />
       )}
     </div>
