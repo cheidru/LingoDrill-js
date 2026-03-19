@@ -14,6 +14,8 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({ files, selectedFile,
   return (
     <div>
       <h3>Audio Library</h3>
+      {/* <div className="test-text1">Это текст 1rem</div>
+      <div className="test-text2">Это window.innerWidth {window.innerWidth}</div> */}
       <ul className="audio-list">
         {files.map(file => {
           const cls = `audio-list__item${selectedFile?.id === file.id ? " audio-list__item--selected" : ""}`

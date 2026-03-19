@@ -10,6 +10,7 @@ type Props = {
   volume: number; onVolumeChange: (v: number) => void
 }
 
+// ToDo Убрать эквалайзер так-как загрузка аудиофайла происходит мгновенно
 function EqualizerLoader() {
   return (
     <div className="eq-loader">

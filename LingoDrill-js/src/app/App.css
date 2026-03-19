@@ -21,7 +21,7 @@
 }
 .header__logo {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 1rem;
   margin-right: 12px;
   padding: 10px 0;
   color: #333;
@@ -33,7 +33,7 @@
   background-color: transparent;
   outline: none;
   box-shadow: none;
-  font-size: 13px;
+  font-size: 0.85rem;
   flex-shrink: 0;
   border-radius: 0;
   color: #555;
@@ -109,7 +109,7 @@
 }
 .eq-loader__text {
   margin-left: 8px;
-  font-size: 13px;
+  font-size: 0.85rem;
   color: #888;
 }
 @keyframes eqBounce {
@@ -130,7 +130,7 @@
   border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
   pointer-events: none;
 }
-.progress-time { display: flex; justify-content: space-between; font-size: 11px; color: #888; }
+.progress-time { display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; }
 .player-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .player-nav { margin-top: 16px; }
 
@@ -142,10 +142,10 @@
 /* === Waveform === */
 .waveform-container { position: relative; }
 .waveform-zoom { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.waveform-zoom__label { font-weight: 500; font-size: 13px; }
-.waveform-zoom__btn { width: 28px; height: 28px; font-size: 16px; line-height: 1; padding: 0; }
-.waveform-zoom__value { font-size: 12px; color: #888; min-width: 36px; text-align: center; }
-.waveform-zoom__hint { font-size: 11px; color: #aaa; margin-left: 4px; }
+.waveform-zoom__label { font-weight: 500; font-size: 0.85rem; }
+.waveform-zoom__btn { width: 28px; height: 28px; font-size: 1rem; line-height: 1; padding: 0; }
+.waveform-zoom__value { font-size: 0.8rem; color: #888; min-width: 36px; text-align: center; }
+.waveform-zoom__hint { font-size: 0.75rem; color: #aaa; margin-left: 4px; }
 .waveform-canvas { width: 100%; border: 1px solid #ccc; display: block; }
 .waveform-scrollbar { width: 100%; margin-top: 4px; }
 
@@ -161,14 +161,14 @@
 /* === Fragment Editor === */
 .frag-editor__loading { display: flex; align-items: center; gap: 8px; padding: 20px 0; color: #888; }
 .file-player { display: flex; align-items: center; gap: 6px; margin-top: 8px; margin-bottom: 4px; flex-wrap: wrap; }
-.file-player__time { font-size: 12px; color: #888; }
-.decode-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: #888; }
+.file-player__time { font-size: 0.8rem; color: #888; }
+.decode-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #888; }
 .action-bar { margin-top: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .action-bar__btn { padding: 6px 16px; }
 .action-bar__btn--danger { color: #d32f2f; }
-.vad-indicator { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #888; }
+.vad-indicator { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #888; }
 
-.subtitle-prompt { padding: 10px 16px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; margin-bottom: 12px; font-size: 14px; }
+.subtitle-prompt { padding: 10px 16px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; margin-bottom: 12px; font-size: 0.9rem; }
 .fragment-list { margin-top: 20px; position: relative; }
 .fragment-panel { position: relative; }
 .fragment-row {
@@ -176,17 +176,17 @@
   flex-wrap: wrap; justify-content: space-between; border: 1px solid #ccc; cursor: pointer;
 }
 .fragment-row--editing { border-color: #0078ff; background-color: rgba(0, 120, 255, 0.05); cursor: default; }
-.fragment-row__time { font-size: 13px; flex-shrink: 0; }
+.fragment-row__time { font-size: 0.85rem; flex-shrink: 0; }
 .fragment-row__actions { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 
 .btn-save { background-color: #0078ff; color: white; border: none; padding: 4px 12px; border-radius: 4px; font-weight: 500; }
 .btn-save:hover { background-color: #0066dd; border-color: transparent; }
-.btn-sub { padding: 4px 8px; font-size: 12px; }
-.subtitle-display { border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 4px 8px; margin-bottom: 6px; font-size: 12px; color: #555; }
+.btn-sub { padding: 4px 8px; font-size: 0.8rem; }
+.subtitle-display { border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 4px 8px; margin-bottom: 6px; font-size: 0.8rem; color: #555; }
 .subtitle-display__row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 2px; }
 .subtitle-display__name { color: #888; flex-shrink: 0; }
 .subtitle-display__text { white-space: pre-wrap; flex: 1; min-width: 0; }
-.btn-remove-sub { font-size: 10px; padding: 1px 4px; color: #d32f2f; cursor: pointer; flex-shrink: 0; }
+.btn-remove-sub { font-size: 0.7rem; padding: 1px 4px; color: #d32f2f; cursor: pointer; flex-shrink: 0; }
 
 /* === Modals === */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -197,28 +197,68 @@
 .btn-primary:hover { background-color: #0066dd; border-color: transparent; }
 .btn-danger { background-color: #d32f2f; color: white; border: none; padding: 6px 16px; border-radius: 4px; }
 .btn-danger:hover { background-color: #b71c1c; border-color: transparent; }
-.subtitle-content { flex: 1; overflow: auto; border: 1px solid #ccc; padding: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; user-select: text; cursor: text; }
+.subtitle-content { flex: 1; overflow: auto; border: 1px solid #ccc; padding: 12px; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; user-select: text; cursor: text; }
 
 /* === FragmentLibrary page === */
 .toolbar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
-.file-info { font-size: 14px; color: #888; margin-top: -8px; }
+.file-info { font-size: 0.9rem; color: #888; margin-top: -8px; }
 .empty-state { color: #888; }
 .seq-card { margin-bottom: 4px; }
 .seq-bar-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .seq-controls { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .seq-controls__btn { background: none; border: none; cursor: pointer; padding: 4px; }
 .seq-controls__btn:hover { background: transparent; border-color: transparent; }
-.seq-label { flex: 1; min-width: 60px; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seq-label-input { font-size: 13px; font-weight: 500; border: 1px solid #0078ff; padding: 2px 6px; border-radius: 4px; width: 100%; max-width: 200px; }
-.seq-subtitle { font-size: 12px; color: #555; padding: 4px 8px; border: 1px solid #eee; border-top: none; white-space: pre-wrap; word-break: break-word; }
+.seq-label { flex: 1; min-width: 60px; font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seq-label-input { font-size: 0.85rem; font-weight: 500; border: 1px solid #0078ff; padding: 2px 6px; border-radius: 4px; width: 100%; max-width: 200px; }
+.seq-subtitle { font-size: 0.8rem; color: #555; padding: 4px 8px; border: 1px solid #eee; border-top: none; white-space: pre-wrap; word-break: break-word; }
 
 /* === Mobile overrides === */
 @media (max-width: 600px) {
   .header { padding: 0 8px; }
-  .header__logo { font-size: 14px; margin-right: 8px; }
-  .header__nav-btn { padding: 8px 8px; font-size: 12px; }
+  .header__logo { font-size: 0.9rem; margin-right: 8px; }
+  .header__nav-btn { padding: 8px 8px; font-size: 0.8rem; }
   .volume-control__slider { width: 80px; }
   .fragment-row { padding: 4px 6px; gap: 4px; }
   .action-bar { gap: 8px; }
   .action-bar__btn { padding: 5px 10px; font-size: 0.8em; }
+}
+
+
+/* .test-text1 {
+  font-size: 1rem;
+}
+
+.test-text2 {
+  font-size: 1rem;
+} */
+
+/* @media (max-width: 1100px) {
+  .test-text2 {
+    font-size: 3rem;
+  }
+} */
+
+
+
+
+
+/* Ensure minimum touch target size on mobile */
+@media (max-width: 600px) {
+  .audio-list__item {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+  .seq-controls__btn {
+    min-width: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-box {
+    padding: 20px 16px;
+  }
+  .subtitle-display {
+    font-size: 0.8rem;
+  }
 }

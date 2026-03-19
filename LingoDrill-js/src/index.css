@@ -14,8 +14,15 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
+  font-size: 1rem;
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
@@ -27,14 +34,15 @@ body {
   overflow-x: hidden;
 }
 
-h1 { font-size: 2em; line-height: 1.1; }
-h2 { font-size: 1.5em; margin-top: 0.5em; }
+h1 { font-size: 1.75rem; line-height: 1.1; }
+h2 { font-size: 1.35rem; margin-top: 0.5em; }
+h3 { font-size: 1.1rem; }
 
 button {
   border-radius: 6px;
   border: 1px solid #ccc;
   padding: 0.5em 1em;
-  font-size: 0.875em;
+  font-size: 0.9rem;
   font-weight: 500;
   font-family: inherit;
   background-color: #f9f9f9;
@@ -63,13 +71,14 @@ input[type="range"] {
   touch-action: manipulation;
 }
 
-/* Mobile */
+/* Mobile — увеличиваем размеры для touch */
 @media (max-width: 600px) {
-  button {
-    font-size: 0.8em;
-    padding: 0.4em 0.7em;
+  html {
+    font-size: 15px;
   }
-  h2 {
-    font-size: 1.25em;
+  button {
+    font-size: 0.85rem;
+    padding: 0.45em 0.8em;
+    min-height: 36px;
   }
 }
