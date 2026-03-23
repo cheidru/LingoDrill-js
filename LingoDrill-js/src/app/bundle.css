@@ -1,0 +1,48 @@
+/* === Export / Import Bundle === */
+.export-bundle { margin-top: 8px; }
+.export-bundle__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.export-bundle__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.export-bundle__hint {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 6px;
+}
+.export-bundle__hint code {
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+.import-bundle { }
+.import-bundle__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.import-bundle__row code {
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+/* === Error Boundary Fallback === */
+.error-boundary-fallback {
+  padding: 16px;
+  background-color: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-radius: 8px;
+  margin: 12px 0;
+}

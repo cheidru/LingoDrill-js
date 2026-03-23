@@ -1,4 +1,6 @@
 // app/contexts/audioEngineContextValue.ts
+//
+// ИЗМЕНЕНИЕ: AudioEngineContextType теперь включает decodeError
 
 import { createContext } from "react"
 import type { useAudioEngine } from "../hooks/useAudioEngine"

@@ -7,6 +7,7 @@ import LibraryPage from "../pages/LibraryPage"
 import { FragmentLibraryPage } from "../pages/FragmentLibraryPage"
 import { FragmentEditorPage } from "../pages/FragmentEditorPage"
 import "./App.css"
+import "./bundle.css"
 
 export default function App() {
   return (

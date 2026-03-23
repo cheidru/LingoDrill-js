@@ -38,6 +38,12 @@ export function useAudioEngine(
     return stored ? Number(stored) : 0.8
   })
 
+  // Ref-зеркало для volume — позволяет читать актуальное значение
+  // внутри loadById без добавления volume в зависимости useCallback.
+  // Это предотвращает пересоздание loadById при изменении громкости,
+  // что иначе вызывало бы сброс воспроизведения через useEffect в FragmentEditorPage.
+  const volumeRef = useRef<number>(volume)
+
   // Создаём оба движка
   useEffect(() => {
     const htmlEngine = new HtmlAudioEngine()
@@ -65,8 +71,9 @@ export function useAudioEngine(
     }
   }, [])
 
-  // Volume
+  // Volume — обновляем ref и оба движка
   useEffect(() => {
+    volumeRef.current = volume
     htmlEngineRef.current?.setVolume(volume)
     webEngineRef.current?.setVolume(volume)
   }, [volume])
@@ -124,7 +131,7 @@ export function useAudioEngine(
 
       // Шаг 1: HtmlAudioEngine — мгновенная загрузка
       htmlEngine.load(blob)
-      htmlEngine.setVolume(volume)
+      htmlEngine.setVolume(volumeRef.current)  // ← читаем из ref, не из state
       loadedIdRef.current = id
 
       // Ждём пока <audio> определит duration
@@ -146,7 +153,7 @@ export function useAudioEngine(
       const cached = bufferCacheRef.current.get(id)
       if (cached) {
         webEngine.loadFromBuffer(cached)
-        webEngine.setVolume(volume)
+        webEngine.setVolume(volumeRef.current)  // ← читаем из ref, не из state
         setIsFragmentsReady(true)
       } else {
         // Декодируем в фоне — не блокирует UI
@@ -160,7 +167,7 @@ export function useAudioEngine(
           if (loadedIdRef.current === id) {
             bufferCacheRef.current.set(id, audioBuffer)
             webEngine.loadFromBuffer(audioBuffer)
-            webEngine.setVolume(volume)
+            webEngine.setVolume(volumeRef.current)  // ← читаем из ref, не из state
             setIsFragmentsReady(true)
           }
         } catch (err) {
@@ -168,7 +175,7 @@ export function useAudioEngine(
         }
       }
     },
-    [getBlob, volume]
+    [getBlob]  // ← volume убран из зависимостей, используем volumeRef
   )
 
   const play = useCallback(() => {

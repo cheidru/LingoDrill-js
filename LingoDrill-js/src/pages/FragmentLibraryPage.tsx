@@ -1,4 +1,9 @@
 // pages/FragmentLibraryPage.tsx
+//
+// ИЗМЕНЕНИЯ:
+// 1. Обёрнута в HeavyOperationErrorBoundary
+// 2. При decodeError показывается MobileInstructionModal
+// 3. Импортирован decodeError из useSharedAudioEngine
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -6,6 +11,8 @@ import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
+import { HeavyOperationErrorBoundary } from "../app/components/HeavyOperationErrorBoundary"
+import { MobileInstructionModal } from "../app/components/MobileInstructionModal"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 
@@ -84,16 +91,25 @@ function SubtitleDisplay({
   )
 }
 
-// --- Main page ---
+// --- Main page (обёрнута в Error Boundary) ---
 export function FragmentLibraryPage() {
+  return (
+    <HeavyOperationErrorBoundary operationName="Fragment Library (audio decoding)">
+      <FragmentLibraryPageInner />
+    </HeavyOperationErrorBoundary>
+  )
+}
+
+function FragmentLibraryPageInner() {
   const { id: audioId } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
   const {
     files,
     loadById, playFragment, pause, play, stop,
-    isReady, isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
+    isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
     volume, setVolume,
+    decodeError,  // НОВОЕ
   } = useSharedAudioEngine()
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
@@ -104,6 +120,11 @@ export function FragmentLibraryPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelValue, setEditingLabelValue] = useState("")
+
+  // НОВОЕ: показать mobile instruction modal при decode error
+  // dismissDecodeHelp — пользователь закрыл модалку вручную
+  const [dismissDecodeHelp, setDismissDecodeHelp] = useState(false)
+  const showDecodeHelp = !!decodeError && !dismissDecodeHelp
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -124,14 +145,26 @@ export function FragmentLibraryPage() {
     }
     const f = seq.fragments[fragIdx]
     const fragment: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
-    setPlayingSeqId(seq.id)
-    setPlayingFragIdx(fragIdx)
-    playingSeqIdRef.current = seq.id
-    playingFragIdxRef.current = fragIdx
     playFragment(fragment)
+    setPlayingFragIdx(fragIdx)
+    playingFragIdxRef.current = fragIdx
   }, [playFragment, stop])
 
-  // Register onEnded callback to auto-play next fragment
+  const handlePlaySequence = useCallback((seq: Sequence) => {
+    setPlayingSeqId(seq.id)
+    playingSeqIdRef.current = seq.id
+    playingFragIdxRef.current = 0
+    setPlayingFragIdx(0)
+    playSequenceFragment(seq, 0)
+  }, [playSequenceFragment])
+
+  const handleStopSequence = useCallback(() => {
+    setPlayingSeqId(null); setPlayingFragIdx(0)
+    playingSeqIdRef.current = null; playingFragIdxRef.current = 0
+    stop()
+  }, [stop])
+
+  // onEnded — next fragment
   useEffect(() => {
     setOnEnded(() => {
       const seqId = playingSeqIdRef.current
@@ -139,45 +172,22 @@ export function FragmentLibraryPage() {
       const seq = sequences.find(s => s.id === seqId)
       if (!seq) return
       const nextIdx = playingFragIdxRef.current + 1
-      if (nextIdx < seq.fragments.length) {
-        playSequenceFragment(seq, nextIdx)
-      } else {
-        setPlayingSeqId(null); setPlayingFragIdx(0)
-        playingSeqIdRef.current = null; playingFragIdxRef.current = 0
-      }
+      playSequenceFragment(seq, nextIdx)
     })
     return () => setOnEnded(null)
-  }, [sequences, playSequenceFragment, setOnEnded])
-
-  const handlePlay = useCallback((seq: Sequence) => {
-    if (playingSeqId === seq.id && isPaused) { play(); return }
-    playSequenceFragment(seq, 0)
-  }, [playingSeqId, isPaused, play, playSequenceFragment])
-
-  const handlePause = useCallback(() => { pause() }, [pause])
-
-  const handleStop = useCallback(() => {
-    stop(); setPlayingSeqId(null); setPlayingFragIdx(0)
-  }, [stop])
-
-  // --- Delete ---
-  const handleDelete = useCallback(async (seqId: string) => {
-    await deleteSequence(seqId); setConfirmDeleteId(null)
-    if (playingSeqId === seqId) handleStop()
-  }, [deleteSequence, playingSeqId, handleStop])
+  }, [sequences, setOnEnded, playSequenceFragment])
 
   // --- Label editing ---
-  const startEditLabel = useCallback((seq: Sequence) => {
-    setEditingLabelId(seq.id); setEditingLabelValue(seq.label)
-  }, [])
-
-  const saveLabel = useCallback(async (seq: Sequence) => {
-    const trimmed = editingLabelValue.trim()
-    if (trimmed && trimmed !== seq.label) await updateSequence({ ...seq, label: trimmed })
+  const handleLabelSave = useCallback(async () => {
+    if (!editingLabelId) return
+    const seq = sequences.find(s => s.id === editingLabelId)
+    if (seq) {
+      await updateSequence({ ...seq, label: editingLabelValue.trim() || seq.label })
+    }
     setEditingLabelId(null)
-  }, [editingLabelValue, updateSequence])
+  }, [editingLabelId, editingLabelValue, sequences, updateSequence])
 
-  // --- Subtitle upload ---
+  // --- Subtitle file upload ---
   const handleSubtitleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -185,115 +195,180 @@ export function FragmentLibraryPage() {
     if (fileInputRef.current) fileInputRef.current.value = ""
   }, [addSubtitleFile])
 
-  // --- Get currently playing fragment ---
-  const playingSeq = playingSeqId ? sequences.find(s => s.id === playingSeqId) : null
-  const currentPlayingFrag = playingSeq && playingFragIdx < playingSeq.fragments.length
-    ? playingSeq.fragments[playingFragIdx] : null
-
-  if (isLoading) return <div style={{ padding: "16px clamp(12px, 4vw, 24px)", maxWidth: "100%", overflow: "hidden" }}>Loading...</div>
+  const fileName = files.find(f => f.id === audioId)?.name ?? "Unknown"
 
   return (
     <div className="page">
-      <button onClick={() => navigate("/")}>← Back</button>
-      <h2>Fragment Library</h2>
-      {audioId && (
-        <p className="file-info">
-          for {files.find(f => f.id === audioId)?.name ?? "unknown file"}
-        </p>
+      <h2>Sequences — {fileName}</h2>
+
+      {/* НОВОЕ: Decode error banner */}
+      {decodeError && (
+        <div style={{
+          padding: "10px 16px",
+          backgroundColor: "#ffebee",
+          border: "1px solid #ef9a9a",
+          borderRadius: 4,
+          marginBottom: 12,
+        }}>
+          <p style={{ color: "#c62828", margin: 0, fontWeight: 500 }}>
+            ⚠ Audio decoding failed
+          </p>
+          <p style={{ color: "#666", fontSize: "0.85rem", margin: "4px 0 8px" }}>
+            {decodeError.message}
+          </p>
+          <p style={{ color: "#666", fontSize: "0.85rem", margin: "0 0 8px" }}>
+            Fragment playback is not available. You can still view sequences and subtitles.
+            Consider preparing the data on a desktop computer.
+          </p>
+          <button
+            onClick={() => setDismissDecodeHelp(false)}
+            className="btn-primary"
+            style={{ backgroundColor: "#ff9800", padding: "4px 12px" }}
+          >
+            How to prepare on desktop
+          </button>
+        </div>
       )}
 
-      {!isReady && <p>Loading audio...</p>}
+      <div className="toolbar">
+        <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
+          + New sequence
+        </button>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: "0.85rem" }}>Subtitles:</span>
+          <input ref={fileInputRef} type="file" accept=".txt,.srt,.vtt" onChange={handleSubtitleUpload} />
+        </label>
+      </div>
 
-      {isReady && (
-        <>
-          <div className="toolbar">
-            <button onClick={() => navigate(`/file/${audioId}/editor`)}>+ New Sequence</button>
-            <button onClick={() => fileInputRef.current?.click()}>+ Add Subtitles</button>
-            <input ref={fileInputRef} type="file" accept=".txt,.sub,.srt" style={{ display: "none" }} onChange={handleSubtitleUpload} />
-            {subtitleFiles.length > 0 && (
-              <span className="file-info">{subtitleFiles.length} subtitle file(s): {subtitleFiles.map(f => f.name).join(", ")}</span>
-            )}
-          </div>
+      {subtitleFiles.length > 0 && (
+        <div style={{ marginBottom: 12, fontSize: "0.85rem", color: "#555" }}>
+          Subtitle files: {subtitleFiles.map(sf => sf.name).join(", ")}
+        </div>
+      )}
 
-          <div style={{ marginBottom: 16 }}>
-            <VolumeControl volume={volume} onVolumeChange={setVolume} />
-          </div>
+      {isLoading && <p>Loading sequences...</p>}
 
-          {!isFragmentsReady && (
-            <div className="decode-indicator">
-              <div className="spinner spinner--decode" />
-              Decoding audio — playback will be available shortly...
-            </div>
-          )}
+      {!isLoading && sequences.length === 0 && (
+        <p style={{ color: "#888" }}>No sequences yet. Create one in the editor.</p>
+      )}
 
-          {sequences.length === 0 && (
-            <p className="empty-state">No sequences yet. Create one in the Fragment Editor.</p>
-          )}
+      {sequences.map(seq => {
+        const isCurrentlyPlaying = playingSeqId === seq.id
+        const currentFragIdx = isCurrentlyPlaying ? playingFragIdx : null
 
-          {sequences.map(seq => {
-            const isThisPlaying = playingSeqId === seq.id && isPlaying
-            const isThisPaused = playingSeqId === seq.id && isPaused
-            const isThisActive = isThisPlaying || isThisPaused
+        return (
+          <div key={seq.id} style={{
+            border: "1px solid #ddd",
+            borderRadius: 4,
+            padding: 12,
+            marginBottom: 8,
+            backgroundColor: isCurrentlyPlaying ? "#fff8e1" : undefined,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {/* Label */}
+              {editingLabelId === seq.id ? (
+                <input
+                  value={editingLabelValue}
+                  onChange={e => setEditingLabelValue(e.target.value)}
+                  onBlur={handleLabelSave}
+                  onKeyDown={e => { if (e.key === "Enter") handleLabelSave() }}
+                  autoFocus
+                  style={{ width: 80, fontWeight: 600 }}
+                />
+              ) : (
+                <span
+                  style={{ fontWeight: 600, cursor: "pointer", minWidth: 30 }}
+                  onClick={() => { setEditingLabelId(seq.id); setEditingLabelValue(seq.label) }}
+                  title="Click to rename"
+                >
+                  #{seq.label}
+                </span>
+              )}
 
-            return (
-              <div key={seq.id} className="seq-card">
-                <div className="seq-bar-wrap" style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
-                  <SequenceBar sequence={seq} duration={duration} playingFragIdx={isThisActive ? playingFragIdx : null} />
+              <span style={{ fontSize: "0.85rem", color: "#888" }}>
+                {seq.fragments.length} fragment{seq.fragments.length !== 1 ? "s" : ""}
+              </span>
 
-                  <button onClick={() => isThisPlaying ? handlePause() : handlePlay(seq)}
-                    title={isThisPlaying ? "Pause" : isFragmentsReady ? "Play" : "Decoding..."}
-                    disabled={!isFragmentsReady && !isThisPlaying}
-                    className="seq-controls__btn"
-                    style={{ opacity: !isFragmentsReady && !isThisPlaying ? 0.3 : 1 }}>
-                    {isThisPlaying ? <PauseIcon /> : <PlayIcon />}
+              <SequenceBar sequence={seq} duration={duration} playingFragIdx={currentFragIdx} />
+
+              {/* Playback controls */}
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                {isCurrentlyPlaying ? (
+                  <>
+                    {isPlaying ? (
+                      <button onClick={() => pause()} title="Pause"><PauseIcon /></button>
+                    ) : isPaused ? (
+                      <button onClick={() => play()} title="Resume"><PlayIcon /></button>
+                    ) : null}
+                    <button onClick={handleStopSequence} title="Stop"><StopIcon /></button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handlePlaySequence(seq)}
+                    disabled={!isFragmentsReady || seq.fragments.length === 0}
+                    title={!isFragmentsReady ? "Audio still decoding..." : "Play sequence"}
+                  >
+                    <PlayIcon />
                   </button>
-
-                  <button onClick={handleStop} title="Stop" disabled={!isThisActive}
-                    className="seq-controls__btn" style={{ opacity: isThisActive ? 1 : 0.3 }}>
-                    <StopIcon />
-                  </button>
-
-                  <button onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit" className="seq-controls__btn">
-                    <EditIcon />
-                  </button>
-
-                  <button onClick={() => setConfirmDeleteId(seq.id)} title="Delete" className="seq-controls__btn" style={{ color: "#d32f2f" }}>
-                    <DeleteIcon />
-                  </button>
-
-                  {editingLabelId === seq.id ? (
-                    <input autoFocus value={editingLabelValue}
-                      onChange={e => setEditingLabelValue(e.target.value)}
-                      onBlur={() => saveLabel(seq)}
-                      onKeyDown={e => { if (e.key === "Enter") saveLabel(seq); if (e.key === "Escape") setEditingLabelId(null) }}
-                      className="seq-label-input" />
-                  ) : (
-                    <span onDoubleClick={() => startEditLabel(seq)} title="Double-click to rename" className="seq-label">{seq.label}</span>
-                  )}
-
-                  <span style={{ fontSize: 11, color: "#888" }}>({seq.fragments.length} frag.)</span>
-                </div>
-
-                {isThisActive && currentPlayingFrag && playingSeqId === seq.id && (
-                  <SubtitleDisplay fragment={currentPlayingFrag} subtitleFiles={subtitleFiles} />
                 )}
               </div>
-            )
-          })}
 
-          {/* Delete confirmation modal */}
-          {confirmDeleteId && (
-            <div className="modal-overlay">
-              <div className="modal-box">
-                <p>Delete this sequence?</p>
-                <div className="modal-actions">
-                  <button className="btn-danger" onClick={() => handleDelete(confirmDeleteId)}>Delete</button>
-                  <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                </div>
-              </div>
+              {/* Edit / Delete */}
+              <button onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit">
+                <EditIcon />
+              </button>
+              <button onClick={() => setConfirmDeleteId(seq.id)} title="Delete" style={{ color: "#d32f2f" }}>
+                <DeleteIcon />
+              </button>
             </div>
-          )}
-        </>
+
+            {/* Playing subtitle */}
+            {isCurrentlyPlaying && currentFragIdx !== null && seq.fragments[currentFragIdx] && (
+              <SubtitleDisplay
+                fragment={seq.fragments[currentFragIdx]}
+                subtitleFiles={subtitleFiles}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      {/* Volume */}
+      {sequences.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <VolumeControl volume={volume} onVolumeChange={setVolume} />
+        </div>
+      )}
+
+      {/* Back */}
+      <div className="player-nav" style={{ marginTop: 16 }}>
+        <button onClick={() => navigate("/")}>← Back to library</button>
+      </div>
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <p>Delete this sequence?</p>
+            <div className="modal-actions">
+              <button onClick={async () => {
+                await deleteSequence(confirmDeleteId)
+                if (playingSeqId === confirmDeleteId) handleStopSequence()
+                setConfirmDeleteId(null)
+              }} className="btn-danger">Delete</button>
+              <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* НОВОЕ: Mobile instruction modal */}
+      {showDecodeHelp && decodeError && (
+        <MobileInstructionModal
+          operationName="Audio decoding"
+          errorMessage={decodeError.message}
+          onClose={() => setDismissDecodeHelp(true)}
+        />
       )}
     </div>
   )

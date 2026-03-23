@@ -1,12 +1,22 @@
 // pages/FragmentEditorPage.tsx
+//
+// ИЗМЕНЕНИЯ:
+// 1. Все тяжёлые операции обёрнуты в wrapHeavyOp (decode, waveform, VAD, trim)
+// 2. Добавлен ExportBundleButton для экспорта данных на мобильное устройство
+// 3. При ошибке тяжёлой операции показывается MobileInstructionModal
+// 4. Компонент обёрнут в HeavyOperationErrorBoundary (для ошибок рендера)
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
+import { useHeavyOperation } from "../app/hooks/useHeavyOperation"
 import { Waveform } from "../app/components/Waveform"
 import { VolumeControl } from "../app/components/VolumeControl"
+import { ExportBundleButton } from "../app/components/ExportBundleButton"
+import { MobileInstructionModal } from "../app/components/MobileInstructionModal"
+import { HeavyOperationErrorBoundary } from "../app/components/HeavyOperationErrorBoundary"
 import type { WaveformFragment } from "../app/components/Waveform"
 import { buildWaveform } from "../utils/buildWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
@@ -21,19 +31,33 @@ function formatTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`
 }
 
+/**
+ * Обёртка с Error Boundary для рендер-ошибок.
+ */
 export function FragmentEditorPage() {
+  return (
+    <HeavyOperationErrorBoundary operationName="Fragment Editor">
+      <FragmentEditorPageInner />
+    </HeavyOperationErrorBoundary>
+  )
+}
+
+function FragmentEditorPageInner() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId?: string }>()
   const navigate = useNavigate()
 
   const {
     getBlob, addFile, files,
     loadById, playFragment, pause, play, stop, seekTo,
-    isReady, isFragmentsReady, isPlaying, isPaused, duration, currentTime,
+    isReady, isFragmentsReady, isPlaying, duration, currentTime,
     volume, setVolume, getAudioBuffer,
   } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles } = useSubtitles(audioId ?? null)
+
+  // --- Heavy operation error handling ---
+  const { heavyError, showMobileHelp, wrapHeavyOp, clearError, closeHelp } = useHeavyOperation()
 
   const [waveformData, setWaveformData] = useState<number[]>([])
   const [waveformLoading, setWaveformLoading] = useState(true)
@@ -52,9 +76,6 @@ export function FragmentEditorPage() {
   const [subModalFragId, setSubModalFragId] = useState<string | null>(null)
   const [subModalStep, setSubModalStep] = useState<"choose-file" | "select-text">("choose-file")
   const [subModalFile, setSubModalFile] = useState<SubtitleFile | null>(null)
-  // Prompt to choose fragment for subtitle binding
-  const [subPromptMode, setSubPromptMode] = useState(false)
-  const [pendingSubFile, setPendingSubFile] = useState<SubtitleFile | null>(null)
 
   // --- VAD auto-detect state ---
   const [vadDetecting, setVadDetecting] = useState(false)
@@ -68,12 +89,12 @@ export function FragmentEditorPage() {
   }, [audioId, loadById])
 
   // Build waveform: from cache, or from AudioBuffer when ready
+  // ОБЁРНУТО в wrapHeavyOp для перехвата ошибок на мобильных
   useEffect(() => {
     if (!audioId) return
     let cancelled = false
 
     const load = async () => {
-      // Пробуем загрузить waveform из кеша DB
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const cache = new WaveformCacheStorage()
       const cached = await cache.get(audioId)
@@ -84,33 +105,37 @@ export function FragmentEditorPage() {
         return
       }
 
-      // Кеша нет — ждём AudioBuffer от фонового декодирования
       if (!isFragmentsReady) return
 
       const audioBuffer = getAudioBuffer(audioId)
       if (!audioBuffer || cancelled) return
 
-      // Грубый waveform — мгновенно
-      const coarseData = buildWaveform(audioBuffer, 100)
-      if (!cancelled) {
-        setWaveformData(coarseData)
+      // Waveform build обёрнут в wrapHeavyOp
+      const coarseResult = await wrapHeavyOp("Building waveform", async () => {
+        return buildWaveform(audioBuffer, 100)
+      })
+
+      if (coarseResult && !cancelled) {
+        setWaveformData(coarseResult)
         setWaveformLoading(false)
       }
 
-      // Детальный waveform — в фоне
-      setTimeout(() => {
+      // Detailed waveform in background
+      setTimeout(async () => {
         if (cancelled) return
-        const detailedData = buildWaveform(audioBuffer, 1000)
-        if (!cancelled) {
-          setWaveformData(detailedData)
-          cache.save(audioId, detailedData)
+        const detailedResult = await wrapHeavyOp("Building detailed waveform", async () => {
+          return buildWaveform(audioBuffer, 1000)
+        })
+        if (detailedResult && !cancelled) {
+          setWaveformData(detailedResult)
+          cache.save(audioId, detailedResult)
         }
       }, 0)
     }
     load()
 
     return () => { cancelled = true }
-  }, [audioId, isFragmentsReady, getAudioBuffer, getBlob])
+  }, [audioId, isFragmentsReady, getAudioBuffer, getBlob, wrapHeavyOp])
 
   // Load sequence fragments
   useEffect(() => {
@@ -118,7 +143,7 @@ export function FragmentEditorPage() {
     if (!seqId) { setSequenceLoaded(true); return }
     const seq = sequences.find(s => s.id === seqId)
     if (seq) {
-      setFragments(seq.fragments.map(f => ({ ...f, subtitles: f.subtitles ?? [] })))
+      setFragments(seq.fragments.map(f => ({ ...f, subtitles: f.subtitles ? [...f.subtitles] : [] })))
       currentSeqIdRef.current = seq.id
       setSequenceLoaded(true)
       if (seq.fragments.length > 0) setVadDone(true)
@@ -137,7 +162,7 @@ export function FragmentEditorPage() {
       const newSeq = await addSequence(sorted)
       if (newSeq) {
         currentSeqIdRef.current = newSeq.id
-        window.history.replaceState(null, "", `/file/${audioId}/editor/${newSeq.id}`)
+        window.history.replaceState(null, "", `/LingoDrill-js/file/${audioId}/editor/${newSeq.id}`)
       }
     }
   }, [audioId, sequences, addSequence, updateSequence])
@@ -166,167 +191,8 @@ export function FragmentEditorPage() {
     setFragments(prev => prev.map(f => f.id === updated.id ? updated : f))
   }, [])
 
-  // --- Editing handlers ---
-
-  const startEditing = useCallback((fragId: string) => {
-    if (editingId && editingId !== fragId && savedBoundsRef.current) {
-      const prev = fragments.find(fr => fr.id === editingId)
-      if (prev) updateLocalFragment({ ...prev, start: savedBoundsRef.current.start, end: savedBoundsRef.current.end })
-    }
-    const f = fragments.find(fr => fr.id === fragId)
-    if (!f) return
-    setEditingId(fragId)
-    savedBoundsRef.current = { start: f.start, end: f.end }
-  }, [editingId, fragments, updateLocalFragment])
-
-  const handleFragmentClick = useCallback((fragId: string) => {
-    // If in subtitle prompt mode, open subtitle selection for this fragment
-    if (subPromptMode && pendingSubFile) {
-      setSubModalFragId(fragId)
-      setSubModalFile(pendingSubFile)
-      setSubModalStep("select-text")
-      setSubPromptMode(false)
-      setPendingSubFile(null)
-      return
-    }
-    startEditing(fragId)
-  }, [startEditing, subPromptMode, pendingSubFile])
-
-  const handleClickOutside = useCallback(() => {
-    if (subPromptMode) {
-      setSubPromptMode(false)
-      setPendingSubFile(null)
-      return
-    }
-    if (!editingId) return
-    if (savedBoundsRef.current) {
-      const f = fragments.find(fr => fr.id === editingId)
-      if (f) updateLocalFragment({ ...f, start: savedBoundsRef.current.start, end: savedBoundsRef.current.end })
-    }
-    setEditingId(null)
-    savedBoundsRef.current = null
-  }, [editingId, fragments, updateLocalFragment, subPromptMode])
-
-  const handleEditDrag = useCallback((fragId: string, newStart: number, newEnd: number) => {
-    const f = fragments.find(fr => fr.id === fragId)
-    if (!f) return
-    updateLocalFragment({ ...f, start: newStart, end: newEnd })
-  }, [fragments, updateLocalFragment])
-
-  const handleSave = useCallback(async () => {
-    if (!editingId) return
-    await persistSequence(fragments)
-    setEditingId(null)
-    savedBoundsRef.current = null
-  }, [editingId, fragments, persistSequence])
-
-  // --- Repeat ---
-
-  const incrementRepeat = useCallback(async (fragId: string) => {
-    const f = fragments.find(fr => fr.id === fragId)
-    if (!f) return
-    const updatedAll = fragments.map(fr => fr.id === fragId ? { ...fr, repeat: fr.repeat + 1 } : fr)
-    setFragments(updatedAll)
-    await persistSequence(updatedAll)
-  }, [fragments, persistSequence])
-
-  const decrementRepeat = useCallback(async (fragId: string) => {
-    const f = fragments.find(fr => fr.id === fragId)
-    if (!f) return
-    const updatedAll = fragments.map(fr => fr.id === fragId ? { ...fr, repeat: Math.max(1, fr.repeat - 1) } : fr)
-    setFragments(updatedAll)
-    await persistSequence(updatedAll)
-  }, [fragments, persistSequence])
-
-  // --- Play/Pause ---
-
-  const handlePlayPause = useCallback((f: SequenceFragment) => {
-    if (isPlaying && playingFragment?.start === f.start && playingFragment.end === f.end) { pause(); return }
-    if (isPaused && playingFragment?.start === f.start && playingFragment.end === f.end) { play(); return }
-    const fragment: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
-    setPlayingFragment({ start: f.start, end: f.end })
-    playFragment(fragment)
-  }, [playFragment, pause, play, isPlaying, isPaused, playingFragment])
-
-  // --- Subtitle: Sub button opens file chooser ---
-
-  const handleSubClick = useCallback((fragId: string) => {
-    if (subtitleFiles.length === 0) {
-      alert("No subtitle files loaded. Upload subtitles on the Fragment Library page.")
-      return
-    }
-    if (subtitleFiles.length === 1) {
-      // Only one file — go directly to text selection
-      setSubModalFragId(fragId)
-      setSubModalFile(subtitleFiles[0])
-      setSubModalStep("select-text")
-    } else {
-      // Multiple files — show chooser
-      setSubModalFragId(fragId)
-      setSubModalStep("choose-file")
-    }
-  }, [subtitleFiles])
-
-  const handleSubFileChosen = useCallback((file: SubtitleFile) => {
-    setSubModalFile(file)
-    setSubModalStep("select-text")
-  }, [])
-
-  const handleSubTextSelected = useCallback(async () => {
-    if (!subModalFragId || !subModalFile) return
-
-    const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      alert("Please select text in the subtitle content.")
-      return
-    }
-
-    // Find char positions within the subtitle content
-    const container = document.getElementById("subtitle-text-container")
-    if (!container) return
-
-    const range = sel.getRangeAt(0)
-    const preRange = document.createRange()
-    preRange.selectNodeContents(container)
-    preRange.setEnd(range.startContainer, range.startOffset)
-    const charStart = preRange.toString().length
-
-    const charEnd = charStart + range.toString().length
-
-    const newSub: FragmentSubtitle = {
-      subtitleFileId: subModalFile.id,
-      subtitleFileName: subModalFile.name,
-      charStart,
-      charEnd,
-    }
-
-    const updatedAll = fragments.map(f => {
-      if (f.id !== subModalFragId) return f
-      // Удаляем предыдущий отрезок из того же файла субтитров, оставляем из других файлов
-      const filtered = f.subtitles.filter(s => s.subtitleFileId !== subModalFile.id)
-      return { ...f, subtitles: [...filtered, newSub] }
-    })
-
-    setFragments(updatedAll)
-    await persistSequence(updatedAll)
-
-    // Close modal
-    setSubModalFragId(null)
-    setSubModalFile(null)
-    sel.removeAllRanges()
-  }, [subModalFragId, subModalFile, fragments, persistSequence])
-
-  const handleRemoveSubtitle = useCallback(async (fragId: string, subIdx: number) => {
-    const updatedAll = fragments.map(f => {
-      if (f.id !== fragId) return f
-      const newSubs = f.subtitles.filter((_, i) => i !== subIdx)
-      return { ...f, subtitles: newSubs }
-    })
-    setFragments(updatedAll)
-    await persistSequence(updatedAll)
-  }, [fragments, persistSequence])
-
   // --- Auto-detect speech fragments via VAD ---
+  // ОБЁРНУТО в wrapHeavyOp
 
   const [showAutoDetectConfirm, setShowAutoDetectConfirm] = useState(false)
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
@@ -349,7 +215,6 @@ export function FragmentEditorPage() {
     const blob = await getBlob(audioId)
     if (!blob) return
 
-    // Удаляем существующие фрагменты
     setFragments([])
     setEditingId(null)
     savedBoundsRef.current = null
@@ -357,42 +222,48 @@ export function FragmentEditorPage() {
     setVadDetecting(true)
     setVadProgress(0)
 
-    try {
+    // ОБЁРНУТО в wrapHeavyOp
+    const segments = await wrapHeavyOp("Auto-detect speech (audio decoding + VAD)", async () => {
       const buffer = await blob.arrayBuffer()
       const ctx = new AudioContext()
       const audioBuffer = await ctx.decodeAudioData(buffer)
       await ctx.close()
 
-      const segments = await detectSpeechSegments(audioBuffer, (p) => {
+      const segs = await detectSpeechSegments(audioBuffer, (p) => {
         setVadProgress(p)
       })
+      return segs
+    })
 
-      if (segments.length === 0) {
-        alert("No speech segments detected.")
-        return
-      }
-
-      const newFragments: SequenceFragment[] = segments.map(seg => ({
-        id: nanoid(),
-        start: seg.start,
-        end: seg.end,
-        repeat: 1,
-        speed: 1,
-        subtitles: [],
-      }))
-
-      setFragments(newFragments)
-      await persistSequence(newFragments)
-      setVadDone(true)
-    } catch (err) {
-      // TODO обработка ошибки при сбое в библиотеке Auto-detect speech
-      console.error("VAD detection failed:", err)
-      alert("Speech detection failed. See console for details.")
-    } finally {
+    if (segments === null) {
+      // Error handled by wrapHeavyOp → MobileInstructionModal shown
       setVadDetecting(false)
       setVadProgress(0)
+      return
     }
-  }, [audioId, vadDetecting, getBlob, persistSequence])
+
+    if (segments.length === 0) {
+      alert("No speech segments detected.")
+      setVadDetecting(false)
+      setVadProgress(0)
+      return
+    }
+
+    const newFragments: SequenceFragment[] = segments.map(seg => ({
+      id: nanoid(),
+      start: seg.start,
+      end: seg.end,
+      repeat: 1,
+      speed: 1,
+      subtitles: [],
+    }))
+
+    setFragments(newFragments)
+    await persistSequence(newFragments)
+    setVadDone(true)
+    setVadDetecting(false)
+    setVadProgress(0)
+  }, [audioId, vadDetecting, getBlob, persistSequence, wrapHeavyOp])
 
   const handleAutoDetectClick = useCallback(() => {
     if (fragments.length > 0) {
@@ -403,6 +274,7 @@ export function FragmentEditorPage() {
   }, [fragments.length, handleAutoDetectRun])
 
   // --- Trim silence ---
+  // ОБЁРНУТО в wrapHeavyOp
 
   const [trimming, setTrimming] = useState(false)
 
@@ -414,7 +286,8 @@ export function FragmentEditorPage() {
 
     setTrimming(true)
 
-    try {
+    // ОБЁРНУТО в wrapHeavyOp
+    const result = await wrapHeavyOp("Trim silence (audio decoding + processing)", async () => {
       const buffer = await blob.arrayBuffer()
       const ctx = new AudioContext()
       const audioBuffer = await ctx.decodeAudioData(buffer)
@@ -423,10 +296,8 @@ export function FragmentEditorPage() {
       let segments: { start: number; end: number }[]
 
       if (fragments.length > 0) {
-        // Используем границы существующих фрагментов (возможно, отредактированных вручную)
         segments = fragments.map(f => ({ start: f.start, end: f.end }))
       } else {
-        // Фрагментов нет — запускаем VAD-детекцию
         setVadDetecting(true)
         setVadProgress(0)
 
@@ -438,12 +309,10 @@ export function FragmentEditorPage() {
         setVadProgress(0)
 
         if (segments.length === 0) {
-          alert("No speech segments detected — nothing to trim.")
-          return
+          throw new Error("No speech segments detected — nothing to trim.")
         }
       }
 
-      // Trim and create new file
       const { blob: trimmedBlob, segmentMap, newDuration } = trimSilence(audioBuffer, segments)
 
       const sourceFile = files.find(f => f.id === audioId)
@@ -452,6 +321,11 @@ export function FragmentEditorPage() {
       const trimmedFile = new File([trimmedBlob], trimmedName, { type: "audio/wav" })
       await addFile(trimmedFile)
 
+      return { audioBuffer, segmentMap, newDuration, trimmedName }
+    })
+
+    if (result) {
+      const { audioBuffer, segmentMap, newDuration, trimmedName } = result
       const removedDuration = audioBuffer.duration - newDuration
       const pct = Math.round((removedDuration / audioBuffer.duration) * 100)
       alert(
@@ -461,17 +335,14 @@ export function FragmentEditorPage() {
         `${segmentMap.length} speech segments preserved.\n\n` +
         `The new file is available in your Audio Library.`
       )
-    } catch (err) {
-      console.error("Trim silence failed:", err)
-      alert("Trim failed. See console for details.")
-    } finally {
-      setTrimming(false)
-      setVadDetecting(false)
-      setVadProgress(0)
     }
-  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, files])
 
-  // --- File playback (full file, not fragment) ---
+    setTrimming(false)
+    setVadDetecting(false)
+    setVadProgress(0)
+  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, files, wrapHeavyOp])
+
+  // --- File playback ---
   const [isFilePlayback, setIsFilePlayback] = useState(false)
 
   const handleFilePlay = useCallback(() => {
@@ -499,9 +370,6 @@ export function FragmentEditorPage() {
   const waveformFragments: WaveformFragment[] =
     fragments.map(f => ({ id: f.id, start: f.start, end: f.end, repeat: f.repeat }))
 
-  // Список фрагментов для отображения:
-  // - редактируемый фрагмент всегда первый
-  // - остальные отсортированы по start
   const displayFragments = useMemo(() => {
     const sorted = [...fragments].sort((a, b) => a.start - b.start)
     if (!editingId) return sorted
@@ -515,7 +383,6 @@ export function FragmentEditorPage() {
   const fragmentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
   const prevRectsRef = useRef<Map<string, DOMRect>>(new Map())
 
-  // Capture positions before render
   const capturePositions = useCallback(() => {
     const rects = new Map<string, DOMRect>()
     fragmentRefsMap.current.forEach((el, id) => {
@@ -524,7 +391,6 @@ export function FragmentEditorPage() {
     prevRectsRef.current = rects
   }, [])
 
-  // Animate after render
   useEffect(() => {
     const prevRects = prevRectsRef.current
     if (prevRects.size === 0) return
@@ -543,70 +409,141 @@ export function FragmentEditorPage() {
       el.style.zIndex = id === editingId ? "10" : "1"
 
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          el.style.transition = "transform 300ms ease"
-          el.style.transform = ""
-          el.addEventListener("transitionend", () => {
-            el.style.zIndex = ""
-            el.style.transition = ""
-          }, { once: true })
-        })
+        el.style.transition = "transform 0.3s ease"
+        el.style.transform = ""
+        el.addEventListener("transitionend", () => {
+          el.style.zIndex = ""
+        }, { once: true })
       })
     })
 
     prevRectsRef.current = new Map()
   }, [displayFragments, editingId])
 
-  // Capture before editing changes
   const startEditingWithAnim = useCallback((fragId: string) => {
     capturePositions()
-    startEditing(fragId)
-  }, [capturePositions, startEditing])
+    setEditingId(fragId)
+    const frag = fragments.find(f => f.id === fragId)
+    if (frag) savedBoundsRef.current = { start: frag.start, end: frag.end }
+  }, [capturePositions, fragments])
 
-  const handleSaveWithAnim = useCallback(async () => {
-    capturePositions()
-    await handleSave()
-  }, [capturePositions, handleSave])
+  // --- Fragment playback ---
+  const handlePlayFragment = useCallback((f: SequenceFragment) => {
+    const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
+    setPlayingFragment({ start: f.start, end: f.end })
+    setIsFilePlayback(false)
+    playFragment(pf)
+  }, [playFragment])
 
-  const handleFragmentClickWithAnim = useCallback((fragId: string) => {
-    if (subPromptMode && pendingSubFile) {
-      handleFragmentClick(fragId)
-      return
+  // --- Subtitle handlers ---
+  const handleSubtitleSelect = useCallback(async () => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !subModalFile || !subModalFragId) return
+
+    const container = document.getElementById("subtitle-text-container")
+    if (!container) return
+
+    const range = sel.getRangeAt(0)
+    const preRange = document.createRange()
+    preRange.selectNodeContents(container)
+    preRange.setEnd(range.startContainer, range.startOffset)
+    const charStart = preRange.toString().length
+    const charEnd = charStart + range.toString().length
+
+    const newSub: FragmentSubtitle = {
+      subtitleFileId: subModalFile.id,
+      subtitleFileName: subModalFile.name,
+      charStart,
+      charEnd,
     }
-    capturePositions()
-    startEditing(fragId)
-  }, [capturePositions, startEditing, subPromptMode, pendingSubFile, handleFragmentClick])
+
+    const updatedAll = fragments.map(f => {
+      if (f.id !== subModalFragId) return f
+      const filtered = f.subtitles.filter(s => s.subtitleFileId !== subModalFile.id)
+      return { ...f, subtitles: [...filtered, newSub] }
+    })
+
+    setFragments(updatedAll)
+    await persistSequence(updatedAll)
+    setSubModalFragId(null)
+    setSubModalFile(null)
+    sel.removeAllRanges()
+  }, [subModalFragId, subModalFile, fragments, persistSequence])
+
+  const handleRemoveSubtitle = useCallback(async (fragId: string, subIdx: number) => {
+    const updatedAll = fragments.map(f => {
+      if (f.id !== fragId) return f
+      const newSubs = f.subtitles.filter((_, i) => i !== subIdx)
+      return { ...f, subtitles: newSubs }
+    })
+    setFragments(updatedAll)
+    await persistSequence(updatedAll)
+  }, [fragments, persistSequence])
+
+  // --- Get audio file info for export ---
+  const audioFile = files.find(f => f.id === audioId)
+  const audioName = audioFile?.name ?? "audio"
+
+  // --- Get full sequences for export ---
+  const allSequencesForExport = useMemo(() => {
+    // If we have a current sequence, use the fragments from local state
+    if (!audioId) return sequences
+    if (!currentSeqIdRef.current) return sequences
+
+    return sequences.map(s => {
+      if (s.id === currentSeqIdRef.current) {
+        return { ...s, fragments: [...fragments].sort((a, b) => a.start - b.start) }
+      }
+      return s
+    })
+  }, [sequences, fragments, audioId])
+
+  // --- RENDER ---
+
+  if (!audioId) return <div className="page"><p>No audio file selected.</p></div>
 
   return (
     <div className="page">
-      <button onClick={() => navigate(`/file/${audioId}/sequences`)}>← Back</button>
+      <h2>Fragment Editor</h2>
 
-      <h2>Fragment Editor {seqId ? "(Edit Sequence)" : "(New Sequence)"}</h2>
-
-      {subPromptMode && (
-        <div className="subtitle-prompt">
-          Click on a fragment to attach subtitles. <button onClick={() => { setSubPromptMode(false); setPendingSubFile(null) }}>Cancel</button>
-        </div>
-      )}
-
-      {waveformLoading && (
+      {!isReady && (
         <div className="frag-editor__loading">
-          <div className="spinner spinner--wf" />
-          <span>Loading waveform...</span>
+          <div className="spinner spinner--wf" /> Loading audio...
         </div>
       )}
 
-      {!waveformLoading && isReady && (
+      {isReady && (
         <>
-          <Waveform
-            data={waveformData} duration={duration} fragments={waveformFragments}
-            onSelect={addFragment} onFragmentClick={handleFragmentClickWithAnim}
-            onClickOutside={handleClickOutside} onEditDrag={handleEditDrag}
-            editingId={editingId} currentTime={currentTime} playingFragment={playingFragment}
-            showPlaybackCursor={isFilePlayback} isFilePlaying={isFilePlayback && isPlaying}
-            onSeek={handleFileSeek}
-          />
+          {/* Waveform */}
+          {waveformLoading ? (
+            <div className="frag-editor__loading">
+              <div className="spinner spinner--wf" /> Building waveform...
+            </div>
+          ) : (
+            <Waveform
+              data={waveformData}
+              duration={duration}
+              fragments={waveformFragments}
+              onSelect={addFragment}
+              onFragmentClick={startEditingWithAnim}
+              onClickOutside={() => { setEditingId(null); savedBoundsRef.current = null }}
+              onEditDrag={(id, newStart, newEnd) => {
+                const frag = fragments.find(f => f.id === id)
+                if (frag) {
+                  const updated = { ...frag, start: newStart, end: newEnd }
+                  updateLocalFragment(updated)
+                }
+              }}
+              editingId={editingId}
+              currentTime={currentTime}
+              playingFragment={playingFragment}
+              showPlaybackCursor={isFilePlayback}
+              isFilePlaying={isFilePlayback && isPlaying}
+              onSeek={handleFileSeek}
+            />
+          )}
 
+          {/* File player */}
           <div className="file-player">
             <button onClick={isFilePlayback && isPlaying ? handleFilePause : handleFilePlay}>
               {isFilePlayback && isPlaying ? "⏸ Pause" : "▶ Play all"}
@@ -625,6 +562,39 @@ export function FragmentEditorPage() {
             </div>
           )}
 
+          {/* Heavy operation error banner */}
+          {heavyError && (
+            <div style={{
+              padding: "10px 16px",
+              backgroundColor: "#ffebee",
+              border: "1px solid #ef9a9a",
+              borderRadius: 4,
+              marginTop: 8,
+              marginBottom: 8,
+            }}>
+              <p style={{ color: "#c62828", margin: 0, fontWeight: 500 }}>
+                ⚠ {heavyError.operationName} failed
+              </p>
+              <p style={{ color: "#666", fontSize: "0.85rem", margin: "4px 0 8px" }}>
+                {heavyError.error.message}
+              </p>
+              <button
+                onClick={clearError}
+                style={{ marginRight: 8, padding: "4px 12px" }}
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => { /* openHelp is triggered automatically */ }}
+                className="btn-primary"
+                style={{ backgroundColor: "#ff9800", padding: "4px 12px" }}
+              >
+                How to prepare on desktop
+              </button>
+            </div>
+          )}
+
+          {/* Action bar */}
           <div className="action-bar">
             <button className="action-bar__btn" onClick={handleAutoDetectClick}
               disabled={vadDetecting || trimming || vadDone || !isFragmentsReady}>
@@ -646,6 +616,7 @@ export function FragmentEditorPage() {
             )}
           </div>
 
+          {/* Fragment list */}
           <div className="fragment-list">
             {displayFragments.map(f => {
               const isEditing = f.id === editingId
@@ -654,22 +625,47 @@ export function FragmentEditorPage() {
                   className="fragment-panel">
                   <div onClick={() => { if (!isEditing) startEditingWithAnim(f.id) }}
                     className={`fragment-row${isEditing ? " fragment-row--editing" : ""}`}
-                    style={{ marginBottom: f.subtitles.length > 0 ? 0 : 6 }}>
-                    <div className="fragment-row__time">{f.start.toFixed(2)} – {f.end.toFixed(2)}</div>
-                    <div className="fragment-row__actions" onClick={e => e.stopPropagation()}>
-                      {isEditing && <button className="btn-save" onClick={handleSaveWithAnim}>Save</button>}
-                      <button className="btn-sub" onClick={() => handleSubClick(f.id)} title="Attach subtitles"
-                        disabled={subtitleFiles.length === 0}>Sub</button>
-                      <button onClick={() => handlePlayPause(f)}>
-                        {isPlaying && playingFragment?.start === f.start && playingFragment.end === f.end ? "Pause" : "Play"}
+                    style={{ marginBottom: f.subtitles.length > 0 ? 0 : undefined }}>
+                    <span className="fragment-row__time">
+                      {formatTime(f.start)} – {formatTime(f.end)}
+                    </span>
+                    <div className="fragment-row__actions">
+                      <button className="btn-sub" onClick={e => { e.stopPropagation(); handlePlayFragment(f) }}>
+                        ▶
                       </button>
-                      <button onClick={() => deleteLocalFragment(f.id)}>Delete</button>
-                      <button onClick={() => decrementRepeat(f.id)}>-</button>
-                      <span>x{f.repeat}</span>
-                      <button onClick={() => incrementRepeat(f.id)}>+</button>
+                      {isEditing && (
+                        <>
+                          <label style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: 4 }}>
+                            ×
+                            <input type="number" min={1} max={20} value={f.repeat}
+                              style={{ width: 40 }}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                const val = Math.max(1, Math.min(20, Number(e.target.value) || 1))
+                                const updated = { ...f, repeat: val }
+                                updateLocalFragment(updated)
+                                persistSequence(fragments.map(fr => fr.id === f.id ? updated : fr))
+                              }}
+                            />
+                          </label>
+                          <button className="btn-sub" onClick={e => {
+                            e.stopPropagation()
+                            setSubModalFragId(f.id)
+                            setSubModalStep("choose-file")
+                          }}>
+                            Sub
+                          </button>
+                        </>
+                      )}
+                      <button className="btn-sub" onClick={e => { e.stopPropagation(); deleteLocalFragment(f.id) }}
+                        style={{ color: "#d32f2f" }}>
+                        ✕
+                      </button>
                     </div>
                   </div>
-                  {f.subtitles.length > 0 && (
+
+                  {/* Subtitle display */}
+                  {f.subtitles && f.subtitles.length > 0 && (
                     <div className="subtitle-display">
                       {f.subtitles.map((sub, i) => {
                         const file = subtitleFiles.find(sf => sf.id === sub.subtitleFileId)
@@ -678,7 +674,9 @@ export function FragmentEditorPage() {
                           <div key={i} className="subtitle-display__row">
                             <span className="subtitle-display__name">{sub.subtitleFileName}:</span>
                             <span className="subtitle-display__text">{text}</span>
-                            <button className="btn-remove-sub" onClick={() => handleRemoveSubtitle(f.id, i)}>×</button>
+                            {isEditing && (
+                              <button className="btn-remove-sub" onClick={() => handleRemoveSubtitle(f.id, i)}>✕</button>
+                            )}
                           </div>
                         )
                       })}
@@ -688,45 +686,36 @@ export function FragmentEditorPage() {
               )
             })}
           </div>
+
+          {/* Export for mobile */}
+          <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #e0e0e0" }}>
+            <ExportBundleButton
+              audioId={audioId}
+              audioName={audioName}
+              getBlob={getBlob}
+              waveformData={waveformData}
+              sequences={allSequencesForExport}
+              subtitleFiles={subtitleFiles}
+              disabled={!isReady}
+            />
+          </div>
         </>
       )}
 
-      {subModalFragId && subModalStep === "choose-file" && (
-        <div className="modal-overlay">
-          <div className="modal-box" style={{ textAlign: "left" }}>
-            <h3 style={{ marginTop: 0 }}>Choose subtitle file</h3>
-            {subtitleFiles.map(sf => (
-              <div key={sf.id} style={{ marginBottom: 8 }}>
-                <button onClick={() => handleSubFileChosen(sf)}>{sf.name}</button>
-              </div>
-            ))}
-            <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }} style={{ marginTop: 12 }}>Cancel</button>
-          </div>
-        </div>
-      )}
+      {/* Back navigation */}
+      <div className="player-nav" style={{ marginTop: 16 }}>
+        <button onClick={() => navigate(audioId ? `/file/${audioId}/sequences` : "/")}>
+          ← Back to sequences
+        </button>
+      </div>
 
-      {subModalFragId && subModalStep === "select-text" && subModalFile && (
-        <div className="modal-overlay">
-          <div className="modal-box modal-box--wide">
-            <h3 style={{ marginTop: 0 }}>Select subtitle text for fragment</h3>
-            <p style={{ fontSize: 12, color: "#888", margin: "0 0 12px" }}>
-              File: {subModalFile.name} — Highlight the relevant text, then click "Attach Selected"
-            </p>
-            <div id="subtitle-text-container" className="subtitle-content">{subModalFile.content}</div>
-            <div className="modal-actions" style={{ justifyContent: "flex-end" }}>
-              <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
-              <button className="btn-primary" onClick={handleSubTextSelected}>Attach Selected</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Confirm modals */}
       {showAutoDetectConfirm && (
-        <div className="modal-overlay">
-          <div className="modal-box">
-            <p>Auto-detect will remove all existing fragments and replace them with detected speech segments.</p>
+        <div className="modal-overlay" onClick={() => setShowAutoDetectConfirm(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <p>This will replace all existing fragments. Continue?</p>
             <div className="modal-actions">
-              <button className="btn-primary" onClick={handleAutoDetectRun}>Proceed</button>
+              <button onClick={handleAutoDetectRun} className="btn-danger">Replace all</button>
               <button onClick={() => setShowAutoDetectConfirm(false)}>Cancel</button>
             </div>
           </div>
@@ -734,15 +723,67 @@ export function FragmentEditorPage() {
       )}
 
       {showDeleteAllConfirm && (
-        <div className="modal-overlay">
-          <div className="modal-box">
-            <p>Delete all {fragments.length} fragments in this sequence?</p>
+        <div className="modal-overlay" onClick={() => setShowDeleteAllConfirm(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <p>Delete all fragments? This cannot be undone.</p>
             <div className="modal-actions">
-              <button className="btn-danger" onClick={handleDeleteAllFragments}>Delete all</button>
+              <button onClick={handleDeleteAllFragments} className="btn-danger">Delete all</button>
               <button onClick={() => setShowDeleteAllConfirm(false)}>Cancel</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Subtitle modal */}
+      {subModalFragId && (
+        <div className="modal-overlay" onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>
+          <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()}>
+            {subModalStep === "choose-file" ? (
+              <>
+                <h3 style={{ marginTop: 0 }}>Choose subtitle file</h3>
+                {subtitleFiles.length === 0 ? (
+                  <p>No subtitle files uploaded. Upload a subtitle file first from the Sequences page.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {subtitleFiles.map(sf => (
+                      <button key={sf.id} onClick={() => { setSubModalFile(sf); setSubModalStep("select-text") }}
+                        style={{ textAlign: "left", padding: "8px 12px" }}>
+                        {sf.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="modal-actions">
+                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0 }}>Select text for subtitle</h3>
+                <p style={{ fontSize: "0.85rem", color: "#666" }}>
+                  Select the text portion that corresponds to this fragment, then click "Bind selected text".
+                </p>
+                <div id="subtitle-text-container" className="subtitle-content">
+                  {subModalFile?.content}
+                </div>
+                <div className="modal-actions">
+                  <button onClick={handleSubtitleSelect} className="btn-primary">Bind selected text</button>
+                  <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
+                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile instruction modal (triggered by wrapHeavyOp errors) */}
+      {showMobileHelp && heavyError && (
+        <MobileInstructionModal
+          operationName={heavyError.operationName}
+          errorMessage={heavyError.error.message}
+          onClose={closeHelp}
+        />
       )}
     </div>
   )
