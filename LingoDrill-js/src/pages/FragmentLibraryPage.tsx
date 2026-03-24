@@ -109,7 +109,7 @@ function FragmentLibraryPageInner() {
     loadById, playFragment, pause, play, stop,
     isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
     volume, setVolume,
-    decodeError,  // НОВОЕ
+    decodeError,
   } = useSharedAudioEngine()
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
@@ -121,8 +121,7 @@ function FragmentLibraryPageInner() {
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelValue, setEditingLabelValue] = useState("")
 
-  // НОВОЕ: показать mobile instruction modal при decode error
-  // dismissDecodeHelp — пользователь закрыл модалку вручную
+  // Показать mobile instruction modal при decode error
   const [dismissDecodeHelp, setDismissDecodeHelp] = useState(false)
   const showDecodeHelp = !!decodeError && !dismissDecodeHelp
 
@@ -201,7 +200,7 @@ function FragmentLibraryPageInner() {
     <div className="page">
       <h2>Sequences — {fileName}</h2>
 
-      {/* НОВОЕ: Decode error banner */}
+      {/* Decode error banner */}
       {decodeError && (
         <div style={{
           padding: "10px 16px",
@@ -362,7 +361,7 @@ function FragmentLibraryPageInner() {
         </div>
       )}
 
-      {/* НОВОЕ: Mobile instruction modal */}
+      {/* Mobile instruction modal */}
       {showDecodeHelp && decodeError && (
         <MobileInstructionModal
           operationName="Audio decoding"

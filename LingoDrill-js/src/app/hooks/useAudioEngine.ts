@@ -32,6 +32,7 @@ export function useAudioEngine(
   const [isPaused, setIsPaused] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
+  const [decodeError, setDecodeError] = useState<Error | null>(null)
 
   const [volume, setVolumeState] = useState<number>(() => {
     const stored = localStorage.getItem("audio-volume")
@@ -155,6 +156,7 @@ export function useAudioEngine(
         webEngine.loadFromBuffer(cached)
         webEngine.setVolume(volumeRef.current)
         setIsFragmentsReady(true)
+        setDecodeError(null)
       } else {
         // Декодируем в фоне — не блокирует UI
         try {
@@ -169,9 +171,11 @@ export function useAudioEngine(
             webEngine.loadFromBuffer(audioBuffer)
             webEngine.setVolume(volumeRef.current)
             setIsFragmentsReady(true)
+            setDecodeError(null)
           }
         } catch (err) {
           console.error("Background decode failed:", err)
+          setDecodeError(err instanceof Error ? err : new Error(String(err)))
         }
       }
     },
@@ -265,5 +269,6 @@ export function useAudioEngine(
     setVolume,
     setOnEnded,
     getAudioBuffer,
+    decodeError,
   }
 }
