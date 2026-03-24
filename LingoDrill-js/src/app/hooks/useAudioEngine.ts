@@ -131,7 +131,7 @@ export function useAudioEngine(
 
       // Шаг 1: HtmlAudioEngine — мгновенная загрузка
       htmlEngine.load(blob)
-      htmlEngine.setVolume(volumeRef.current)  // ← читаем из ref, не из state
+      htmlEngine.setVolume(volumeRef.current)
       loadedIdRef.current = id
 
       // Ждём пока <audio> определит duration
@@ -153,7 +153,7 @@ export function useAudioEngine(
       const cached = bufferCacheRef.current.get(id)
       if (cached) {
         webEngine.loadFromBuffer(cached)
-        webEngine.setVolume(volumeRef.current)  // ← читаем из ref, не из state
+        webEngine.setVolume(volumeRef.current)
         setIsFragmentsReady(true)
       } else {
         // Декодируем в фоне — не блокирует UI
@@ -167,7 +167,7 @@ export function useAudioEngine(
           if (loadedIdRef.current === id) {
             bufferCacheRef.current.set(id, audioBuffer)
             webEngine.loadFromBuffer(audioBuffer)
-            webEngine.setVolume(volumeRef.current)  // ← читаем из ref, не из state
+            webEngine.setVolume(volumeRef.current)
             setIsFragmentsReady(true)
           }
         } catch (err) {
@@ -175,14 +175,17 @@ export function useAudioEngine(
         }
       }
     },
-    [getBlob]  // ← volume убран из зависимостей, используем volumeRef
+    [getBlob]
   )
 
   const play = useCallback(() => {
     if (!isReady) return
-    // Используем html engine для целого файла
-    activeEngineRef.current = "html"
-    htmlEngineRef.current?.play()
+    // Резюмим через тот движок, который сейчас активен
+    if (activeEngineRef.current === "web") {
+      webEngineRef.current?.play()
+    } else {
+      htmlEngineRef.current?.play()
+    }
     setIsPlaying(true)
     setIsPaused(false)
   }, [isReady])
@@ -220,8 +223,9 @@ export function useAudioEngine(
     (fragment: PlayableFragment) => {
       const webEngine = webEngineRef.current
       if (!webEngine || !isFragmentsReady) return
-      // Останавливаем html engine, переключаемся на web
+      // Останавливаем ОБА движка перед запуском нового фрагмента
       htmlEngineRef.current?.stop()
+      webEngine.stop()
       activeEngineRef.current = "web"
       webEngine.playFragment(fragment)
       setIsPlaying(true)

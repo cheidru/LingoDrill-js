@@ -40,6 +40,7 @@ export class HtmlAudioEngine {
   }
 
   stop(): void {
+    console.log('[HtmlEngine] stop() called, paused:', this.audio.paused, 'currentTime:', this.audio.currentTime)
     this.audio.pause()
     this.audio.currentTime = 0
   }

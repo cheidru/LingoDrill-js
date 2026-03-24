@@ -5,6 +5,8 @@
 // 2. Добавлен ExportBundleButton для экспорта данных на мобильное устройство
 // 3. При ошибке тяжёлой операции показывается MobileInstructionModal
 // 4. Компонент обёрнут в HeavyOperationErrorBoundary (для ошибок рендера)
+// 5. Кнопка play фрагмента переключается на pause при воспроизведении
+// 6. При уходе со страницы воспроизведение останавливается
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -49,7 +51,7 @@ function FragmentEditorPageInner() {
   const {
     getBlob, addFile, files,
     loadById, playFragment, pause, play, stop, seekTo,
-    isReady, isFragmentsReady, isPlaying, duration, currentTime,
+    isReady, isFragmentsReady, isPlaying, isPaused, duration, currentTime,
     volume, setVolume, getAudioBuffer,
   } = useSharedAudioEngine()
 
@@ -346,10 +348,11 @@ function FragmentEditorPageInner() {
   const [isFilePlayback, setIsFilePlayback] = useState(false)
 
   const handleFilePlay = useCallback(() => {
+    stop()  // stop any fragment playback, resets activeEngine to html
     setIsFilePlayback(true)
     setPlayingFragment(null)
     play()
-  }, [play])
+  }, [stop, play])
 
   const handleFilePause = useCallback(() => {
     pause()
@@ -429,11 +432,30 @@ function FragmentEditorPageInner() {
 
   // --- Fragment playback ---
   const handlePlayFragment = useCallback((f: SequenceFragment) => {
+    // Останавливаем любое текущее воспроизведение перед запуском нового фрагмента
+    stop()
+    setIsFilePlayback(false)
     const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
     setPlayingFragment({ start: f.start, end: f.end })
-    setIsFilePlayback(false)
     playFragment(pf)
-  }, [playFragment])
+  }, [stop, playFragment])
+
+  const handlePauseFragment = useCallback(() => {
+    pause()
+  }, [pause])
+
+  const handleResumeFragment = useCallback(() => {
+    play()
+  }, [play])
+
+  // Stop playback when leaving the page (unmount)
+  const stopRef = useRef(stop)
+  stopRef.current = stop
+  useEffect(() => {
+    return () => {
+      stopRef.current()
+    }
+  }, [])
 
   // --- Subtitle handlers ---
   const handleSubtitleSelect = useCallback(async () => {
@@ -482,7 +504,7 @@ function FragmentEditorPageInner() {
 
   // --- Get audio file info for export ---
   const audioFile = files.find(f => f.id === audioId)
-  const audioName = audioFile?.name ?? "audio"
+  const audioName = audioFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
 
   // --- Get full sequences for export ---
   const allSequencesForExport = useMemo(() => {
@@ -620,6 +642,10 @@ function FragmentEditorPageInner() {
           <div className="fragment-list">
             {displayFragments.map(f => {
               const isEditing = f.id === editingId
+              const isThisFragPlaying = !isFilePlayback && isPlaying && playingFragment != null &&
+                playingFragment.start === f.start && playingFragment.end === f.end
+              const isThisFragPaused = !isFilePlayback && isPaused && playingFragment != null &&
+                playingFragment.start === f.start && playingFragment.end === f.end
               return (
                 <div key={f.id} ref={el => { if (el) fragmentRefsMap.current.set(f.id, el); else fragmentRefsMap.current.delete(f.id) }}
                   className="fragment-panel">
@@ -630,8 +656,13 @@ function FragmentEditorPageInner() {
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
                     <div className="fragment-row__actions">
-                      <button className="btn-sub" onClick={e => { e.stopPropagation(); handlePlayFragment(f) }}>
-                        ▶
+                      <button className="btn-sub" onClick={e => {
+                        e.stopPropagation()
+                        if (isThisFragPlaying) { handlePauseFragment() }
+                        else if (isThisFragPaused) { handleResumeFragment() }
+                        else { handlePlayFragment(f) }
+                      }}>
+                        {isThisFragPlaying ? "⏸" : "▶"}
                       </button>
                       {isEditing && (
                         <>

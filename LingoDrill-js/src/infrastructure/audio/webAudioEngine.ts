@@ -25,6 +25,12 @@ export class WebAudioEngine implements AudioEngine {
   private onEndedCallback: (() => void) | null = null
   private isStoppingManually = false
 
+  // Монотонно растущий ID сессии воспроизведения.
+  // Инкрементируется при stop() и playFragment().
+  // Все onended/setTimeout callbacks замыкают текущий playbackId
+  // и игнорируются, если он изменился (значит началось новое воспроизведение или был stop).
+  private playbackId = 0
+
   // Состояние для repeat — сохраняется при pause, используется при resume
   private currentFragment: PlayableFragment | null = null
   private repeatsLeft = 0
@@ -74,8 +80,11 @@ export class WebAudioEngine implements AudioEngine {
     this.startTime = this.context.currentTime
     this.startOffset = offset
 
+    const expectedId = this.playbackId
+
     this.source.onended = () => {
       if (this.isStoppingManually) return
+      if (this.playbackId !== expectedId) return
 
       this.playing = false
       this.pausedOffset = 0
@@ -109,6 +118,7 @@ export class WebAudioEngine implements AudioEngine {
       this.source.stop()
     } catch (e) {
       console.log(e)
+      // source may already be stopped
     }
 
     this.source.disconnect()
@@ -137,15 +147,17 @@ export class WebAudioEngine implements AudioEngine {
 
       const fragment = this.currentFragment
       const repsLeft = this.repeatsLeft
+      const expectedId = this.playbackId
 
       this.source.onended = () => {
         if (this.isStoppingManually) return
+        if (this.playbackId !== expectedId) return
 
         if (repsLeft > 0) {
-          // Пауза между повторами
           this.pauseTimer = setTimeout(() => {
             this.pauseTimer = null
             if (this.isStoppingManually) return
+            if (this.playbackId !== expectedId) return
             this.playRepeatCycle(fragment, repsLeft)
           }, FRAGMENT_TRAILING_PAUSE * 1000)
         } else {
@@ -165,6 +177,7 @@ export class WebAudioEngine implements AudioEngine {
 
   /**
    * Запускает цикл повторов фрагмента.
+   * Каждый вызов воспроизводит один повтор, по окончании — следующий (с паузой).
    */
   private playRepeatCycle(fragment: PlayableFragment, repeatsLeft: number) {
     if (!this.buffer || repeatsLeft <= 0) {
@@ -195,15 +208,17 @@ export class WebAudioEngine implements AudioEngine {
     this.isStoppingManually = false
 
     const repsLeft = this.repeatsLeft
+    const expectedId = this.playbackId
 
     this.source.onended = () => {
       if (this.isStoppingManually) return
+      if (this.playbackId !== expectedId) return
 
       if (repsLeft > 0) {
-        // Пауза между повторами
         this.pauseTimer = setTimeout(() => {
           this.pauseTimer = null
           if (this.isStoppingManually) return
+          if (this.playbackId !== expectedId) return
           this.playRepeatCycle(fragment, repsLeft)
         }, FRAGMENT_TRAILING_PAUSE * 1000)
       } else {
@@ -221,6 +236,7 @@ export class WebAudioEngine implements AudioEngine {
     if (!this.buffer) return
 
     this.stopSourceOnly()
+    this.playbackId++  // инвалидируем все старые onended/setTimeout
     this.currentFragment = fragment
     this.repeatsLeft = fragment.repeat
 
@@ -237,30 +253,31 @@ export class WebAudioEngine implements AudioEngine {
 
     this.stopSourceOnly()
     this.playing = false
+    // playbackId НЕ инкрементируется — resume должен продолжить ту же сессию
     // isStoppingManually остаётся true — onended должен быть проигнорирован
     // pausedOffset, fragmentEnd, currentFragment, repeatsLeft сохранены
   }
 
   stop(): void {
     this.stopSourceOnly()
+    this.playbackId++  // инвалидируем все старые onended/setTimeout
     this.playing = false
     this.pausedOffset = 0
     this.startOffset = 0
     this.fragmentEnd = null
     this.currentFragment = null
     this.repeatsLeft = 0
-    this.isStoppingManually = false
   }
 
   seekTo(time: number): void {
     if (!this.buffer) return
     const wasPlaying = this.playing
     this.stopSourceOnly()
+    this.playbackId++  // инвалидируем старые callbacks
     this.pausedOffset = Math.max(0, Math.min(time, this.buffer.duration))
     this.fragmentEnd = null
     this.currentFragment = null
     this.repeatsLeft = 0
-    this.isStoppingManually = false
     if (wasPlaying) {
       this.createSource(this.pausedOffset)
       this.playing = true
