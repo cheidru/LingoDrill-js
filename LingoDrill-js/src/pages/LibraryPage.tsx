@@ -15,8 +15,8 @@ export default function LibraryPage() {
   const handleSelect = useCallback(async (id: string) => { selectFile(id); await loadById(id) }, [selectFile, loadById])
   const handleDelete = useCallback(async (id: string) => {
     await removeFile(id)
-    if (selectedFile?.id === id) { selectFile(null); await loadById(null) }
-  }, [removeFile, selectedFile?.id, selectFile, loadById])
+    if (selectedFile?.id === id) { selectFile(null) }
+  }, [removeFile, selectedFile?.id, selectFile])
 
   // Перезагрузить список файлов после импорта бандла
   const handleImportComplete = useCallback(() => {

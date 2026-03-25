@@ -71,14 +71,15 @@ input[type="range"] {
   touch-action: manipulation;
 }
 
-/* Mobile — увеличиваем размеры для touch */
-@media (max-width: 600px) {
-  html {
-    font-size: 15px;
-  }
-  button {
-    font-size: 0.85rem;
-    padding: 0.45em 0.8em;
-    min-height: 36px;
-  }
+/* ===== Mobile overrides via JS-set class (reliable, ignores broken viewport) ===== */
+html.mobile {
+  font-size: 17px;
+}
+html.mobile h1 { font-size: 1.5rem; }
+html.mobile h2 { font-size: 1.25rem; }
+html.mobile h3 { font-size: 1.05rem; }
+html.mobile button {
+  font-size: 1rem;
+  padding: 0.6em 1.1em;
+  min-height: 44px;
 }

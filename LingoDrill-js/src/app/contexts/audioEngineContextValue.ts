@@ -1,6 +1,6 @@
 // app/contexts/audioEngineContextValue.ts
 //
-// ИЗМЕНЕНИЕ: AudioEngineContextType теперь включает decodeError
+// ИЗМЕНЕНИЕ: AudioEngineContextType теперь включает decodeProgress и decodeError
 
 import { createContext } from "react"
 import type { useAudioEngine } from "../hooks/useAudioEngine"

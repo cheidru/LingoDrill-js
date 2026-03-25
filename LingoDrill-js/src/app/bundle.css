@@ -46,3 +46,29 @@
   border-radius: 8px;
   margin: 12px 0;
 }
+
+/* === Mobile overrides for bundle UI === */
+html.mobile .export-bundle__row {
+  gap: 10px;
+}
+html.mobile .export-bundle__hint {
+  font-size: 0.9rem;
+}
+html.mobile .export-bundle__hint code {
+  font-size: 0.9rem;
+}
+html.mobile .export-bundle__checkbox {
+  gap: 6px;
+  font-size: 1rem;
+  min-height: 44px;
+}
+html.mobile .import-bundle__row {
+  gap: 10px;
+}
+html.mobile .import-bundle__row code {
+  font-size: 0.9rem;
+}
+html.mobile .error-boundary-fallback {
+  padding: 14px;
+  font-size: 1rem;
+}
