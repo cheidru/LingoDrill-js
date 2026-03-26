@@ -7,6 +7,9 @@
 // 2. Добавлен decodeProgress (0..1) для отображения прогресса декодирования.
 // 3. Добавлен AbortController для отмены декодирования при смене файла.
 // 4. decodeError теперь выставляется при ошибке chunked decode.
+// 5. ИСПРАВЛЕНИЕ: loadById пропускает повторную загрузку и decode если тот же
+//    файл уже загружен (или в процессе загрузки). Это предотвращает мгновенное
+//    появление ошибок при навигации между страницами для одного audioId.
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { HtmlAudioEngine } from "../../infrastructure/audio/htmlAudioEngine"
@@ -103,6 +106,14 @@ export function useAudioEngine(
 
   const loadById = useCallback(
     async (id: string) => {
+      // Пропускаем повторную загрузку для того же файла.
+      // При навигации между страницами (Editor ↔ Library) useEffect
+      // каждой страницы вызывает loadById(audioId). Если файл уже загружен
+      // (или decode в процессе/упал), не перезапускаем весь цикл.
+      if (loadedIdRef.current === id) {
+        return
+      }
+
       const blob = await getBlob(id)
       if (!blob) return
 

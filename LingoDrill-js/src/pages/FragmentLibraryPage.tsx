@@ -1,9 +1,12 @@
 // pages/FragmentLibraryPage.tsx
 //
 // ИЗМЕНЕНИЯ:
-// 1. Обёрнута в HeavyOperationErrorBoundary
-// 2. При decodeError показывается MobileInstructionModal
-// 3. Импортирован decodeError из useSharedAudioEngine
+// 1. УДАЛЕНО: HeavyOperationErrorBoundary обёртка (эта страница не декодирует аудио)
+// 2. УДАЛЕНО: decodeError, dismissDecodeHelp, showDecodeHelp, MobileInstructionModal
+// 3. УДАЛЕНО: decode error banner в JSX
+// 4. Страница теперь просто показывает список sequences и позволяет
+//    управлять ими. Воспроизведение фрагментов будет позже вынесено
+//    на отдельную Sequence Player страницу.
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -11,8 +14,6 @@ import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
-import { HeavyOperationErrorBoundary } from "../app/components/HeavyOperationErrorBoundary"
-import { MobileInstructionModal } from "../app/components/MobileInstructionModal"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 
@@ -91,13 +92,9 @@ function SubtitleDisplay({
   )
 }
 
-// --- Main page (обёрнута в Error Boundary) ---
+// --- Main page (без Error Boundary — эта страница не декодирует аудио) ---
 export function FragmentLibraryPage() {
-  return (
-    <HeavyOperationErrorBoundary operationName="Fragment Library (audio decoding)">
-      <FragmentLibraryPageInner />
-    </HeavyOperationErrorBoundary>
-  )
+  return <FragmentLibraryPageInner />
 }
 
 function FragmentLibraryPageInner() {
@@ -109,7 +106,6 @@ function FragmentLibraryPageInner() {
     loadById, playFragment, pause, play, stop,
     isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
     volume, setVolume,
-    decodeError,
   } = useSharedAudioEngine()
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
@@ -120,10 +116,6 @@ function FragmentLibraryPageInner() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelValue, setEditingLabelValue] = useState("")
-
-  // Показать mobile instruction modal при decode error
-  const [dismissDecodeHelp, setDismissDecodeHelp] = useState(false)
-  const showDecodeHelp = !!decodeError && !dismissDecodeHelp
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -199,35 +191,6 @@ function FragmentLibraryPageInner() {
   return (
     <div className="page">
       <h2>Sequences — {fileName}</h2>
-
-      {/* Decode error banner */}
-      {decodeError && (
-        <div style={{
-          padding: "10px 16px",
-          backgroundColor: "#ffebee",
-          border: "1px solid #ef9a9a",
-          borderRadius: 4,
-          marginBottom: 12,
-        }}>
-          <p style={{ color: "#c62828", margin: 0, fontWeight: 500 }}>
-            ⚠ Audio decoding failed
-          </p>
-          <p style={{ color: "#666", fontSize: "0.85rem", margin: "4px 0 8px" }}>
-            {decodeError.message}
-          </p>
-          <p style={{ color: "#666", fontSize: "0.85rem", margin: "0 0 8px" }}>
-            Fragment playback is not available. You can still view sequences and subtitles.
-            Consider preparing the data on a desktop computer.
-          </p>
-          <button
-            onClick={() => setDismissDecodeHelp(false)}
-            className="btn-primary"
-            style={{ backgroundColor: "#ff9800", padding: "4px 12px" }}
-          >
-            How to prepare on desktop
-          </button>
-        </div>
-      )}
 
       <div className="toolbar">
         <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
@@ -359,15 +322,6 @@ function FragmentLibraryPageInner() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Mobile instruction modal */}
-      {showDecodeHelp && decodeError && (
-        <MobileInstructionModal
-          operationName="Audio decoding"
-          errorMessage={decodeError.message}
-          onClose={() => setDismissDecodeHelp(true)}
-        />
       )}
     </div>
   )

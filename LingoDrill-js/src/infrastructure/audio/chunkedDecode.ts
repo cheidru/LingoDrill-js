@@ -19,15 +19,62 @@
 // 4. Probe-чанк 512KB мог быть слишком большим для сжатых форматов на мобильных.
 //    Уменьшен до 256KB с fallback на 128KB.
 // 5. Добавлен signal?.aborted check перед каждой тяжёлой операцией.
-// 6. НОВОЕ: все вызовы decodeAudioData обёрнуты в watchdogDecode с таймаутом 5с.
-//    Если нативный вызов зависает дольше — бросается DecodeTimeoutError ДО того,
-//    как браузер убьёт вкладку (~10-15с watchdog).
-// 7. НОВОЕ: decodeFull() теперь тоже использует watchdogDecode (с увеличенным
-//    таймаутом 8с, т.к. декодирует весь файл).
+// 6. Все вызовы decodeAudioData обёрнуты в watchdogDecode с таймаутом.
+// 7. decodeFull() теперь тоже использует watchdogDecode.
+// 8. ИСПРАВЛЕНИЕ: таймауты адаптивные — на десктопе щедрые (60-120с),
+//    на мобильных короткие (5-8с) чтобы не ждать OOM-kill браузера.
 
 import { watchdogDecode, watchdogRace, DecodeTimeoutError } from "./watchdogDecode"
 
 export { DecodeTimeoutError }
+
+// ---------------------------------------------------------------------------
+// Adaptive timeouts: mobile vs desktop
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect if we're running on a mobile device.
+ * Uses the same heuristic as main.tsx (screen dimension check).
+ */
+function isMobile(): boolean {
+  if (typeof document !== "undefined") {
+    return document.documentElement.classList.contains("mobile")
+  }
+  if (typeof screen !== "undefined") {
+    return Math.min(screen.width, screen.height) < 500
+  }
+  return false
+}
+
+/** Timeout for reading blob into ArrayBuffer */
+function getReadTimeoutMs(blobSize: number): number {
+  if (isMobile()) return 8_000
+  // Desktop: 10s base + 5s per 100MB
+  return 10_000 + Math.ceil(blobSize / (100 * 1e6)) * 5_000
+}
+
+/** Timeout for decoding a single chunk */
+function getChunkTimeoutMs(chunkSizeBytes: number): number {
+  if (isMobile()) return 5_000
+  // Desktop: 15s base + 10s per 10MB of compressed data
+  return 15_000 + Math.ceil(chunkSizeBytes / (10 * 1e6)) * 10_000
+}
+
+/** Timeout for full-file decode */
+function getFullDecodeTimeoutMs(blobSize: number): number {
+  if (isMobile()) return 8_000
+  // Desktop: 30s base + 15s per 10MB
+  return 30_000 + Math.ceil(blobSize / (10 * 1e6)) * 15_000
+}
+
+/** Timeout for probe decode (always small) */
+function getProbeTimeoutMs(): number {
+  return isMobile() ? 3_000 : 10_000
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export interface ChunkedDecodeOptions {
   /** Approximate duration of each chunk in seconds (default: 30) */
@@ -60,7 +107,7 @@ export async function decodeAudioChunked(
     signal,
   } = options
 
-  console.log(`[chunkedDecode] start: ${(blob.size / 1e6).toFixed(1)}MB, ${totalDuration.toFixed(1)}s, chunkSec=${chunkDurationSec}`)
+  console.log(`[chunkedDecode] start: ${(blob.size / 1e6).toFixed(1)}MB, ${totalDuration.toFixed(1)}s, chunkSec=${chunkDurationSec}, mobile=${isMobile()}`)
 
   if (signal?.aborted) {
     throw new DOMException("Decode aborted", "AbortError")
@@ -109,11 +156,11 @@ async function decodeFull(
 
   onProgress?.(0)
 
-  console.log("[decodeFull] calling blob.arrayBuffer()...")
-  // blob.arrayBuffer() can also hang on very large files on mobile
+  const readTimeout = getReadTimeoutMs(blob.size)
+  console.log(`[decodeFull] calling blob.arrayBuffer()... (timeout ${readTimeout}ms)`)
   const arrayBuffer = await watchdogRace(
     blob.arrayBuffer(),
-    8_000,
+    readTimeout,
     "Reading audio file into memory",
   )
   console.log(`[decodeFull] arrayBuffer ready, ${(arrayBuffer.byteLength / 1e6).toFixed(1)}MB`)
@@ -124,11 +171,11 @@ async function decodeFull(
     throw new DOMException("Decode aborted", "AbortError")
   }
 
-  console.log("[decodeFull] calling watchdogDecode (8s timeout)...")
+  const decodeTimeout = getFullDecodeTimeoutMs(blob.size)
+  console.log(`[decodeFull] calling watchdogDecode (${decodeTimeout}ms timeout)...`)
   const ctx = new AudioContext()
   try {
-    // Full file decode gets a longer timeout (8s) but still under browser kill threshold
-    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, 8_000, "full file decode")
+    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, decodeTimeout, "full file decode")
     console.log(`[decodeFull] success! ${audioBuffer.duration.toFixed(1)}s, ${audioBuffer.sampleRate}Hz`)
     onProgress?.(1)
     return audioBuffer
@@ -214,7 +261,8 @@ async function decodeInChunks(
     const start = Math.max(0, byteOffset - overlapBytes)
     const end = Math.min(blob.size, byteOffset + chunkBytes + overlapBytes)
     const chunkBlob = blob.slice(start, end)
-    console.log(`[decodeInChunks] chunk ${i}/${numChunks}: ${((end - start) / 1024).toFixed(0)}KB`)
+    const chunkSizeBytes = end - start
+    console.log(`[decodeInChunks] chunk ${i}/${numChunks}: ${(chunkSizeBytes / 1024).toFixed(0)}KB`)
 
     let chunkBuffer: AudioBuffer | null = null
     const chunkCtx = new AudioContext()
@@ -225,11 +273,11 @@ async function decodeInChunks(
         throw new DOMException("Decode aborted", "AbortError")
       }
 
-      // WATCHDOG: 5s timeout per chunk — throws DecodeTimeoutError before browser kills tab
+      const chunkTimeout = getChunkTimeoutMs(chunkSizeBytes)
       chunkBuffer = await watchdogDecode(
         chunkCtx,
         chunkArrayBuf,
-        5_000,
+        chunkTimeout,
         `chunk ${i}/${numChunks}`,
       )
     } catch (err) {
@@ -300,6 +348,8 @@ async function decodeProbe(
     Math.min(blob.size, 128 * 1024),
   ]
 
+  const probeTimeout = getProbeTimeoutMs()
+
   for (const probeSize of probeSizes) {
     if (signal?.aborted) {
       throw new DOMException("Decode aborted", "AbortError")
@@ -309,8 +359,7 @@ async function decodeProbe(
     const probeCtx = new AudioContext()
     try {
       const probeArrayBuf = await probeBlob.arrayBuffer()
-      // Probe is tiny — 3s watchdog is plenty
-      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, 3_000, "probe decode")
+      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, probeTimeout, "probe decode")
       return { probeBuffer }
     } catch (err) {
       console.warn(`[chunkedDecode] Probe at ${probeSize} bytes failed:`, err)

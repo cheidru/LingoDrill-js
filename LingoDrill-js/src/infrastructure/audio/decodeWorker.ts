@@ -17,24 +17,52 @@
 // Worker → Main:  { channels: Float32Array[], sampleRate: number, duration: number }
 //                 (transferred, zero-copy)
 // Worker → Main:  { error: string }  (при ошибке)
+//
+// ИСПРАВЛЕНИЕ:
+// AudioContext может быть недоступен в контексте Web Worker в некоторых браузерах.
+// Порядок проверки: AudioContext → webkitAudioContext → OfflineAudioContext.
+// OfflineAudioContext требует параметры (channels, length, sampleRate),
+// но мы не знаем их заранее — поэтому используем "достаточно большие" значения.
+// Если ни один конструктор не найден — возвращаем понятную ошибку.
 
 const workerCode = `
 self.onmessage = async function(e) {
   try {
-    const arrayBuffer = e.data.arrayBuffer;
-    const ctx = new (self.AudioContext || self.webkitAudioContext)();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    var arrayBuffer = e.data.arrayBuffer;
+
+    // Determine which AudioContext constructor is available in this worker scope.
+    // AudioContext is available in workers in modern Chrome/Firefox/Safari,
+    // but some older browsers or WebViews only expose OfflineAudioContext.
+    var CtxClass = self.AudioContext || self.webkitAudioContext || null;
+    var ctx;
+
+    if (CtxClass) {
+      ctx = new CtxClass();
+    } else if (self.OfflineAudioContext || self.webkitOfflineAudioContext) {
+      // Fallback: OfflineAudioContext is more widely available in workers.
+      // We need to provide (numberOfChannels, length, sampleRate).
+      // Use generous defaults — the actual decode result determines the real values.
+      var OCtx = self.OfflineAudioContext || self.webkitOfflineAudioContext;
+      ctx = new OCtx(2, 44100 * 60, 44100);
+    } else {
+      self.postMessage({ error: "Web Workers not supported on this device" });
+      return;
+    }
+
+    var audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
     // Extract raw channel data (AudioBuffer is not transferable)
-    const channels = [];
-    const transferList = [];
-    for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
-      const data = audioBuffer.getChannelData(ch).slice(); // copy to own buffer
+    var channels = [];
+    var transferList = [];
+    for (var ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+      var data = audioBuffer.getChannelData(ch).slice(); // copy to own buffer
       channels.push(data);
       transferList.push(data.buffer);
     }
 
-    ctx.close().catch(() => {});
+    if (ctx.close) {
+      ctx.close().catch(function() {});
+    }
 
     self.postMessage({
       channels: channels,

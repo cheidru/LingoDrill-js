@@ -5,6 +5,13 @@
 // При таймауте worker.terminate() мгновенно уничтожает поток
 // вместе со ВСЕЙ памятью нативного декодера.
 // Если Web Workers недоступны — fallback на main-thread decode + ctx.close().
+//
+// ИСПРАВЛЕНИЕ (detached ArrayBuffer):
+// decodeInWorker() передаёт ArrayBuffer воркеру через transfer list,
+// что ОТСОЕДИНЯЕТ (detach) оригинальный буфер. Если воркер падает
+// и нужен fallback на main-thread decode, буфер уже недоступен.
+// Решение: копируем ArrayBuffer ДО передачи в воркер, чтобы fallback
+// мог использовать оригинал.
 
 import { decodeInWorker, resultToAudioBuffer, type WorkerDecodeResult } from "./decodeWorker"
 
@@ -35,9 +42,15 @@ export async function watchdogDecode(
   timeoutMs: number = DEFAULT_WATCHDOG_MS,
   chunkInfo?: string,
 ): Promise<AudioBuffer> {
+  // Копируем буфер ПЕРЕД передачей в воркер.
+  // decodeInWorker() использует transfer list, что отсоединяет (detach) переданный
+  // ArrayBuffer. Если воркер упадёт и нужен fallback на main-thread,
+  // оригинальный arrayBuffer останется доступным.
+  const bufferCopy = arrayBuffer.slice(0)
+
   try {
     const result: WorkerDecodeResult = await decodeInWorker(
-      arrayBuffer,
+      bufferCopy,
       timeoutMs,
       chunkInfo ?? "",
     )
@@ -54,10 +67,16 @@ export async function watchdogDecode(
 
     if (msg.includes("not supported")) {
       console.warn("[watchdogDecode] Workers unavailable, falling back to main thread")
+      // Используем оригинальный arrayBuffer — он НЕ был отсоединён,
+      // т.к. в воркер передали копию.
       return mainThreadDecodeFallback(ctx, arrayBuffer, timeoutMs, chunkInfo)
     }
 
-    throw workerErr
+    // Для любых других ошибок воркера — тоже пробуем fallback на main thread.
+    // Это покрывает случаи когда AudioContext недоступен в воркере,
+    // ошибки формата и прочие проблемы декодирования в воркере.
+    console.warn("[watchdogDecode] Worker decode failed, falling back to main thread:", msg)
+    return mainThreadDecodeFallback(ctx, arrayBuffer, timeoutMs, chunkInfo)
   }
 }
 
@@ -94,20 +113,18 @@ async function mainThreadDecodeFallback(
 
 /**
  * Generic watchdog race for any async operation.
+ * Rejects with DecodeTimeoutError if the promise doesn't resolve within timeoutMs.
  */
 export async function watchdogRace<T>(
   promise: Promise<T>,
-  timeoutMs: number = DEFAULT_WATCHDOG_MS,
-  operationName = "Operation",
+  timeoutMs: number,
+  label?: string,
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error(
-        `${operationName} timed out after ${(timeoutMs / 1000).toFixed(1)}s. ` +
-        `The file may be too large for this device.`
-      ))
+      reject(new DecodeTimeoutError(label))
     }, timeoutMs)
   })
 
