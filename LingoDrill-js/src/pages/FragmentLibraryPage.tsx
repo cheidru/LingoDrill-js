@@ -7,6 +7,7 @@
 // 4. Страница теперь просто показывает список sequences и позволяет
 //    управлять ими. Воспроизведение фрагментов будет позже вынесено
 //    на отдельную Sequence Player страницу.
+// 5. ДОБАВЛЕНО: stop playback при уходе со страницы (unmount)
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -122,6 +123,16 @@ function FragmentLibraryPageInner() {
   useEffect(() => {
     if (audioId) loadById(audioId)
   }, [audioId, loadById])
+
+  // Stop playback when leaving the page (unmount)
+  const stopRef = useRef(stop)
+  useEffect(() => { stopRef.current = stop }, [stop])
+  useEffect(() => {
+    return () => {
+      console.log("[FragmentLibraryPage] unmounting, stopping playback")
+      stopRef.current()
+    }
+  }, [])
 
   // --- Sequence playback ---
 

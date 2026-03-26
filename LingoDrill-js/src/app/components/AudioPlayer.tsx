@@ -1,5 +1,5 @@
 // app/components/AudioPlayer.tsx
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import type { MouseEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { VolumeControl } from "./VolumeControl"
@@ -35,6 +35,17 @@ export function AudioPlayer({ fileId, isReady, isPlaying, duration, currentTime,
   const [hoverHandle, setHoverHandle] = useState(false)
   const progress = duration > 0 ? currentTime / duration : 0
 
+  // Ref for the progress bar element (needed for touch events)
+  const progressBarRef = useRef<HTMLDivElement>(null)
+  // Ref to track touch-dragging state (avoids stale closure issues in touch handlers)
+  const touchDraggingRef = useRef(false)
+  // Ref for duration to avoid stale closures in touch handlers
+  const durationRef = useRef(duration)
+  useEffect(() => { durationRef.current = duration }, [duration])
+  // Ref for onSeek to avoid stale closures
+  const onSeekRef = useRef(onSeek)
+  useEffect(() => { onSeekRef.current = onSeek }, [onSeek])
+
   const getTimeFromEvent = useCallback((e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * duration
@@ -49,6 +60,60 @@ export function AudioPlayer({ fileId, isReady, isPlaying, duration, currentTime,
   const handleBarMouseUp = useCallback(() => setDragging(false), [])
   const handleBarMouseLeave = useCallback(() => { setDragging(false); setHoverHandle(false) }, [])
 
+  // --- Touch event handlers for progress bar sliding ---
+  // Attached via useEffect with isReady dep so we re-attach when the bar appears in DOM.
+  // The progress bar is conditionally rendered inside {isReady && (...)}, so the ref is
+  // null until isReady becomes true. We must re-run this effect when isReady changes.
+
+  useEffect(() => {
+    const bar = progressBarRef.current
+    if (!bar) return
+
+    const getTimeFromTouch = (touch: Touch): number => {
+      const rect = bar.getBoundingClientRect()
+      const ratio = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+      return ratio * durationRef.current
+    }
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return
+      e.preventDefault()
+      touchDraggingRef.current = true
+      setDragging(true)
+      onSeekRef.current(getTimeFromTouch(e.touches[0]))
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchDraggingRef.current || e.touches.length !== 1) return
+      e.preventDefault()
+      onSeekRef.current(getTimeFromTouch(e.touches[0]))
+    }
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!touchDraggingRef.current) return
+      e.preventDefault()
+      touchDraggingRef.current = false
+      setDragging(false)
+    }
+
+    const handleTouchCancel = () => {
+      touchDraggingRef.current = false
+      setDragging(false)
+    }
+
+    bar.addEventListener("touchstart", handleTouchStart, { passive: false })
+    bar.addEventListener("touchmove", handleTouchMove, { passive: false })
+    bar.addEventListener("touchend", handleTouchEnd, { passive: false })
+    bar.addEventListener("touchcancel", handleTouchCancel)
+
+    return () => {
+      bar.removeEventListener("touchstart", handleTouchStart)
+      bar.removeEventListener("touchmove", handleTouchMove)
+      bar.removeEventListener("touchend", handleTouchEnd)
+      bar.removeEventListener("touchcancel", handleTouchCancel)
+    }
+  }, [isReady]) // Re-run when isReady changes so we attach after the bar renders
+
   return (
     <div>
       <h3>Player</h3>
@@ -56,7 +121,10 @@ export function AudioPlayer({ fileId, isReady, isPlaying, duration, currentTime,
       {isReady && (
         <>
           <div className="progress-wrap">
-            <div className="progress-bar" style={{ cursor: hoverHandle || dragging ? "pointer" : "default" }}
+            <div
+              ref={progressBarRef}
+              className="progress-bar"
+              style={{ cursor: hoverHandle || dragging ? "pointer" : "default", touchAction: "none" }}
               onMouseDown={handleBarMouseDown} onMouseMove={handleBarMouseMove} onMouseUp={handleBarMouseUp} onMouseLeave={handleBarMouseLeave}>
               <div className="progress-track">
                 <div className="progress-fill" style={{ width: `${progress * 100}%` }} />

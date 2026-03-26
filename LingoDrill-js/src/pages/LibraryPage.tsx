@@ -1,8 +1,9 @@
 // pages/LibraryPage.tsx
 //
 // ИЗМЕНЕНИЕ: добавлена кнопка ImportBundleButton для загрузки .lingodrill бандлов
+// ИЗМЕНЕНИЕ: добавлен stop playback при уходе со страницы (unmount)
 
-import { useCallback } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { AudioUploader } from "../app/components/AudioUploader"
 import { AudioLibrary } from "../app/components/AudioLibrary"
@@ -11,6 +12,16 @@ import { ImportBundleButton } from "../app/components/ImportBundleButton"
 
 export default function LibraryPage() {
   const { files, selectedFile, isLoading, error, addFile, removeFile, selectFile, isReady, isPlaying, duration, currentTime, loadById, play, stop, seekTo, setVolume, volume, pause } = useSharedAudioEngine()
+
+  // Stop playback when leaving the page (unmount)
+  const stopRef = useRef(stop)
+  useEffect(() => { stopRef.current = stop }, [stop])
+  useEffect(() => {
+    return () => {
+      console.log("[LibraryPage] unmounting, stopping playback")
+      stopRef.current()
+    }
+  }, [])
 
   const handleSelect = useCallback(async (id: string) => { selectFile(id); await loadById(id) }, [selectFile, loadById])
   const handleDelete = useCallback(async (id: string) => {

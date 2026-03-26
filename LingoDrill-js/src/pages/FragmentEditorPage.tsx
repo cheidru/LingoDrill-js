@@ -454,7 +454,7 @@ function FragmentEditorPageInner() {
 
   // Stop playback when leaving the page (unmount)
   const stopRef = useRef(stop)
-  stopRef.current = stop
+  useEffect(() => { stopRef.current = stop }, [stop])
   useEffect(() => {
     return () => {
       stopRef.current()
