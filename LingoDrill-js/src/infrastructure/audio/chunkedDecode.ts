@@ -19,6 +19,15 @@
 // 4. Probe-чанк 512KB мог быть слишком большим для сжатых форматов на мобильных.
 //    Уменьшен до 256KB с fallback на 128KB.
 // 5. Добавлен signal?.aborted check перед каждой тяжёлой операцией.
+// 6. НОВОЕ: все вызовы decodeAudioData обёрнуты в watchdogDecode с таймаутом 5с.
+//    Если нативный вызов зависает дольше — бросается DecodeTimeoutError ДО того,
+//    как браузер убьёт вкладку (~10-15с watchdog).
+// 7. НОВОЕ: decodeFull() теперь тоже использует watchdogDecode (с увеличенным
+//    таймаутом 8с, т.к. декодирует весь файл).
+
+import { watchdogDecode, watchdogRace, DecodeTimeoutError } from "./watchdogDecode"
+
+export { DecodeTimeoutError }
 
 export interface ChunkedDecodeOptions {
   /** Approximate duration of each chunk in seconds (default: 30) */
@@ -51,16 +60,20 @@ export async function decodeAudioChunked(
     signal,
   } = options
 
+  console.log(`[chunkedDecode] start: ${(blob.size / 1e6).toFixed(1)}MB, ${totalDuration.toFixed(1)}s, chunkSec=${chunkDurationSec}`)
+
   if (signal?.aborted) {
     throw new DOMException("Decode aborted", "AbortError")
   }
 
   // If file is small (< 5 seconds or < 1MB), just decode in one shot
   if (totalDuration <= 5 || blob.size < 1_000_000) {
+    console.log("[chunkedDecode] small file → decodeFull")
     return decodeFull(blob, onProgress, signal)
   }
 
   const numChunks = Math.max(1, Math.ceil(totalDuration / chunkDurationSec))
+  console.log(`[chunkedDecode] ${numChunks} chunks`)
 
   // Try chunked approach first
   try {
@@ -70,13 +83,17 @@ export async function decodeAudioChunked(
     if (err instanceof DOMException && err.name === "AbortError") {
       throw err
     }
+    // If timeout — don't retry with full decode (it will be even worse)
+    if (err instanceof DecodeTimeoutError) {
+      throw err
+    }
     console.warn("[chunkedDecode] Chunked approach failed, falling back to full decode:", err)
     return decodeFull(blob, onProgress, signal)
   }
 }
 
 // ---------------------------------------------------------------------------
-// Full decode with yielding
+// Full decode with watchdog
 // ---------------------------------------------------------------------------
 
 async function decodeFull(
@@ -84,25 +101,38 @@ async function decodeFull(
   onProgress?: (p: number) => void,
   signal?: AbortSignal,
 ): Promise<AudioBuffer> {
+  console.log(`[decodeFull] start, blob=${(blob.size / 1e6).toFixed(1)}MB`)
+
   if (signal?.aborted) {
     throw new DOMException("Decode aborted", "AbortError")
   }
 
   onProgress?.(0)
-  const arrayBuffer = await blob.arrayBuffer()
+
+  console.log("[decodeFull] calling blob.arrayBuffer()...")
+  // blob.arrayBuffer() can also hang on very large files on mobile
+  const arrayBuffer = await watchdogRace(
+    blob.arrayBuffer(),
+    8_000,
+    "Reading audio file into memory",
+  )
+  console.log(`[decodeFull] arrayBuffer ready, ${(arrayBuffer.byteLength / 1e6).toFixed(1)}MB`)
+
   onProgress?.(0.1)
 
   if (signal?.aborted) {
     throw new DOMException("Decode aborted", "AbortError")
   }
 
+  console.log("[decodeFull] calling watchdogDecode (8s timeout)...")
   const ctx = new AudioContext()
   try {
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
+    // Full file decode gets a longer timeout (8s) but still under browser kill threshold
+    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, 8_000, "full file decode")
+    console.log(`[decodeFull] success! ${audioBuffer.duration.toFixed(1)}s, ${audioBuffer.sampleRate}Hz`)
     onProgress?.(1)
     return audioBuffer
   } finally {
-    // ИСПРАВЛЕНО: гарантированное закрытие контекста
     try {
       await ctx.close()
     } catch {
@@ -136,15 +166,16 @@ async function decodeInChunks(
   }
 
   // Step 1: Determine format info by decoding a small initial portion.
-  // ИСПРАВЛЕНО: уменьшен probe до 256KB, fallback 128KB для мобильных
+  console.log("[decodeInChunks] probing format...")
   const probeResult = await decodeProbe(blob, signal)
   const { probeBuffer } = probeResult
+  console.log(`[decodeInChunks] probe OK: ${probeBuffer.sampleRate}Hz, ${probeBuffer.numberOfChannels}ch`)
 
   const sampleRate = probeBuffer.sampleRate
   const numberOfChannels = probeBuffer.numberOfChannels
   const totalSamples = Math.ceil(totalDuration * sampleRate)
 
-  // ИСПРАВЛЕНО: Guard против OOM при аллокации выходного буфера
+  // Guard против OOM при аллокации выходного буфера
   if (totalSamples > MAX_OUTPUT_SAMPLES) {
     const maxMinutes = Math.floor(MAX_OUTPUT_SAMPLES / sampleRate / 60)
     throw new Error(
@@ -155,9 +186,9 @@ async function decodeInChunks(
   }
 
   // Step 2: Pre-allocate the output buffer
-  // ИСПРАВЛЕНО: используем AudioBuffer конструктор вместо OfflineAudioContext.createBuffer()
-  // — OfflineAudioContext.createBuffer не поддерживается в некоторых мобильных WebView
+  console.log(`[decodeInChunks] allocating output: ${totalSamples} samples (${(totalSamples * 4 / 1e6).toFixed(1)}MB per ch)`)
   const outputBuffer = createOutputBuffer(numberOfChannels, totalSamples, sampleRate)
+  console.log("[decodeInChunks] allocation OK")
 
   // Step 3: Copy probe data into output
   let samplesWritten = copyBufferData(probeBuffer, outputBuffer, 0)
@@ -183,8 +214,8 @@ async function decodeInChunks(
     const start = Math.max(0, byteOffset - overlapBytes)
     const end = Math.min(blob.size, byteOffset + chunkBytes + overlapBytes)
     const chunkBlob = blob.slice(start, end)
+    console.log(`[decodeInChunks] chunk ${i}/${numChunks}: ${((end - start) / 1024).toFixed(0)}KB`)
 
-    // ИСПРАВЛЕНО: AudioContext создаётся и гарантированно закрывается
     let chunkBuffer: AudioBuffer | null = null
     const chunkCtx = new AudioContext()
     try {
@@ -194,10 +225,20 @@ async function decodeInChunks(
         throw new DOMException("Decode aborted", "AbortError")
       }
 
-      chunkBuffer = await chunkCtx.decodeAudioData(chunkArrayBuf)
+      // WATCHDOG: 5s timeout per chunk — throws DecodeTimeoutError before browser kills tab
+      chunkBuffer = await watchdogDecode(
+        chunkCtx,
+        chunkArrayBuf,
+        5_000,
+        `chunk ${i}/${numChunks}`,
+      )
     } catch (err) {
       // Abort — rethrow immediately
       if (err instanceof DOMException && err.name === "AbortError") {
+        throw err
+      }
+      // Timeout — rethrow (don't silently continue, the device can't handle this)
+      if (err instanceof DecodeTimeoutError) {
         throw err
       }
       // Some formats can't be sliced — this chunk failed.
@@ -207,11 +248,10 @@ async function decodeInChunks(
       onProgress?.((i + 1) / numChunks)
       continue
     } finally {
-      // ИСПРАВЛЕНО: гарантированное закрытие — предотвращает утечку AudioContext
       try {
         await chunkCtx.close()
       } catch {
-        // ignore — context may already be closed
+        // ignore — context may already be closed (e.g. by watchdog)
       }
     }
 
@@ -269,7 +309,8 @@ async function decodeProbe(
     const probeCtx = new AudioContext()
     try {
       const probeArrayBuf = await probeBlob.arrayBuffer()
-      const probeBuffer = await probeCtx.decodeAudioData(probeArrayBuf)
+      // Probe is tiny — 3s watchdog is plenty
+      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, 3_000, "probe decode")
       return { probeBuffer }
     } catch (err) {
       console.warn(`[chunkedDecode] Probe at ${probeSize} bytes failed:`, err)

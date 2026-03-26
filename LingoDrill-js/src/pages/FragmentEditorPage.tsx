@@ -7,6 +7,9 @@
 // 4. Компонент обёрнут в HeavyOperationErrorBoundary (для ошибок рендера)
 // 5. Кнопка play фрагмента переключается на pause при воспроизведении
 // 6. При уходе со страницы воспроизведение останавливается
+// 7. НОВОЕ: raw ctx.decodeAudioData() в handleAutoDetectRun и handleTrimSilence
+//    заменены на safeDecodeAudioBuffer() с watchdog-таймаутом (5с), чтобы
+//    бросить JS-ошибку ДО того, как браузер убьёт вкладку (~10-15с watchdog).
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -23,6 +26,7 @@ import type { WaveformFragment } from "../app/components/Waveform"
 import { buildWaveform } from "../utils/buildWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
 import { trimSilence } from "../utils/trimSilence"
+import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import type { SequenceFragment, FragmentSubtitle, SubtitleFile } from "../core/domain/types"
 import { nanoid } from "nanoid"
@@ -53,6 +57,7 @@ function FragmentEditorPageInner() {
     loadById, playFragment, pause, play, stop, seekTo,
     isReady, isFragmentsReady, isPlaying, isPaused, duration, currentTime,
     volume, setVolume, getAudioBuffer,
+    decodeError,
   } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
@@ -60,6 +65,10 @@ function FragmentEditorPageInner() {
 
   // --- Heavy operation error handling ---
   const { heavyError, showMobileHelp, wrapHeavyOp, clearError, closeHelp } = useHeavyOperation()
+
+  // Decode error from background chunked decode (in useAudioEngine)
+  const [dismissDecodeHelp, setDismissDecodeHelp] = useState(false)
+  const showDecodeHelp = !!decodeError && !dismissDecodeHelp
 
   const [waveformData, setWaveformData] = useState<number[]>([])
   const [waveformLoading, setWaveformLoading] = useState(true)
@@ -225,11 +234,9 @@ function FragmentEditorPageInner() {
     setVadProgress(0)
 
     // ОБЁРНУТО в wrapHeavyOp
+    // ИСПРАВЛЕНО: используем safeDecodeAudioBuffer вместо raw ctx.decodeAudioData
     const segments = await wrapHeavyOp("Auto-detect speech (audio decoding + VAD)", async () => {
-      const buffer = await blob.arrayBuffer()
-      const ctx = new AudioContext()
-      const audioBuffer = await ctx.decodeAudioData(buffer)
-      await ctx.close()
+      const audioBuffer = await safeDecodeAudioBuffer(blob)
 
       const segs = await detectSpeechSegments(audioBuffer, (p) => {
         setVadProgress(p)
@@ -289,11 +296,9 @@ function FragmentEditorPageInner() {
     setTrimming(true)
 
     // ОБЁРНУТО в wrapHeavyOp
+    // ИСПРАВЛЕНО: используем safeDecodeAudioBuffer вместо raw ctx.decodeAudioData
     const result = await wrapHeavyOp("Trim silence (audio decoding + processing)", async () => {
-      const buffer = await blob.arrayBuffer()
-      const ctx = new AudioContext()
-      const audioBuffer = await ctx.decodeAudioData(buffer)
-      await ctx.close()
+      const audioBuffer = await safeDecodeAudioBuffer(blob)
 
       let segments: { start: number; end: number }[]
 
@@ -432,7 +437,6 @@ function FragmentEditorPageInner() {
 
   // --- Fragment playback ---
   const handlePlayFragment = useCallback((f: SequenceFragment) => {
-    // Останавливаем любое текущее воспроизведение перед запуском нового фрагмента
     stop()
     setIsFilePlayback(false)
     const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
@@ -508,7 +512,6 @@ function FragmentEditorPageInner() {
 
   // --- Get full sequences for export ---
   const allSequencesForExport = useMemo(() => {
-    // If we have a current sequence, use the fragments from local state
     if (!audioId) return sequences
     if (!currentSeqIdRef.current) return sequences
 
@@ -537,7 +540,35 @@ function FragmentEditorPageInner() {
       {isReady && (
         <>
           {/* Waveform */}
-          {waveformLoading ? (
+          {decodeError ? (
+            <div style={{
+              padding: "16px",
+              backgroundColor: "#fff3e0",
+              border: "1px solid #ffcc80",
+              borderRadius: 8,
+              marginBottom: 12,
+            }}>
+              <p style={{ color: "#e65100", fontWeight: 600, margin: "0 0 8px" }}>
+                ⚠ Audio decoding failed
+              </p>
+              <p style={{ fontSize: "0.85rem", color: "#666", margin: "0 0 12px" }}>
+                {decodeError.message}
+              </p>
+              <p style={{ fontSize: "0.85rem", color: "#555", margin: "0 0 12px" }}>
+                This file is too large to decode on this device.
+                Prepare the data on a desktop computer and transfer via a <code style={{
+                  background: "#f0f0f0", padding: "1px 4px", borderRadius: 3
+                }}>.lingodrill</code> bundle.
+              </p>
+              <button
+                onClick={() => setDismissDecodeHelp(false)}
+                className="btn-primary"
+                style={{ backgroundColor: "#ff9800" }}
+              >
+                How to prepare on desktop
+              </button>
+            </div>
+          ) : waveformLoading ? (
             <div className="frag-editor__loading">
               <div className="spinner spinner--wf" /> Building waveform...
             </div>
@@ -577,10 +608,24 @@ function FragmentEditorPageInner() {
             )}
           </div>
 
-          {!isFragmentsReady && (
+          {!isFragmentsReady && !decodeError && (
             <div className="decode-indicator">
               <div className="spinner spinner--decode" />
               Decoding audio for fragments...
+            </div>
+          )}
+
+          {decodeError && !isFragmentsReady && (
+            <div style={{
+              marginTop: 8, marginBottom: 8,
+              padding: "8px 12px",
+              fontSize: "0.85rem",
+              color: "#c62828",
+              backgroundColor: "#ffebee",
+              border: "1px solid #ef9a9a",
+              borderRadius: 4,
+            }}>
+              ⚠ Fragment decoding failed: {decodeError.message}
             </div>
           )}
 
@@ -814,6 +859,15 @@ function FragmentEditorPageInner() {
           operationName={heavyError.operationName}
           errorMessage={heavyError.error.message}
           onClose={closeHelp}
+        />
+      )}
+
+      {/* Mobile instruction modal (triggered by background decode error) */}
+      {showDecodeHelp && decodeError && (
+        <MobileInstructionModal
+          operationName="Audio decoding"
+          errorMessage={decodeError.message}
+          onClose={() => setDismissDecodeHelp(true)}
         />
       )}
     </div>
