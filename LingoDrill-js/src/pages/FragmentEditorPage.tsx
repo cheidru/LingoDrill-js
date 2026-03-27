@@ -350,28 +350,41 @@ function FragmentEditorPageInner() {
   }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, files, wrapHeavyOp])
 
   // --- File playback ---
+    // --- File playback ---
   const [isFilePlayback, setIsFilePlayback] = useState(false)
-
+ 
   const handleFilePlay = useCallback(() => {
-    stop()  // stop any fragment playback, resets activeEngine to html
+    // If already in file playback mode and paused — just resume
+    if (isFilePlayback && isPaused) {
+      play()
+      return
+    }
+    // Otherwise stop any fragment playback and start fresh
+    stop()
     setIsFilePlayback(true)
     setPlayingFragment(null)
     play()
-  }, [stop, play])
-
+  }, [stop, play, isFilePlayback, isPaused])
+ 
   const handleFilePause = useCallback(() => {
     pause()
   }, [pause])
-
+ 
   const handleFileStop = useCallback(() => {
     stop()
     setIsFilePlayback(false)
   }, [stop])
-
+ 
   const handleFileSeek = useCallback((time: number) => {
+    const wasPlaying = isPlaying
     seekTo(time)
     setIsFilePlayback(true)
-  }, [seekTo])
+    setPlayingFragment(null)
+    // If was playing, continue playing from new position
+    if (wasPlaying) {
+      play()
+    }
+  }, [seekTo, isPlaying, play])
 
   // --- Waveform and display fragments ---
 
@@ -599,7 +612,7 @@ function FragmentEditorPageInner() {
           {/* File player */}
           <div className="file-player">
             <button onClick={isFilePlayback && isPlaying ? handleFilePause : handleFilePlay}>
-              {isFilePlayback && isPlaying ? "⏸ Pause" : "▶ Play all"}
+              {isFilePlayback && isPlaying ? "⏸ Pause" : isFilePlayback && isPaused ? "▶ Resume" : "▶ Play all"}
             </button>
             <button onClick={handleFileStop} disabled={!isFilePlayback}>⏹ Stop</button>
             <VolumeControl volume={volume} onVolumeChange={setVolume} />

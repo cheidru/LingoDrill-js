@@ -36,8 +36,21 @@ type Props = {
 
 const HANDLE_RADIUS = 6
 const HANDLE_HIT_AREA = 10
+const HANDLE_RADIUS_MOBILE = 12
+const HANDLE_HIT_AREA_MOBILE = 24
+const CURSOR_HANDLE_RADIUS = 6
+const CURSOR_HANDLE_RADIUS_MOBILE = 12
+const CURSOR_HIT_AREA = 15
+const CURSOR_HIT_AREA_MOBILE = 40
 const MIN_ZOOM = 1
 const MAX_ZOOM = 50
+
+// Pinch zoom speed multiplier for touch devices (1 = default OS speed, 2.5 = 2.5× faster)
+// TODO: make configurable via settings menu
+const PINCH_ZOOM_SPEED = 2.5
+
+// Touch gesture timing (ms)
+const LONG_PRESS_MS = 500    // long press to drag/create fragment
 
 export function Waveform({
   data,
@@ -57,6 +70,13 @@ export function Waveform({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+
+  // Mobile detection — same heuristic as main.tsx
+  const isMobile = typeof document !== "undefined" && document.documentElement.classList.contains("mobile")
+  const handleRadius = isMobile ? HANDLE_RADIUS_MOBILE : HANDLE_RADIUS
+  const handleHitArea = isMobile ? HANDLE_HIT_AREA_MOBILE : HANDLE_HIT_AREA
+  const cursorHandleRadius = isMobile ? CURSOR_HANDLE_RADIUS_MOBILE : CURSOR_HANDLE_RADIUS
+  const cursorHitArea = isMobile ? CURSOR_HIT_AREA_MOBILE : CURSOR_HIT_AREA
 
   // Zoom & scroll state
   const [zoom, setZoom] = useState(1)          // 1 = full view
@@ -81,7 +101,34 @@ export function Waveform({
   // Cursor
   const [cursor, setCursor] = useState("crosshair")
 
-  // Pinch zoom state managed inside useEffect
+  // Pinch zoom state managed via refs (must survive useEffect re-runs when zoom/scroll change)
+  const pinchDistRef = useRef<number | null>(null)
+  const pinchInitialDistRef = useRef<number | null>(null)
+  const pinchInitialZoomRef = useRef<number | null>(null)
+  const pinchInitialOffsetRef = useRef<number | null>(null)
+
+  // Touch gesture state managed via refs (must survive useEffect re-runs)
+  const touchActionRef = useRef<"none" | "select" | "drag-handle" | "drag-cursor" | "tap" | "swipe-scroll" | "wait-long">("none")
+  const touchStartXRef = useRef(0)
+  const touchStartYRef = useRef(0)
+  const touchStartClientXRef = useRef(0)
+  const touchMovedRef = useRef(false)
+  const swipeDirectionRef = useRef<boolean | null>(null) // null = undecided, true = horizontal, false = vertical
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const touchStartTimeRef = useRef(0)
+  const touchNearCursorRef = useRef(false)  // was the touch start near the playback cursor?
+  const touchNearHandleRef = useRef<"start" | "end" | null>(null)  // was the touch start near an editing handle?
+
+  // Visual feedback for long-press state
+  const [longPressReady, setLongPressReady] = useState(false)
+
+  // Refs for functions/values used inside touch useEffect
+  // (so the useEffect doesn't re-run when these change during playback)
+  const pxToSecondsRef = useRef<(x: number) => number>(() => 0)
+  const secondsToPxRef = useRef<(sec: number) => number>(() => 0)
+  const getEditingHandleRef = useRef<(x: number) => "start" | "end" | null>(() => null)
+  const getFragmentUnderRef = useRef<(x: number) => string | null>(() => null)
+  const cursorHitAreaRef = useRef(CURSOR_HIT_AREA)
 
   // --- Coordinate helpers ---
 
@@ -118,6 +165,22 @@ export function Waveform({
     ctx.clearRect(0, 0, width, h)
 
     if (!data.length || !duration) return
+
+    // Compute the ratio between canvas internal width and CSS display width
+    // so we can draw visually round circles (canvas pixels are non-square on mobile)
+    const cssWidth = canvas.getBoundingClientRect().width
+    const scaleRatio = cssWidth > 0 ? width / cssWidth : 1
+    const cssHeight = canvas.getBoundingClientRect().height
+    const scaleRatioY = cssHeight > 0 ? h / cssHeight : 1
+    // To draw a circle that looks round on screen, we need to stretch the Y radius
+    // relative to the X radius by the ratio of horizontal-to-vertical scaling
+    const circleYStretch = scaleRatio / scaleRatioY
+
+    /** Draw a circle that appears round on screen despite non-square canvas pixels */
+    const drawRoundCircle = (cx: number, cy: number, radius: number) => {
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, radius, radius / circleYStretch, 0, 0, Math.PI * 2)
+    }
 
     // Draw waveform bars (only visible portion)
     const totalBars = data.length
@@ -166,8 +229,7 @@ export function Waveform({
       if (isEditing) {
         const handleY = h / 2
         ;[startX, endX].forEach(hx => {
-          ctx.beginPath()
-          ctx.arc(hx, handleY, HANDLE_RADIUS, 0, Math.PI * 2)
+          drawRoundCircle(hx, handleY, handleRadius)
           ctx.fillStyle = "rgba(0, 120, 255, 0.9)"
           ctx.fill()
           ctx.strokeStyle = "#fff"
@@ -202,11 +264,24 @@ export function Waveform({
     if (selection) {
       const left = Math.min(selection.startX, selection.endX)
       const right = Math.max(selection.startX, selection.endX)
-      ctx.fillStyle = "rgba(0, 255, 0, 0.25)"
-      ctx.fillRect(left, 0, right - left, h)
-      ctx.strokeStyle = "rgba(0, 200, 0, 0.7)"
-      ctx.lineWidth = 1
-      ctx.strokeRect(left, 0, right - left, h)
+
+      if (right - left < 2) {
+        // Zero-width or near-zero: draw a prominent start marker line
+        ctx.strokeStyle = "#4caf50"
+        ctx.lineWidth = 3
+        ctx.setLineDash([6, 4])
+        ctx.beginPath()
+        ctx.moveTo(left, 0)
+        ctx.lineTo(left, h)
+        ctx.stroke()
+        ctx.setLineDash([])
+      } else {
+        ctx.fillStyle = "rgba(0, 255, 0, 0.25)"
+        ctx.fillRect(left, 0, right - left, h)
+        ctx.strokeStyle = "rgba(0, 200, 0, 0.7)"
+        ctx.lineWidth = 1
+        ctx.strokeRect(left, 0, right - left, h)
+      }
     }
 
     // Playback cursor (red line with handle for full file playback)
@@ -214,15 +289,14 @@ export function Waveform({
       const cursorX = secondsToPx(currentTime)
       if (cursorX >= 0 && cursorX <= width) {
         ctx.strokeStyle = "#f44336"
-        ctx.lineWidth = 2
+        ctx.lineWidth = 3
         ctx.beginPath()
         ctx.moveTo(cursorX, 0)
         ctx.lineTo(cursorX, h)
         ctx.stroke()
 
         // Handle (circle at middle)
-        ctx.beginPath()
-        ctx.arc(cursorX, h / 2, 6, 0, Math.PI * 2)
+        drawRoundCircle(cursorX, h / 2, cursorHandleRadius)
         ctx.fillStyle = "#f44336"
         ctx.fill()
         ctx.strokeStyle = "#fff"
@@ -230,7 +304,7 @@ export function Waveform({
         ctx.stroke()
       }
     }
-  }, [data, fragments, selection, duration, currentTime, playingFragment, editingId, visibleStart, visibleEnd, secondsToPx, showPlaybackCursor, isFilePlaying])
+  }, [data, fragments, selection, duration, currentTime, playingFragment, editingId, visibleStart, visibleEnd, secondsToPx, showPlaybackCursor, isFilePlaying, handleRadius, cursorHandleRadius])
 
   useEffect(() => { draw() }, [draw])
 
@@ -243,10 +317,10 @@ export function Waveform({
     if (!f) return null
     const startX = secondsToPx(f.start)
     const endX = secondsToPx(f.end)
-    if (Math.abs(x - startX) <= HANDLE_HIT_AREA) return "start"
-    if (Math.abs(x - endX) <= HANDLE_HIT_AREA) return "end"
+    if (Math.abs(x - startX) <= handleHitArea) return "start"
+    if (Math.abs(x - endX) <= handleHitArea) return "end"
     return null
-  }, [editingId, fragments, secondsToPx])
+  }, [editingId, fragments, secondsToPx, handleHitArea])
 
   /** Check if x falls inside any fragment */
   const getFragmentUnderPointer = useCallback((x: number): string | null => {
@@ -259,6 +333,13 @@ export function Waveform({
     }
     return null
   }, [fragments, secondsToPx])
+
+  // Keep touch-handler refs in sync (avoids useEffect re-runs during playback)
+  useEffect(() => { pxToSecondsRef.current = pxToSeconds }, [pxToSeconds])
+  useEffect(() => { secondsToPxRef.current = secondsToPx }, [secondsToPx])
+  useEffect(() => { getEditingHandleRef.current = getEditingHandleUnderPointer }, [getEditingHandleUnderPointer])
+  useEffect(() => { getFragmentUnderRef.current = getFragmentUnderPointer }, [getFragmentUnderPointer])
+  useEffect(() => { cursorHitAreaRef.current = cursorHitArea }, [cursorHitArea])
 
   // --- Mouse event helpers ---
 
@@ -276,7 +357,7 @@ export function Waveform({
     // 0) Check if clicking on playback cursor handle
     if (showPlaybackCursor && currentTime !== undefined && onSeek) {
       const cursorX = secondsToPx(currentTime)
-      if (Math.abs(x - cursorX) <= HANDLE_HIT_AREA) {
+      if (Math.abs(x - cursorX) <= cursorHitArea) {
         setDraggingCursor(true)
         return
       }
@@ -325,7 +406,7 @@ export function Waveform({
     // Update cursor
     if (showPlaybackCursor && currentTime !== undefined && onSeek) {
       const cursorX = secondsToPx(currentTime)
-      if (Math.abs(x - cursorX) <= HANDLE_HIT_AREA) {
+      if (Math.abs(x - cursorX) <= cursorHitArea) {
         setCursor("pointer")
         // Skip other cursor checks
         if (!dragging && !isSelecting) return
@@ -442,7 +523,8 @@ export function Waveform({
     return () => container.removeEventListener("wheel", handleWheel)
   }, [applyZoom])
 
-  // --- Touch events (pinch zoom + single-finger selection/drag/tap) ---
+
+  // --- Touch events (pinch zoom + long-press gesture logic) ---
 
   // Refs для доступа к актуальным значениям из touch handlers
   const stateRef = useRef({
@@ -460,14 +542,9 @@ export function Waveform({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    let pinchDist: number | null = null
-    let touchAction: "none" | "select" | "drag-handle" | "drag-cursor" | "tap" | "swipe-scroll" = "none"
-    let touchStartX = 0
-    let touchStartY = 0
-    let touchStartClientX = 0
-    let touchMoved = false
-    // null = undecided, true = horizontal, false = vertical
-    let swipeDirection: boolean | null = null
+    const clearTimers = () => {
+      if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null }
+    }
 
     const getTouchX = (touch: Touch) => {
       const rect = canvas.getBoundingClientRect()
@@ -476,66 +553,94 @@ export function Waveform({
     }
 
     const handleTouchStart = (e: TouchEvent) => {
+
+      // --- 2-finger: pinch zoom ---
       if (e.touches.length === 2) {
-        // Pinch zoom — prevent page zoom
         e.preventDefault()
+        clearTimers()
+        setLongPressReady(false)
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
-        pinchDist = Math.sqrt(dx * dx + dy * dy)
-        touchAction = "none"
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        pinchDistRef.current = dist
+        pinchInitialDistRef.current = dist
+        pinchInitialZoomRef.current = zoomRef.current
+        pinchInitialOffsetRef.current = scrollOffsetRef.current
+        touchActionRef.current = "none"
         return
       }
 
       if (e.touches.length !== 1) return
 
       const x = getTouchX(e.touches[0])
-      touchStartX = x
-      touchStartClientX = e.touches[0].clientX
-      touchStartY = e.touches[0].clientY
-      touchMoved = false
-      swipeDirection = null
+      touchStartXRef.current = x
+      touchStartClientXRef.current = e.touches[0].clientX
+      touchStartYRef.current = e.touches[0].clientY
+      touchMovedRef.current = false
+      swipeDirectionRef.current = null
+      touchStartTimeRef.current = Date.now()
+
+      // Check proximity to cursor and handles at touch-start time
+      // (during playback the cursor moves, so we must check NOW, not after 0.5s)
       const s = stateRef.current
+      touchNearCursorRef.current = false
+      touchNearHandleRef.current = null
 
-      // Check playback cursor
       if (s.showPlaybackCursor && s.currentTime !== undefined && s.onSeek) {
-        const cursorX = secondsToPx(s.currentTime)
-        if (Math.abs(x - cursorX) <= HANDLE_HIT_AREA * 2) {
-          touchAction = "drag-cursor"
-          setDraggingCursor(true)
-          e.preventDefault()
-          return
+        const cursorX = secondsToPxRef.current(s.currentTime)
+        if (Math.abs(x - cursorX) <= cursorHitAreaRef.current) {
+          touchNearCursorRef.current = true
         }
       }
-
-      // Check editing handles
       if (s.editingId) {
-        const side = getEditingHandleUnderPointer(x)
+        const side = getEditingHandleRef.current(x)
         if (side) {
-          touchAction = "drag-handle"
-          setDragging({ id: s.editingId, side })
-          e.preventDefault()
-          return
+          touchNearHandleRef.current = side
         }
       }
 
-      // Tentatively a tap or selection start
-      touchAction = "tap"
+
+      // Start in "tap" state — will transition based on timing and movement
+      touchActionRef.current = "tap"
+      setLongPressReady(false)
+
+      // Long press timer → enables drag or new fragment
+      clearTimers()
+      longPressTimerRef.current = setTimeout(() => {
+        if (touchActionRef.current !== "tap") return // already transitioned to swipe
+        touchActionRef.current = "wait-long"
+        setLongPressReady(true)
+        // Show selection preview line at touch position
+        setSelection({ startX: touchStartXRef.current, endX: touchStartXRef.current })
+      }, LONG_PRESS_MS)
     }
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Pinch zoom
-      if (e.touches.length === 2 && pinchDist !== null) {
+      // --- Pinch zoom ---
+      if (e.touches.length === 2 && pinchDistRef.current !== null && pinchInitialDistRef.current !== null && pinchInitialZoomRef.current !== null && pinchInitialOffsetRef.current !== null) {
         e.preventDefault()
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         const dist = Math.sqrt(dx * dx + dy * dy)
-        const scale = dist / pinchDist
+
+        const ratio = dist / pinchInitialDistRef.current
+        const amplifiedRatio = Math.pow(ratio, PINCH_ZOOM_SPEED)
+        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchInitialZoomRef.current * amplifiedRatio))
 
         const rect = canvas.getBoundingClientRect()
         const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width
 
-        applyZoom(scale, midX)
-        pinchDist = dist
+        const initVisDur = duration / pinchInitialZoomRef.current
+        const initVisStart = pinchInitialOffsetRef.current * duration
+        const secUnderAnchor = initVisStart + midX * initVisDur
+        const newVisDur = duration / newZoom
+        let newScrollOffset = (secUnderAnchor - midX * newVisDur) / duration
+        newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
+
+
+        setZoom(newZoom)
+        setScrollOffset(newScrollOffset)
+        pinchDistRef.current = dist
         return
       }
 
@@ -545,19 +650,20 @@ export function Waveform({
       const currentClientY = e.touches[0].clientY
       const s = stateRef.current
 
-      // Drag playback cursor
-      if (touchAction === "drag-cursor" && s.onSeek) {
+      // --- Already dragging cursor ---
+      if (touchActionRef.current === "drag-cursor" && s.onSeek) {
         e.preventDefault()
-        s.onSeek(pxToSeconds(x))
+        const time = pxToSecondsRef.current(x)
+        s.onSeek(time)
         return
       }
 
-      // Drag editing handle
-      if (touchAction === "drag-handle" && s.dragging) {
+      // --- Already dragging handle ---
+      if (touchActionRef.current === "drag-handle" && s.dragging) {
         e.preventDefault()
         const f = s.fragments.find(fr => fr.id === s.dragging!.id)
         if (!f || !s.onEditDrag) return
-        const newTime = pxToSeconds(x)
+        const newTime = pxToSecondsRef.current(x)
         if (s.dragging.side === "start" && newTime < f.end) {
           s.onEditDrag(f.id, newTime, f.end)
         }
@@ -567,29 +673,47 @@ export function Waveform({
         return
       }
 
-      // Determine swipe direction on first significant movement
-      if (touchAction === "tap" && swipeDirection === null) {
-        const rawDx = Math.abs(currentClientX - touchStartClientX)
-        const rawDy = Math.abs(currentClientY - touchStartY)
+      // --- Already selecting (creating new fragment) ---
+      if (touchActionRef.current === "select") {
+        e.preventDefault()
+        setSelection(prev => prev ? { ...prev, endX: x } : null)
+        return
+      }
 
-        if (rawDx > 8 || rawDy > 8) {
-          swipeDirection = rawDx > rawDy
+      // --- Already scrolling ---
+      if (touchActionRef.current === "swipe-scroll") {
+        e.preventDefault()
+        const deltaClientX = currentClientX - touchStartClientXRef.current
+        touchStartClientXRef.current = currentClientX
 
-          // Horizontal swipe when zoomed in — scroll waveform
-          if (swipeDirection && zoomRef.current > 1) {
-            touchAction = "swipe-scroll"
-            touchMoved = true
-            touchStartClientX = currentClientX
-            e.preventDefault()
-            return
-          }
+        const rect = canvas.getBoundingClientRect()
+        const currentZoom = zoomRef.current
+        const currentOffset = scrollOffsetRef.current
+        const newOffset = currentOffset - (deltaClientX / rect.width) * (1 / currentZoom)
+        const clampedOffset = Math.max(0, Math.min(1 - 1 / currentZoom, newOffset))
+        setScrollOffset(clampedOffset)
+        return
+      }
 
-          // Otherwise start selection (horizontal drag on non-zoomed = new fragment)
-          if (rawDx > 8) {
-            touchAction = "select"
-            touchMoved = true
-            setIsSelecting(true)
-            setSelection({ startX: touchStartX, endX: x })
+      // --- "tap" state: finger moved before long press → swipe-scroll ---
+      // UNLESS the touch started near the cursor or a handle — then ignore
+      // small movements and wait for the long press timer to fire
+      if (touchActionRef.current === "tap") {
+        const rawDx = Math.abs(currentClientX - touchStartClientXRef.current)
+        const rawDy = Math.abs(currentClientY - touchStartYRef.current)
+
+        // If near a draggable target, tolerate more movement to allow long press
+        const nearDraggable = touchNearCursorRef.current || touchNearHandleRef.current !== null
+        const threshold = nearDraggable ? 40 : 8
+
+        if (rawDx > threshold || rawDy > threshold) {
+          clearTimers()
+          setLongPressReady(false)
+          touchMovedRef.current = true
+
+          if (rawDx >= rawDy) {
+            touchActionRef.current = "swipe-scroll"
+            touchStartClientXRef.current = currentClientX
             e.preventDefault()
           }
           return
@@ -597,48 +721,74 @@ export function Waveform({
         return
       }
 
-      // Continue swipe-scroll
-      if (touchAction === "swipe-scroll") {
-        e.preventDefault()
-        const deltaClientX = currentClientX - touchStartClientX
-        touchStartClientX = currentClientX
+      // --- "wait-long" state: finger moved after long press ---
+      // Priority: cursor > editing handle > new fragment
+      // Proximity was checked at touch-start time (touchNearCursorRef, touchNearHandleRef)
+      // so moving cursor during playback doesn't break the detection
+      if (touchActionRef.current === "wait-long") {
+        const rawDx = Math.abs(currentClientX - touchStartClientXRef.current)
+        const rawDy = Math.abs(currentClientY - touchStartYRef.current)
 
-        const rect = canvas.getBoundingClientRect()
-        const currentZoom = zoomRef.current
-        const currentOffset = scrollOffsetRef.current
-        // Convert pixel delta to normalized offset
-        const newOffset = currentOffset - (deltaClientX / rect.width) * (1 / currentZoom)
-        const clampedOffset = Math.max(0, Math.min(1 - 1 / currentZoom, newOffset))
-        setScrollOffset(clampedOffset)
+        if (rawDx > 5 || rawDy > 5) {
+          clearTimers()
+          setLongPressReady(false)
+
+          // 1) Grab playback cursor (proximity was checked at touch start)
+          if (touchNearCursorRef.current && s.onSeek) {
+            touchActionRef.current = "drag-cursor"
+            setDraggingCursor(true)
+            setSelection(null)
+            // Immediately seek to touch position so cursor snaps to finger
+            s.onSeek(pxToSecondsRef.current(x))
+            e.preventDefault()
+            return
+          }
+
+          // 2) Grab editing handle (proximity was checked at touch start)
+          if (touchNearHandleRef.current && s.editingId) {
+            touchActionRef.current = "drag-handle"
+            setDragging({ id: s.editingId, side: touchNearHandleRef.current })
+            setSelection(null)
+            e.preventDefault()
+            return
+          }
+
+          // 3) Not near cursor or handle → create new fragment
+          touchActionRef.current = "select"
+          touchMovedRef.current = true
+          setIsSelecting(true)
+          setSelection({ startX: touchStartXRef.current, endX: x })
+          e.preventDefault()
+        }
         return
-      }
-
-      // Continue selection
-      if (touchAction === "select") {
-        e.preventDefault()
-        setSelection(prev => prev ? { ...prev, endX: x } : null)
       }
     }
 
     const handleTouchEnd = (e: TouchEvent) => {
+      clearTimers()
+      setLongPressReady(false)
+
       // Pinch end
-      if (pinchDist !== null && e.touches.length < 2) {
-        pinchDist = null
+      if (pinchDistRef.current !== null && e.touches.length < 2) {
+        pinchDistRef.current = null
+        pinchInitialDistRef.current = null
+        pinchInitialZoomRef.current = null
+        pinchInitialOffsetRef.current = null
       }
 
       const s = stateRef.current
 
-      if (touchAction === "drag-cursor") {
+      if (touchActionRef.current === "drag-cursor") {
         setDraggingCursor(false)
       }
 
-      if (touchAction === "drag-handle") {
+      if (touchActionRef.current === "drag-handle") {
         setDragging(null)
       }
 
-      if (touchAction === "select" && s.selection) {
-        const start = pxToSeconds(s.selection.startX)
-        const end = pxToSeconds(s.selection.endX)
+      if (touchActionRef.current === "select" && s.selection) {
+        const start = pxToSecondsRef.current(s.selection.startX)
+        const end = pxToSecondsRef.current(s.selection.endX)
         setSelection(null)
         setIsSelecting(false)
         if (s.onSelect && Math.abs(end - start) > 0.05) {
@@ -646,9 +796,13 @@ export function Waveform({
         }
       }
 
-      // Tap (no movement) — handle fragment click / click outside
-      if (touchAction === "tap" && !touchMoved) {
-        const fragId = getFragmentUnderPointer(touchStartX)
+      // Tap or wait-long without drag — handle fragment click / click outside
+      if ((touchActionRef.current === "tap" || touchActionRef.current === "wait-long") && !touchMovedRef.current) {
+        // Clear selection preview from wait-long
+        setSelection(null)
+        setIsSelecting(false)
+
+        const fragId = getFragmentUnderRef.current(touchStartXRef.current)
         if (fragId) {
           if (fragId !== s.editingId) {
             s.onFragmentClick?.(fragId)
@@ -658,19 +812,21 @@ export function Waveform({
         }
       }
 
-      touchAction = "none"
-      swipeDirection = null
+      touchActionRef.current = "none"
+      swipeDirectionRef.current = null
     }
 
     canvas.addEventListener("touchstart", handleTouchStart, { passive: false })
     canvas.addEventListener("touchmove", handleTouchMove, { passive: false })
     canvas.addEventListener("touchend", handleTouchEnd)
     return () => {
+      clearTimers()
       canvas.removeEventListener("touchstart", handleTouchStart)
       canvas.removeEventListener("touchmove", handleTouchMove)
       canvas.removeEventListener("touchend", handleTouchEnd)
     }
-  }, [applyZoom, pxToSeconds, secondsToPx, getEditingHandleUnderPointer, getFragmentUnderPointer])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div
@@ -697,6 +853,20 @@ export function Waveform({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       />
+
+      {/* Long-press visual feedback indicator */}
+      {longPressReady && (
+        <div style={{
+          textAlign: "center",
+          padding: "4px 0",
+          fontSize: "12px",
+          fontWeight: 600,
+          color: "#4caf50",
+        }}>
+          🟢 Hold steady… now drag to act
+        </div>
+      )}
+
       {/* Scrollbar — only visible when zoomed */}
       {zoom > 1 && (
         <input
