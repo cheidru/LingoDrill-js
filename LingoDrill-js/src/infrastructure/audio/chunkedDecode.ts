@@ -119,6 +119,25 @@ export async function decodeAudioChunked(
     return decodeFull(blob, onProgress, signal)
   }
 
+// WAV/PCM files cannot be split into chunks — each chunk needs the WAV header.
+// Detect by MIME type or by checking the RIFF/WAVE magic bytes.
+  if (blob.type === "audio/wav" || blob.type === "audio/wave" || blob.type === "audio/x-wav") {
+    console.log("[chunkedDecode] WAV file detected (by MIME type) → decodeFull")
+    return decodeFull(blob, onProgress, signal)
+  }
+  // Also check magic bytes for WAV files that might have wrong/missing MIME type
+  try {
+    const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
+    const riff = String.fromCharCode(header[0], header[1], header[2], header[3])
+    const wave = String.fromCharCode(header[8], header[9], header[10], header[11])
+    if (riff === "RIFF" && wave === "WAVE") {
+      console.log("[chunkedDecode] WAV file detected (by magic bytes) → decodeFull")
+      return decodeFull(blob, onProgress, signal)
+    }
+  } catch {
+    // ignore — proceed with chunked decode
+  }
+
   const numChunks = Math.max(1, Math.ceil(totalDuration / chunkDurationSec))
   console.log(`[chunkedDecode] ${numChunks} chunks`)
 

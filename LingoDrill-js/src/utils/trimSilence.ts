@@ -4,6 +4,7 @@ import type { SpeechSegment } from "./detectSpeech"
 
 /**
  * Склеивает только речевые сегменты из AudioBuffer в новый WAV Blob.
+ * Gaps between segments shorter than minGapSeconds are preserved (not trimmed).
  * Возвращает Blob (audio/wav) и маппинг старых таймкодов в новые.
  */
 export interface TrimResult {
@@ -12,7 +13,12 @@ export interface TrimResult {
   segmentMap: { oldStart: number; oldEnd: number; newStart: number; newEnd: number }[]
   /** Длительность нового файла в секундах */
   newDuration: number
+  /** First channel PCM data of the trimmed audio (for waveform building) */
+  channelData: Float32Array
 }
+
+/** Minimum gap duration (in seconds) to be removed. Gaps shorter than this are kept. */
+const MIN_GAP_TO_TRIM = 5
 
 export function trimSilence(
   audioBuffer: AudioBuffer,
@@ -39,11 +45,28 @@ export function trimSilence(
     }
   }
 
+  // Second pass: also merge segments whose gap is less than MIN_GAP_TO_TRIM seconds.
+  // This preserves short pauses between fragments (e.g. natural speech pauses).
+  const mergedWithShortGaps: { start: number; end: number }[] = []
+  for (const seg of merged) {
+    if (mergedWithShortGaps.length > 0) {
+      const prev = mergedWithShortGaps[mergedWithShortGaps.length - 1]
+      const gap = seg.start - prev.end
+      if (gap < MIN_GAP_TO_TRIM) {
+        // Gap is short — merge by extending the previous segment to cover the gap
+        console.log(`[trimSilence] Preserving short gap: ${gap.toFixed(2)}s (< ${MIN_GAP_TO_TRIM}s) between ${prev.end.toFixed(2)}s and ${seg.start.toFixed(2)}s`)
+        prev.end = Math.max(prev.end, seg.end)
+        continue
+      }
+    }
+    mergedWithShortGaps.push({ ...seg })
+  }
+
   // Calculate total samples needed
   let totalSamples = 0
   const segmentMap: TrimResult["segmentMap"] = []
 
-  for (const seg of merged) {
+  for (const seg of mergedWithShortGaps) {
     const segSamples = Math.round((seg.end - seg.start) * sampleRate)
     const newStart = totalSamples / sampleRate
     const newEnd = newStart + (seg.end - seg.start)
@@ -63,7 +86,7 @@ export function trimSilence(
     const channelIn = audioBuffer.getChannelData(ch)
     let writeOffset = 0
 
-    for (const seg of merged) {
+    for (const seg of mergedWithShortGaps) {
       const startSample = Math.round(seg.start * sampleRate)
       const endSample = Math.round(seg.end * sampleRate)
       const length = endSample - startSample
@@ -81,7 +104,7 @@ export function trimSilence(
   const blob = encodeWav(channelArrays, sampleRate)
   const newDuration = totalSamples / sampleRate
 
-  return { blob, segmentMap, newDuration }
+  return { blob, segmentMap, newDuration, channelData: channelArrays[0] }
 }
 
 /**

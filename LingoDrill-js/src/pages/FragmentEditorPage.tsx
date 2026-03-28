@@ -32,7 +32,7 @@ import { detectSpeechSegments } from "../utils/detectSpeech"
 import { trimSilence } from "../utils/trimSilence"
 import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
-import type { SequenceFragment, FragmentSubtitle, SubtitleFile } from "../core/domain/types"
+import type { SequenceFragment, FragmentSubtitle, SubtitleFile, Sequence } from "../core/domain/types"
 import { nanoid } from "nanoid"
 
 function formatTime(sec: number): string {
@@ -293,6 +293,15 @@ function FragmentEditorPageInner() {
   // ОБЁРНУТО в wrapHeavyOp
 
   const [trimming, setTrimming] = useState(false)
+  const [trimResultInfo, setTrimResultInfo] = useState<{
+    trimmedName: string
+    originalDuration: number
+    newDuration: number
+    removedDuration: number
+    pct: number
+    segmentCount: number
+    newAudioId: string | null
+  } | null>(null)
 
   const handleTrimSilence = useCallback(async () => {
     if (!audioId || trimming || vadDetecting) return
@@ -303,7 +312,6 @@ function FragmentEditorPageInner() {
     setTrimming(true)
 
     // ОБЁРНУТО в wrapHeavyOp
-    // ИСПРАВЛЕНО: используем safeDecodeAudioBuffer вместо raw ctx.decodeAudioData
     const result = await wrapHeavyOp("Trim silence (audio decoding + processing)", async () => {
       const audioBuffer = await safeDecodeAudioBuffer(blob)
 
@@ -327,34 +335,116 @@ function FragmentEditorPageInner() {
         }
       }
 
-      const { blob: trimmedBlob, segmentMap, newDuration } = trimSilence(audioBuffer, segments)
+      const { blob: trimmedBlob, segmentMap, newDuration, channelData } = trimSilence(audioBuffer, segments)
 
       const sourceFile = files.find(f => f.id === audioId)
       const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
       const trimmedName = `${baseName}_trimmed.wav`
       const trimmedFile = new File([trimmedBlob], trimmedName, { type: "audio/wav" })
-      await addFile(trimmedFile)
 
-      return { audioBuffer, segmentMap, newDuration, trimmedName }
+      // Save the trimmed file via addFile (updates both IndexedDB and UI state)
+      const newAudioId = crypto.randomUUID()
+      await addFile(trimmedFile, newAudioId)
+
+      // --- Build and cache waveform for the trimmed file ---
+      const { buildWaveformFromRaw } = await import("../utils/buildWaveformProgressive")
+      const trimmedWaveform = buildWaveformFromRaw(channelData, channelData.length, 1000)
+      const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
+      const waveformCache = new WaveformCacheStorage()
+      await waveformCache.save(newAudioId, trimmedWaveform)
+      console.log("[FragmentEditor] Built and cached waveform for trimmed file")
+
+      // --- Copy subtitle files for the new audio ID and build ID mapping ---
+      const subIdMap = new Map<string, string>() // old subtitle file ID → new subtitle file ID
+      if (subtitleFiles.length > 0) {
+        const { IndexedDBSubtitleStorage } = await import("../infrastructure/indexeddb/IndexedDBSubtitleStorage")
+        const subStorage = new IndexedDBSubtitleStorage()
+        for (const sf of subtitleFiles) {
+          const newSubId = nanoid()
+          subIdMap.set(sf.id, newSubId)
+          const newSub: SubtitleFile = {
+            id: newSubId,
+            audioId: newAudioId,
+            name: sf.name,
+            content: sf.content,
+            createdAt: Date.now(),
+          }
+          await subStorage.save(newSub)
+        }
+        console.log("[FragmentEditor] Copied", subtitleFiles.length, "subtitle files for trimmed audio")
+      }
+
+      // --- Remap fragments with subtitles to the new trimmed timeline ---
+      // Helper: convert an old time to the new trimmed time using segmentMap
+      const remapTime = (oldTime: number): number | null => {
+        for (const seg of segmentMap) {
+          if (oldTime >= seg.oldStart && oldTime <= seg.oldEnd) {
+            const offset = oldTime - seg.oldStart
+            return seg.newStart + offset
+          }
+        }
+        return null // time falls in a removed gap
+      }
+
+      const remappedFragments: SequenceFragment[] = []
+      for (const frag of fragments) {
+        const newStart = remapTime(frag.start)
+        const newEnd = remapTime(frag.end)
+        if (newStart !== null && newEnd !== null && newEnd > newStart) {
+          // Remap subtitle file IDs to the new copies
+          const remappedSubs: FragmentSubtitle[] = frag.subtitles.map(sub => ({
+            ...sub,
+            subtitleFileId: subIdMap.get(sub.subtitleFileId) ?? sub.subtitleFileId,
+            subtitleFileName: sub.subtitleFileName,
+          }))
+          remappedFragments.push({
+            id: nanoid(),
+            start: newStart,
+            end: newEnd,
+            repeat: frag.repeat,
+            speed: frag.speed,
+            subtitles: remappedSubs,
+          })
+        }
+      }
+
+      // --- Create a sequence for the new trimmed file ---
+      if (remappedFragments.length > 0) {
+        const { IndexedDBSequenceStorage } = await import("../infrastructure/indexeddb/IndexedDBSequenceStorage")
+        const seqStorage = new IndexedDBSequenceStorage()
+        const newSeq: Sequence = {
+          id: nanoid(),
+          audioId: newAudioId,
+          label: "1",
+          fragments: remappedFragments.sort((a, b) => a.start - b.start),
+          createdAt: Date.now(),
+        }
+        await seqStorage.save(newSeq)
+        console.log("[FragmentEditor] Created sequence for trimmed file with", remappedFragments.length, "fragments")
+      }
+
+      return { audioBuffer, segmentMap, newDuration, trimmedName, newAudioId }
     })
 
     if (result) {
-      const { audioBuffer, segmentMap, newDuration, trimmedName } = result
+      const { audioBuffer, segmentMap, newDuration, trimmedName, newAudioId } = result
       const removedDuration = audioBuffer.duration - newDuration
       const pct = Math.round((removedDuration / audioBuffer.duration) * 100)
-      alert(
-        `Done! Created "${trimmedName}"\n` +
-        `Original: ${audioBuffer.duration.toFixed(1)}s → Trimmed: ${newDuration.toFixed(1)}s\n` +
-        `Removed ${removedDuration.toFixed(1)}s of silence (${pct}%)\n` +
-        `${segmentMap.length} speech segments preserved.\n\n` +
-        `The new file is available in your Audio Library.`
-      )
+      setTrimResultInfo({
+        trimmedName,
+        originalDuration: audioBuffer.duration,
+        newDuration,
+        removedDuration,
+        pct,
+        segmentCount: segmentMap.length,
+        newAudioId,
+      })
     }
 
     setTrimming(false)
     setVadDetecting(false)
     setVadProgress(0)
-  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, files, wrapHeavyOp])
+  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, subtitleFiles, files, wrapHeavyOp])
 
   // --- File playback ---
     // --- File playback ---
@@ -983,6 +1073,44 @@ function FragmentEditorPageInner() {
           errorMessage={decodeError.message}
           onClose={() => setDismissDecodeHelp(true)}
         />
+      )}
+
+      {/* Trim result modal */}
+      {trimResultInfo && (
+        <div className="modal-overlay" onClick={() => setTrimResultInfo(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: 420 }}>
+            <h3 style={{ marginTop: 0 }}>Trim complete</h3>
+            <p style={{ fontSize: "0.9rem", marginBottom: 8 }}>
+              Created <strong>"{trimResultInfo.trimmedName}"</strong>
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
+              Original: {trimResultInfo.originalDuration.toFixed(1)}s → Trimmed: {trimResultInfo.newDuration.toFixed(1)}s
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
+              Removed {trimResultInfo.removedDuration.toFixed(1)}s of silence ({trimResultInfo.pct}%)
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
+              {trimResultInfo.segmentCount} speech segments preserved.
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
+              The new file with its sequence is available in your Audio Library.
+            </p>
+            <div className="modal-actions">
+              {trimResultInfo.newAudioId && (
+                <button className="btn-primary" onClick={() => {
+                  const newId = trimResultInfo.newAudioId
+                  setTrimResultInfo(null)
+                  if (newId) {
+                    navigate(`/file/${newId}/sequences`)
+                  }
+                }}>
+                  Open trimmed file
+                </button>
+              )}
+              <button onClick={() => setTrimResultInfo(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
