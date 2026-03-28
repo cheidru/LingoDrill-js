@@ -47,8 +47,8 @@ export function useAudioLibrary() {
   // ➜ Сохранение в IndexedDB
   // Accepts an optional id parameter so callers can control the file ID
   // Returns the id of the saved file
-  const addFile = useCallback(async (file: File, id?: string): Promise<string> => {
-    if (!storageRef.current) return ""
+  const addFile = useCallback(async (file: File, id?: string): Promise<void> => {
+    if (!storageRef.current) return
 
     try {
       setIsLoading(true)
@@ -57,10 +57,8 @@ export function useAudioLibrary() {
       const fileId = id ?? crypto.randomUUID()
       const savedFile = await storageRef.current.save(file, fileId)
       setFiles(prev => [...prev, { id: savedFile.id, name: savedFile.name }])
-      return savedFile.id
     } catch {
       setError("Failed to upload file")
-      return ""
     } finally {
       setIsLoading(false)
     }
