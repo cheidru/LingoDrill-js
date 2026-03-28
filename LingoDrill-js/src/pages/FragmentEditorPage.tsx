@@ -10,6 +10,10 @@
 // 7. НОВОЕ: raw ctx.decodeAudioData() в handleAutoDetectRun и handleTrimSilence
 //    заменены на safeDecodeAudioBuffer() с watchdog-таймаутом (5с), чтобы
 //    бросить JS-ошибку ДО того, как браузер убьёт вкладку (~10-15с watchdog).
+// 8. НОВОЕ: если только 1 файл субтитров — сразу открывается "Select text", минуя "Choose subtitle file"
+// 9. НОВОЕ: субтитры НЕ отображаются под fragment box в списке фрагментов
+// 10. НОВОЕ: кнопка Sub в невыбранном фрагменте показывается только если есть привязанные субтитры
+// 11. НОВОЕ: удаление выбранного фрагмента клавишей Delete на клавиатуре
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -83,9 +87,12 @@ function FragmentEditorPageInner() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const savedBoundsRef = useRef<{ start: number; end: number } | null>(null)
 
+  // Ref to read the current visible start time from the Waveform component
+  const waveformVisibleStartRef = useRef(0)
+
   // --- Subtitle selection modal ---
   const [subModalFragId, setSubModalFragId] = useState<string | null>(null)
-  const [subModalStep, setSubModalStep] = useState<"choose-file" | "select-text">("choose-file")
+  const [subModalStep, setSubModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
   const [subModalFile, setSubModalFile] = useState<SubtitleFile | null>(null)
 
   // --- VAD auto-detect state ---
@@ -363,8 +370,14 @@ function FragmentEditorPageInner() {
     stop()
     setIsFilePlayback(true)
     setPlayingFragment(null)
+    // Start playback from the beginning of the visible waveform area
+    const visStart = waveformVisibleStartRef.current
+    if (visStart > 0.05) {
+      console.log("[FragmentEditor] Starting playback from visible waveform start:", visStart.toFixed(2), "s")
+      seekTo(visStart)
+    }
     play()
-  }, [stop, play, isFilePlayback, isPaused])
+  }, [stop, play, seekTo, isFilePlayback, isPaused])
  
   const handleFilePause = useCallback(() => {
     pause()
@@ -442,11 +455,18 @@ function FragmentEditorPageInner() {
   }, [displayFragments, editingId])
 
   const startEditingWithAnim = useCallback((fragId: string) => {
+    // Stop any playing fragment when selecting a different one
+    if (playingFragment) {
+      console.log("[FragmentEditor] Stopping playback on fragment selection change")
+      stop()
+      setPlayingFragment(null)
+      setIsFilePlayback(false)
+    }
     capturePositions()
     setEditingId(fragId)
     const frag = fragments.find(f => f.id === fragId)
     if (frag) savedBoundsRef.current = { start: frag.start, end: frag.end }
-  }, [capturePositions, fragments])
+  }, [capturePositions, fragments, playingFragment, stop])
 
   // --- Fragment playback ---
   const handlePlayFragment = useCallback((f: SequenceFragment) => {
@@ -473,6 +493,23 @@ function FragmentEditorPageInner() {
       stopRef.current()
     }
   }, [])
+
+  // --- Delete fragment by Delete key ---
+  // CHANGE 4: Add keyboard listener for Delete key to delete the selected (editing) fragment
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Delete" && editingId) {
+        // Don't delete if user is typing in an input field
+        const target = e.target as HTMLElement
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
+        console.log("[FragmentEditor] Delete key pressed, deleting fragment:", editingId)
+        e.preventDefault()
+        deleteLocalFragment(editingId)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [editingId, deleteLocalFragment])
 
   // --- Subtitle handlers ---
   const handleSubtitleSelect = useCallback(async () => {
@@ -509,10 +546,40 @@ function FragmentEditorPageInner() {
     sel.removeAllRanges()
   }, [subModalFragId, subModalFile, fragments, persistSequence])
 
-  const handleRemoveSubtitle = useCallback(async (fragId: string, subIdx: number) => {
+
+  // --- Helper: after subtitle file is determined, check if fragment already has subtitle from that file ---
+  const goToSubStepForFile = useCallback((fragId: string, sf: SubtitleFile) => {
+    setSubModalFile(sf)
+    const frag = fragments.find(f => f.id === fragId)
+    const existingSub = frag?.subtitles.find(s => s.subtitleFileId === sf.id)
+    if (existingSub) {
+      // Fragment already has subtitle from this file — show existing text
+      console.log("[FragmentEditor] Existing subtitle found for file:", sf.name)
+      setSubModalStep("view-existing")
+    } else {
+      setSubModalStep("select-text")
+    }
+  }, [fragments])
+
+  // --- Open subtitle modal ---
+  // If only one subtitle file, skip "choose-file" step
+  const openSubtitleModal = useCallback((fragId: string) => {
+    setSubModalFragId(fragId)
+    if (subtitleFiles.length === 1) {
+      // Only one subtitle file — skip file selection
+      console.log("[FragmentEditor] Single subtitle file detected, skipping file chooser")
+      goToSubStepForFile(fragId, subtitleFiles[0])
+    } else {
+      setSubModalStep("choose-file")
+      setSubModalFile(null)
+    }
+  }, [subtitleFiles, goToSubStepForFile])
+
+  // --- Remove subtitle binding from a fragment ---
+  const handleRemoveSubtitle = useCallback(async (fragId: string, subtitleFileId: string) => {
     const updatedAll = fragments.map(f => {
       if (f.id !== fragId) return f
-      const newSubs = f.subtitles.filter((_, i) => i !== subIdx)
+      const newSubs = f.subtitles.filter(s => s.subtitleFileId !== subtitleFileId)
       return { ...f, subtitles: newSubs }
     })
     setFragments(updatedAll)
@@ -606,6 +673,7 @@ function FragmentEditorPageInner() {
               showPlaybackCursor={isFilePlayback}
               isFilePlaying={isFilePlayback && isPlaying}
               onSeek={handleFileSeek}
+              visibleStartRef={waveformVisibleStartRef}
             />
           )}
 
@@ -704,18 +772,20 @@ function FragmentEditorPageInner() {
                 playingFragment.start === f.start && playingFragment.end === f.end
               const isThisFragPaused = !isFilePlayback && isPaused && playingFragment != null &&
                 playingFragment.start === f.start && playingFragment.end === f.end
+              // CHANGE 3: Show Sub button in non-selected fragment only if it has subtitles attached
+              const hasSubtitles = f.subtitles && f.subtitles.length > 0
               return (
                 <div key={f.id} ref={el => { if (el) fragmentRefsMap.current.set(f.id, el); else fragmentRefsMap.current.delete(f.id) }}
                   className="fragment-panel">
                   <div onClick={() => { if (!isEditing) startEditingWithAnim(f.id) }}
-                    className={`fragment-row${isEditing ? " fragment-row--editing" : ""}`}
-                    style={{ marginBottom: f.subtitles.length > 0 ? 0 : undefined }}>
+                    className={`fragment-row${isEditing ? " fragment-row--editing" : ""}`}>
                     <span className="fragment-row__time">
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
                     <div className="fragment-row__actions">
                       <button className="btn-sub" onClick={e => {
                         e.stopPropagation()
+                        if (!isEditing) startEditingWithAnim(f.id)
                         if (isThisFragPlaying) { handlePauseFragment() }
                         else if (isThisFragPaused) { handleResumeFragment() }
                         else { handlePlayFragment(f) }
@@ -737,14 +807,24 @@ function FragmentEditorPageInner() {
                               }}
                             />
                           </label>
+                          {/* CHANGE 3: Sub button always shown for selected (editing) fragment */}
                           <button className="btn-sub" onClick={e => {
                             e.stopPropagation()
-                            setSubModalFragId(f.id)
-                            setSubModalStep("choose-file")
+                            openSubtitleModal(f.id)
                           }}>
                             Sub
                           </button>
                         </>
+                      )}
+                      {/* CHANGE 3: Sub button in non-selected fragment only if subtitles are attached */}
+                      {!isEditing && hasSubtitles && (
+                        <button className="btn-sub" onClick={e => {
+                          e.stopPropagation()
+                          startEditingWithAnim(f.id)
+                          openSubtitleModal(f.id)
+                        }}>
+                          Sub
+                        </button>
                       )}
                       <button className="btn-sub" onClick={e => { e.stopPropagation(); deleteLocalFragment(f.id) }}
                         style={{ color: "#d32f2f" }}>
@@ -753,24 +833,8 @@ function FragmentEditorPageInner() {
                     </div>
                   </div>
 
-                  {/* Subtitle display */}
-                  {f.subtitles && f.subtitles.length > 0 && (
-                    <div className="subtitle-display">
-                      {f.subtitles.map((sub, i) => {
-                        const file = subtitleFiles.find(sf => sf.id === sub.subtitleFileId)
-                        const text = file ? file.content.slice(sub.charStart, sub.charEnd) : "(file not found)"
-                        return (
-                          <div key={i} className="subtitle-display__row">
-                            <span className="subtitle-display__name">{sub.subtitleFileName}:</span>
-                            <span className="subtitle-display__text">{text}</span>
-                            {isEditing && (
-                              <button className="btn-remove-sub" onClick={() => handleRemoveSubtitle(f.id, i)}>✕</button>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                  {/* CHANGE 2: Subtitle display below fragment box removed */}
+                  {/* Subtitles are no longer shown below the fragment row */}
                 </div>
               )
             })}
@@ -835,7 +899,7 @@ function FragmentEditorPageInner() {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {subtitleFiles.map(sf => (
-                      <button key={sf.id} onClick={() => { setSubModalFile(sf); setSubModalStep("select-text") }}
+                      <button key={sf.id} onClick={() => goToSubStepForFile(subModalFragId, sf)}
                         style={{ textAlign: "left", padding: "8px 12px" }}>
                         {sf.name}
                       </button>
@@ -843,6 +907,41 @@ function FragmentEditorPageInner() {
                   </div>
                 )}
                 <div className="modal-actions">
+                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                </div>
+              </>
+            ) : subModalStep === "view-existing" ? (
+              <>
+                <h3 style={{ marginTop: 0 }}>Attached subtitle</h3>
+                {(() => {
+                  const frag = fragments.find(f => f.id === subModalFragId)
+                  const existingSub = frag?.subtitles.find(s => s.subtitleFileId === subModalFile?.id)
+                  const text = existingSub && subModalFile
+                    ? subModalFile.content.slice(existingSub.charStart, existingSub.charEnd)
+                    : "(not found)"
+                  return (
+                    <>
+                      <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: 8 }}>
+                        File: {subModalFile?.name}
+                      </p>
+                      <div className="subtitle-content" style={{ minHeight: 60, maxHeight: "40vh" }}>
+                        {text}
+                      </div>
+                    </>
+                  )
+                })()}
+                <div className="modal-actions">
+                  <button onClick={() => setSubModalStep("select-text")} className="btn-primary">Edit</button>
+                  <button onClick={async () => {
+                    if (subModalFile) {
+                      await handleRemoveSubtitle(subModalFragId, subModalFile.id)
+                    }
+                    setSubModalFragId(null)
+                    setSubModalFile(null)
+                  }} className="btn-danger">Unbind</button>
+                  {subtitleFiles.length > 1 && (
+                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
+                  )}
                   <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
                 </div>
               </>
@@ -857,7 +956,9 @@ function FragmentEditorPageInner() {
                 </div>
                 <div className="modal-actions">
                   <button onClick={handleSubtitleSelect} className="btn-primary">Bind selected text</button>
-                  <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
+                  {subtitleFiles.length > 1 && (
+                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
+                  )}
                   <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
                 </div>
               </>

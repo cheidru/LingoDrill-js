@@ -1,5 +1,5 @@
 // app/components/Waveform.tsx
-import { useRef, useEffect, useState, useCallback } from "react"
+import { useRef, useEffect, useState, useCallback, type MutableRefObject } from "react"
 import type { MouseEvent } from "react"
 
 export type WaveformFragment = {
@@ -32,6 +32,8 @@ type Props = {
   isFilePlaying?: boolean
   /** Callback при перетаскивании курсора воспроизведения */
   onSeek?: (time: number) => void
+  /** Ref that the parent can read to get the current visible start time (in seconds) */
+  visibleStartRef?: MutableRefObject<number>
 }
 
 const HANDLE_RADIUS = 6
@@ -67,6 +69,7 @@ export function Waveform({
   showPlaybackCursor = false,
   isFilePlaying = false,
   onSeek,
+  visibleStartRef,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -136,6 +139,10 @@ export function Waveform({
   const visibleStart = scrollOffset * duration
   const visibleEnd = Math.min((scrollOffset + 1 / zoom) * duration, duration)
   const visibleDuration = visibleEnd - visibleStart
+  // Sync visibleStart to parent ref so editor can read it for play-all
+  useEffect(() => {
+    if (visibleStartRef) visibleStartRef.current = visibleStart
+  }, [visibleStart, visibleStartRef])
 
   const getCanvasWidth = () => canvasRef.current?.width ?? 1000
 
