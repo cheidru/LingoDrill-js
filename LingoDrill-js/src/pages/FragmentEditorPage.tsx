@@ -676,6 +676,62 @@ function FragmentEditorPageInner() {
     await persistSequence(updatedAll)
   }, [fragments, persistSequence])
 
+  // --- Auto-scroll to previous fragment's subtitle position when "select-text" step opens ---
+  // When a fragment has no subtitle from the selected file, scroll to where the
+  // previous fragment (by time order) has its subtitle, so the user can find the right area.
+  useEffect(() => {
+    if (subModalStep !== "select-text" || !subModalFragId || !subModalFile) return
+
+    // Only do this if the current fragment does NOT have a subtitle from this file
+    const currentFrag = fragments.find(f => f.id === subModalFragId)
+    if (!currentFrag) return
+    const existingSub = currentFrag.subtitles.find(s => s.subtitleFileId === subModalFile.id)
+    if (existingSub) return // fragment already has subtitle from this file — don't interfere
+
+    // Find the previous fragment by time order that has a subtitle from this file
+    const sorted = [...fragments].sort((a, b) => a.start - b.start)
+    const currentIdx = sorted.findIndex(f => f.id === subModalFragId)
+    let targetSub: { charStart: number; charEnd: number } | null = null
+
+    // Search backwards from the current fragment
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      const prevSub = sorted[i].subtitles.find(s => s.subtitleFileId === subModalFile.id)
+      if (prevSub) {
+        targetSub = prevSub
+        break
+      }
+    }
+
+    if (!targetSub) return // no previous fragment has a subtitle from this file
+
+    // Wait for the DOM to render the subtitle-text-container
+    requestAnimationFrame(() => {
+      const container = document.getElementById("subtitle-text-container")
+      if (!container) return
+
+      const content = subModalFile.content
+      const textNode = container.firstChild
+      if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return
+
+      try {
+        const clampedEnd = Math.min(targetSub!.charEnd, content.length)
+        const range = document.createRange()
+        range.setStart(textNode, clampedEnd)
+        range.setEnd(textNode, clampedEnd)
+
+        // Scroll so the end of the previous subtitle is visible near the top
+        const rect = range.getBoundingClientRect()
+        const containerRect = container.getBoundingClientRect()
+        const scrollTarget = container.scrollTop + (rect.top - containerRect.top) - containerRect.height / 4
+        container.scrollTo({ top: Math.max(0, scrollTarget), behavior: "smooth" })
+
+        console.log("[FragmentEditor] Scrolled to previous fragment's subtitle end position:", clampedEnd)
+      } catch (err) {
+        console.warn("[FragmentEditor] Failed to scroll to previous subtitle position:", err)
+      }
+    })
+  }, [subModalStep, subModalFragId, subModalFile, fragments])
+
   // --- Get audio file info for export ---
   const audioFile = files.find(f => f.id === audioId)
   const audioName = audioFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
@@ -700,6 +756,27 @@ function FragmentEditorPageInner() {
   return (
     <div className="page">
       <h2>Fragment Editor</h2>
+      <p style={{ fontSize: "0.9rem", color: "#666", marginTop: -8, marginBottom: 12 }}>
+        {audioFile?.name ?? "Unknown file"}
+      </p>
+
+      {/* Navigation and Export — at the top */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <button onClick={() => navigate(audioId ? `/file/${audioId}/sequences` : "/")}>
+          ← Back to sequences
+        </button>
+        {isReady && (
+          <ExportBundleButton
+            audioId={audioId}
+            audioName={audioName}
+            getBlob={getBlob}
+            waveformData={waveformData}
+            sequences={allSequencesForExport}
+            subtitleFiles={subtitleFiles}
+            disabled={!isReady}
+          />
+        )}
+      </div>
 
       {!isReady && (
         <div className="frag-editor__loading">
@@ -930,27 +1007,9 @@ function FragmentEditorPageInner() {
             })}
           </div>
 
-          {/* Export for mobile */}
-          <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #e0e0e0" }}>
-            <ExportBundleButton
-              audioId={audioId}
-              audioName={audioName}
-              getBlob={getBlob}
-              waveformData={waveformData}
-              sequences={allSequencesForExport}
-              subtitleFiles={subtitleFiles}
-              disabled={!isReady}
-            />
-          </div>
         </>
       )}
 
-      {/* Back navigation */}
-      <div className="player-nav" style={{ marginTop: 16 }}>
-        <button onClick={() => navigate(audioId ? `/file/${audioId}/sequences` : "/")}>
-          ← Back to sequences
-        </button>
-      </div>
 
       {/* Confirm modals */}
       {showAutoDetectConfirm && (

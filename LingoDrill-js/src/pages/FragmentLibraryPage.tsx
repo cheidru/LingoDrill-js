@@ -1,20 +1,19 @@
 // pages/FragmentLibraryPage.tsx
 //
 // ИЗМЕНЕНИЯ:
-// 1. УДАЛЕНО: HeavyOperationErrorBoundary обёртка (эта страница не декодирует аудио)
-// 2. УДАЛЕНО: decodeError, dismissDecodeHelp, showDecodeHelp, MobileInstructionModal
-// 3. УДАЛЕНО: decode error banner в JSX
-// 4. Страница теперь просто показывает список sequences и позволяет
-//    управлять ими. Воспроизведение фрагментов будет позже вынесено
-//    на отдельную Sequence Player страницу.
-// 5. ДОБАВЛЕНО: stop playback при уходе со страницы (unmount)
+// 1. УДАЛЕНО: VolumeControl (воспроизведение будет на отдельной странице)
+// 2. УДАЛЕНО: отображение имён файлов субтитров над списком последовательностей
+// 3. УДАЛЕНО: label "Subtitles:" и file input из toolbar
+// 4. ДОБАВЛЕНО: кнопка Sub в каждом sequence box — открывает модальное окно
+//    для управления файлами субтитров (добавление/удаление)
+// 5. При удалении файла субтитров, все фрагменты последовательностей теряют
+//    привязки к этому файлу
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
-import { VolumeControl } from "../app/components/VolumeControl"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 
@@ -93,7 +92,7 @@ function SubtitleDisplay({
   )
 }
 
-// --- Main page (без Error Boundary — эта страница не декодирует аудио) ---
+// --- Main page ---
 export function FragmentLibraryPage() {
   return <FragmentLibraryPageInner />
 }
@@ -106,11 +105,10 @@ function FragmentLibraryPageInner() {
     files,
     loadById, playFragment, pause, play, stop,
     isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
-    volume, setVolume,
   } = useSharedAudioEngine()
 
   const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
-  const { subtitleFiles, addSubtitleFile } = useSubtitles(audioId ?? null)
+  const { subtitleFiles, addSubtitleFile, deleteSubtitleFile } = useSubtitles(audioId ?? null)
 
   const [playingSeqId, setPlayingSeqId] = useState<string | null>(null)
   const [playingFragIdx, setPlayingFragIdx] = useState(0)
@@ -118,7 +116,9 @@ function FragmentLibraryPageInner() {
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelValue, setEditingLabelValue] = useState("")
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  // Subtitle management modal state
+  const [subModalOpen, setSubModalOpen] = useState(false)
+  const subFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (audioId) loadById(audioId)
@@ -189,13 +189,33 @@ function FragmentLibraryPageInner() {
     setEditingLabelId(null)
   }, [editingLabelId, editingLabelValue, sequences, updateSequence])
 
-  // --- Subtitle file upload ---
-  const handleSubtitleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- Subtitle file management ---
+  const handleSubFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     await addSubtitleFile(file)
-    if (fileInputRef.current) fileInputRef.current.value = ""
+    if (subFileInputRef.current) subFileInputRef.current.value = ""
   }, [addSubtitleFile])
+
+  const handleDeleteSubtitleFile = useCallback(async (subFileId: string) => {
+    // Delete the subtitle file
+    await deleteSubtitleFile(subFileId)
+
+    // Remove all subtitle bindings referencing this file from all sequences
+    for (const seq of sequences) {
+      const hasAffectedFragments = seq.fragments.some(f =>
+        f.subtitles.some(s => s.subtitleFileId === subFileId)
+      )
+      if (hasAffectedFragments) {
+        const updatedFragments = seq.fragments.map(f => ({
+          ...f,
+          subtitles: f.subtitles.filter(s => s.subtitleFileId !== subFileId),
+        }))
+        await updateSequence({ ...seq, fragments: updatedFragments })
+      }
+    }
+    console.log("[FragmentLibrary] Deleted subtitle file and cleaned up bindings:", subFileId)
+  }, [deleteSubtitleFile, sequences, updateSequence])
 
   const fileName = files.find(f => f.id === audioId)?.name ?? "Unknown"
 
@@ -207,17 +227,10 @@ function FragmentLibraryPageInner() {
         <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
           + New sequence
         </button>
-        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: "0.85rem" }}>Subtitles:</span>
-          <input ref={fileInputRef} type="file" accept=".txt,.srt,.vtt" onChange={handleSubtitleUpload} />
-        </label>
+        <button className="btn-sub" onClick={() => setSubModalOpen(true)}>
+          Sub ({subtitleFiles.length})
+        </button>
       </div>
-
-      {subtitleFiles.length > 0 && (
-        <div style={{ marginBottom: 12, fontSize: "0.85rem", color: "#555" }}>
-          Subtitle files: {subtitleFiles.map(sf => sf.name).join(", ")}
-        </div>
-      )}
 
       {isLoading && <p>Loading sequences...</p>}
 
@@ -306,13 +319,6 @@ function FragmentLibraryPageInner() {
         )
       })}
 
-      {/* Volume */}
-      {sequences.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <VolumeControl volume={volume} onVolumeChange={setVolume} />
-        </div>
-      )}
-
       {/* Back */}
       <div className="player-nav" style={{ marginTop: 16 }}>
         <button onClick={() => navigate("/")}>← Back to library</button>
@@ -330,6 +336,59 @@ function FragmentLibraryPageInner() {
                 setConfirmDeleteId(null)
               }} className="btn-danger">Delete</button>
               <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subtitle file management modal */}
+      {subModalOpen && (
+        <div className="modal-overlay" onClick={() => setSubModalOpen(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: 420 }}>
+            <h3 style={{ marginTop: 0 }}>Subtitle files</h3>
+
+            {subtitleFiles.length === 0 ? (
+              <p style={{ color: "#888", fontSize: "0.9rem" }}>No subtitle files uploaded yet.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {subtitleFiles.map(sf => (
+                  <div key={sf.id} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "6px 10px", border: "1px solid #e0e0e0", borderRadius: 4,
+                  }}>
+                    <span style={{ fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                      {sf.name}
+                    </span>
+                    <button
+                      className="btn-sub"
+                      onClick={() => handleDeleteSubtitleFile(sf.id)}
+                      style={{ color: "#d32f2f", flexShrink: 0, marginLeft: 8 }}
+                      title="Delete subtitle file"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <button className="btn-primary" onClick={() => subFileInputRef.current?.click()}>
+                  + Add subtitle file
+                </button>
+                <input
+                  ref={subFileInputRef}
+                  type="file"
+                  accept=".txt,.srt,.vtt"
+                  onChange={handleSubFileUpload}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setSubModalOpen(false)}>Close</button>
             </div>
           </div>
         </div>
