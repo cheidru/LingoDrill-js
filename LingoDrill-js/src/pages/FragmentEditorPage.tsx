@@ -95,6 +95,11 @@ function FragmentEditorPageInner() {
   const [subModalStep, setSubModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
   const [subModalFile, setSubModalFile] = useState<SubtitleFile | null>(null)
 
+  // --- Block delete state ---
+  const [blockDeleteStartId, setBlockDeleteStartId] = useState<string | null>(null)
+  const [blockDeleteEndId, setBlockDeleteEndId] = useState<string | null>(null)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // --- VAD auto-detect state ---
   const [vadDetecting, setVadDetecting] = useState(false)
   const [, setVadProgress] = useState(0)
@@ -207,6 +212,81 @@ function FragmentEditorPageInner() {
 
   const updateLocalFragment = useCallback((updated: SequenceFragment) => {
     setFragments(prev => prev.map(f => f.id === updated.id ? updated : f))
+  }, [])
+
+  // --- Block delete ---
+  const handleBlockDeleteStart = useCallback((fragId: string) => {
+    setBlockDeleteStartId(fragId)
+    setBlockDeleteEndId(null)
+    console.log("[FragmentEditor] Block delete started from fragment:", fragId)
+  }, [])
+
+  const handleBlockDeleteSelectEnd = useCallback((fragId: string) => {
+    if (!blockDeleteStartId || fragId === blockDeleteStartId) return
+    setBlockDeleteEndId(fragId)
+  }, [blockDeleteStartId])
+
+  const handleBlockDeleteConfirm = useCallback(async () => {
+    if (!blockDeleteStartId || !blockDeleteEndId) return
+    const sorted = [...fragments].sort((a, b) => a.start - b.start)
+    const startIdx = sorted.findIndex(f => f.id === blockDeleteStartId)
+    const endIdx = sorted.findIndex(f => f.id === blockDeleteEndId)
+    if (startIdx === -1 || endIdx === -1) return
+    const fromIdx = Math.min(startIdx, endIdx)
+    const toIdx = Math.max(startIdx, endIdx)
+    const idsToDelete = new Set(sorted.slice(fromIdx, toIdx + 1).map(f => f.id))
+    console.log("[FragmentEditor] Block deleting", idsToDelete.size, "fragments")
+    if (editingId && idsToDelete.has(editingId)) {
+      setEditingId(null); savedBoundsRef.current = null
+    }
+    const updated = fragments.filter(f => !idsToDelete.has(f.id))
+    setFragments(updated)
+    stop(); setPlayingFragment(null)
+    await persistSequence(updated)
+    setBlockDeleteStartId(null)
+    setBlockDeleteEndId(null)
+  }, [blockDeleteStartId, blockDeleteEndId, fragments, editingId, stop, persistSequence])
+
+  const handleBlockDeleteCancel = useCallback(() => {
+    setBlockDeleteStartId(null)
+    setBlockDeleteEndId(null)
+  }, [])
+
+  // Compute block delete info for UI
+  const blockDeleteCount = useMemo(() => {
+    if (!blockDeleteStartId || !blockDeleteEndId) return 0
+    const sorted = [...fragments].sort((a, b) => a.start - b.start)
+    const startIdx = sorted.findIndex(f => f.id === blockDeleteStartId)
+    const endIdx = sorted.findIndex(f => f.id === blockDeleteEndId)
+    if (startIdx === -1 || endIdx === -1) return 0
+    return Math.abs(endIdx - startIdx) + 1
+  }, [blockDeleteStartId, blockDeleteEndId, fragments])
+
+  // Fragment long-press handlers for block delete
+  const longPressFiredRef = useRef(false)
+
+  const handleFragmentPointerDown = useCallback((fragId: string) => {
+    longPressFiredRef.current = false
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null
+      longPressFiredRef.current = true
+      handleBlockDeleteStart(fragId)
+    }, 600)
+  }, [handleBlockDeleteStart])
+
+  const handleFragmentPointerUp = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  const handleFragmentPointerLeave = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
   }, [])
 
   // --- Auto-detect speech fragments via VAD ---
@@ -584,14 +664,18 @@ function FragmentEditorPageInner() {
     }
   }, [])
 
-  // --- Delete fragment by Delete key ---
-  // CHANGE 4: Add keyboard listener for Delete key to delete the selected (editing) fragment
+  // --- Delete fragment by Delete key, Escape cancels block delete ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
+
+      if (e.key === "Escape" && blockDeleteStartId) {
+        e.preventDefault()
+        handleBlockDeleteCancel()
+        return
+      }
       if (e.key === "Delete" && editingId) {
-        // Don't delete if user is typing in an input field
-        const target = e.target as HTMLElement
-        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
         console.log("[FragmentEditor] Delete key pressed, deleting fragment:", editingId)
         e.preventDefault()
         deleteLocalFragment(editingId)
@@ -599,7 +683,7 @@ function FragmentEditorPageInner() {
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [editingId, deleteLocalFragment])
+  }, [editingId, deleteLocalFragment, blockDeleteStartId, handleBlockDeleteCancel])
 
   // --- Subtitle handlers ---
   const handleSubtitleSelect = useCallback(async () => {
@@ -931,6 +1015,7 @@ function FragmentEditorPageInner() {
             )}
           </div>
 
+
           {/* Fragment list */}
           <div className="fragment-list">
             {displayFragments.map(f => {
@@ -941,11 +1026,47 @@ function FragmentEditorPageInner() {
                 playingFragment.start === f.start && playingFragment.end === f.end
               // CHANGE 3: Show Sub button in non-selected fragment only if it has subtitles attached
               const hasSubtitles = f.subtitles && f.subtitles.length > 0
+
+              // Block delete highlighting
+              const isBlockStart = f.id === blockDeleteStartId
+              const isInBlockRange = (() => {
+                if (!blockDeleteStartId) return false
+                if (isBlockStart) return true
+                if (!blockDeleteEndId) return false
+                const sorted = [...fragments].sort((a, b) => a.start - b.start)
+                const startIdx = sorted.findIndex(fr => fr.id === blockDeleteStartId)
+                const endIdx = sorted.findIndex(fr => fr.id === blockDeleteEndId)
+                const curIdx = sorted.findIndex(fr => fr.id === f.id)
+                const fromIdx = Math.min(startIdx, endIdx)
+                const toIdx = Math.max(startIdx, endIdx)
+                return curIdx >= fromIdx && curIdx <= toIdx
+              })()
+
               return (
                 <div key={f.id} ref={el => { if (el) fragmentRefsMap.current.set(f.id, el); else fragmentRefsMap.current.delete(f.id) }}
                   className="fragment-panel">
-                  <div onClick={() => { if (!isEditing) startEditingWithAnim(f.id) }}
-                    className={`fragment-row${isEditing ? " fragment-row--editing" : ""}`}>
+                  <div
+                    onClick={() => {
+                      // Suppress click if long press just fired
+                      if (longPressFiredRef.current) {
+                        longPressFiredRef.current = false
+                        return
+                      }
+                      if (blockDeleteStartId && !blockDeleteEndId && f.id !== blockDeleteStartId) {
+                        // In block select mode — select end fragment
+                        handleBlockDeleteSelectEnd(f.id)
+                        return
+                      }
+                      if (!isEditing) startEditingWithAnim(f.id)
+                    }}
+                    onPointerDown={() => { if (!blockDeleteStartId) handleFragmentPointerDown(f.id) }}
+                    onPointerUp={handleFragmentPointerUp}
+                    onPointerLeave={handleFragmentPointerLeave}
+                    className={`fragment-row${isEditing ? " fragment-row--editing" : ""}`}
+                    style={{
+                      backgroundColor: isInBlockRange ? "rgba(211, 47, 47, 0.1)" : undefined,
+                      borderColor: isInBlockRange ? "#d32f2f" : undefined,
+                    }}>
                     <span className="fragment-row__time">
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
@@ -1002,6 +1123,20 @@ function FragmentEditorPageInner() {
 
                   {/* CHANGE 2: Subtitle display below fragment box removed */}
                   {/* Subtitles are no longer shown below the fragment row */}
+
+                  {/* Block select info — shown inside the starting fragment box */}
+                  {isBlockStart && !blockDeleteEndId && (
+                    <div style={{
+                      padding: "6px 8px",
+                      backgroundColor: "#fff3e0", borderLeft: "1px solid #ffcc80", borderRight: "1px solid #ffcc80", borderBottom: "1px solid #ffcc80",
+                      borderRadius: "0 0 4px 4px",
+                      fontSize: "0.8rem", color: "#e65100",
+                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                    }}>
+                      <span>Tap another fragment to select the end of the range</span>
+                      <button className="btn-sub" onClick={e => { e.stopPropagation(); handleBlockDeleteCancel() }} style={{ flexShrink: 0, fontSize: "0.75rem" }}>Cancel</button>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -1031,6 +1166,19 @@ function FragmentEditorPageInner() {
             <div className="modal-actions">
               <button onClick={handleDeleteAllFragments} className="btn-danger">Delete all</button>
               <button onClick={() => setShowDeleteAllConfirm(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block delete confirmation modal */}
+      {blockDeleteStartId && blockDeleteEndId && (
+        <div className="modal-overlay" onClick={handleBlockDeleteCancel}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <p>Delete {blockDeleteCount} selected fragments?</p>
+            <div className="modal-actions">
+              <button onClick={handleBlockDeleteConfirm} className="btn-danger">Delete {blockDeleteCount} fragments</button>
+              <button onClick={handleBlockDeleteCancel}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1137,10 +1285,10 @@ function FragmentEditorPageInner() {
       {/* Trim result modal */}
       {trimResultInfo && (
         <div className="modal-overlay" onClick={() => setTrimResultInfo(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: 420 }}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: "min(420px, 90vw)", overflowWrap: "break-word", wordBreak: "break-word" }}>
             <h3 style={{ marginTop: 0 }}>Trim complete</h3>
             <p style={{ fontSize: "0.9rem", marginBottom: 8 }}>
-              Created <strong>"{trimResultInfo.trimmedName}"</strong>
+              Created <strong style={{ wordBreak: "break-all" }}>"{trimResultInfo.trimmedName}"</strong>
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
               Original: {trimResultInfo.originalDuration.toFixed(1)}s → Trimmed: {trimResultInfo.newDuration.toFixed(1)}s

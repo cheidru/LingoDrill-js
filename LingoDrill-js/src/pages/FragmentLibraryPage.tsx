@@ -16,6 +16,7 @@ import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
+import { nanoid } from "nanoid"
 
 // --- Icons ---
 const PlayIcon = () => (
@@ -36,6 +37,12 @@ const EditIcon = () => (
 const DeleteIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+  </svg>
+)
+const CopyIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
   </svg>
 )
 
@@ -107,7 +114,7 @@ function FragmentLibraryPageInner() {
     isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
   } = useSharedAudioEngine()
 
-  const { sequences, isLoading, deleteSequence, updateSequence } = useSequences(audioId ?? null)
+  const { sequences, isLoading, addSequence, deleteSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles, addSubtitleFile, deleteSubtitleFile } = useSubtitles(audioId ?? null)
 
   const [playingSeqId, setPlayingSeqId] = useState<string | null>(null)
@@ -189,6 +196,20 @@ function FragmentLibraryPageInner() {
     setEditingLabelId(null)
   }, [editingLabelId, editingLabelValue, sequences, updateSequence])
 
+  // --- Copy sequence ---
+  const handleCopySequence = useCallback(async (seq: Sequence) => {
+    // Deep-copy fragments with new IDs, preserving all properties including subtitles
+    const copiedFragments: SequenceFragment[] = seq.fragments.map(f => ({
+      ...f,
+      id: nanoid(),
+      subtitles: [...f.subtitles],
+    }))
+    const newSeq = await addSequence(copiedFragments)
+    if (newSeq) {
+      console.log("[FragmentLibrary] Copied sequence", seq.label, "→", newSeq.label)
+    }
+  }, [addSequence])
+
   // --- Subtitle file management ---
   const handleSubFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -221,13 +242,16 @@ function FragmentLibraryPageInner() {
 
   return (
     <div className="page">
-      <h2>Sequences — {fileName}</h2>
+      <h2>Fragment Library</h2>
+      <p style={{ fontSize: "0.9rem", color: "#666", marginTop: -8, marginBottom: 12 }}>
+        {fileName}
+      </p>
 
       <div className="toolbar">
         <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
           + New sequence
         </button>
-        <button className="btn-sub" onClick={() => setSubModalOpen(true)}>
+        <button onClick={() => setSubModalOpen(true)}>
           Sub ({subtitleFiles.length})
         </button>
       </div>
@@ -299,9 +323,12 @@ function FragmentLibraryPageInner() {
                 )}
               </div>
 
-              {/* Edit / Delete */}
+              {/* Edit / Copy / Delete */}
               <button onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit">
                 <EditIcon />
+              </button>
+              <button onClick={() => handleCopySequence(seq)} title="Copy">
+                <CopyIcon />
               </button>
               <button onClick={() => setConfirmDeleteId(seq.id)} title="Delete" style={{ color: "#d32f2f" }}>
                 <DeleteIcon />
