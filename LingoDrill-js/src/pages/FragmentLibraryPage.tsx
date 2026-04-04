@@ -1,13 +1,10 @@
 // pages/FragmentLibraryPage.tsx
 //
-// ИЗМЕНЕНИЯ:
-// 1. УДАЛЕНО: VolumeControl (воспроизведение будет на отдельной странице)
-// 2. УДАЛЕНО: отображение имён файлов субтитров над списком последовательностей
-// 3. УДАЛЕНО: label "Subtitles:" и file input из toolbar
-// 4. ДОБАВЛЕНО: кнопка Sub в каждом sequence box — открывает модальное окно
-//    для управления файлами субтитров (добавление/удаление)
-// 5. При удалении файла субтитров, все фрагменты последовательностей теряют
-//    привязки к этому файлу
+// CHANGES:
+// 1. REMOVED: Inline sequence playback (VolumeControl, playFragment, play-all etc.)
+// 2. Play button on each sequence box now navigates to SequencePlayerPage
+// 3. Subtitle management modal remains unchanged
+// 4. Copy, Edit, Delete remain unchanged
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
@@ -15,18 +12,11 @@ import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
-import type { PlayableFragment } from "../core/audio/audioEngine"
 import { nanoid } from "nanoid"
 
 // --- Icons ---
 const PlayIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-)
-const PauseIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-)
-const StopIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z" /></svg>
 )
 const EditIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -48,9 +38,9 @@ const CopyIcon = () => (
 
 // --- Sequence bar ---
 function SequenceBar({
-  sequence, duration, playingFragIdx,
+  sequence, duration,
 }: {
-  sequence: Sequence; duration: number; playingFragIdx: number | null
+  sequence: Sequence; duration: number
 }) {
   const BAR_WIDTH = 200
   const MIN_FRAG_PX = 2
@@ -62,40 +52,12 @@ function SequenceBar({
         const startPx = (f.start / duration) * BAR_WIDTH
         let widthPx = ((f.end - f.start) / duration) * BAR_WIDTH
         if (widthPx < MIN_FRAG_PX) widthPx = MIN_FRAG_PX
-        const isPlaying = playingFragIdx === i
         return (
           <rect key={i} x={startPx} y={2} width={widthPx} height={12} rx={1}
-            fill={isPlaying ? "#f44336" : "#ffc107"} opacity={isPlaying ? 1 : 0.85} />
+            fill="#ffc107" opacity={0.85} />
         )
       })}
     </svg>
-  )
-}
-
-// --- Subtitle display for playing fragment ---
-function SubtitleDisplay({
-  fragment, subtitleFiles,
-}: {
-  fragment: SequenceFragment; subtitleFiles: { id: string; content: string; name: string }[]
-}) {
-  if (!fragment.subtitles || fragment.subtitles.length === 0) return null
-
-  return (
-    <div style={{
-      padding: "8px 12px", backgroundColor: "rgba(0,0,0,0.03)",
-      border: "1px solid #ddd", borderRadius: 4, marginTop: 4, marginBottom: 4,
-    }}>
-      {fragment.subtitles.map((sub, i) => {
-        const file = subtitleFiles.find(sf => sf.id === sub.subtitleFileId)
-        const text = file ? file.content.slice(sub.charStart, sub.charEnd) : "(file not found)"
-        return (
-          <div key={i} style={{ marginBottom: i < fragment.subtitles.length - 1 ? 6 : 0 }}>
-            <div style={{ fontSize: 11, color: "#888" }}>{sub.subtitleFileName}</div>
-            <div style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{text}</div>
-          </div>
-        )
-      })}
-    </div>
   )
 }
 
@@ -110,15 +72,13 @@ function FragmentLibraryPageInner() {
 
   const {
     files,
-    loadById, playFragment, pause, play, stop,
-    isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
+    loadById, stop,
+    duration,
   } = useSharedAudioEngine()
 
   const { sequences, isLoading, addSequence, deleteSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles, addSubtitleFile, deleteSubtitleFile } = useSubtitles(audioId ?? null)
 
-  const [playingSeqId, setPlayingSeqId] = useState<string | null>(null)
-  const [playingFragIdx, setPlayingFragIdx] = useState(0)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelValue, setEditingLabelValue] = useState("")
@@ -141,51 +101,6 @@ function FragmentLibraryPageInner() {
     }
   }, [])
 
-  // --- Sequence playback ---
-
-  const playingSeqIdRef = useRef<string | null>(null)
-  const playingFragIdxRef = useRef(0)
-
-  const playSequenceFragment = useCallback((seq: Sequence, fragIdx: number) => {
-    if (fragIdx >= seq.fragments.length) {
-      setPlayingSeqId(null); setPlayingFragIdx(0)
-      playingSeqIdRef.current = null; playingFragIdxRef.current = 0
-      stop(); return
-    }
-    const f = seq.fragments[fragIdx]
-    const fragment: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
-    playFragment(fragment)
-    setPlayingFragIdx(fragIdx)
-    playingFragIdxRef.current = fragIdx
-  }, [playFragment, stop])
-
-  const handlePlaySequence = useCallback((seq: Sequence) => {
-    setPlayingSeqId(seq.id)
-    playingSeqIdRef.current = seq.id
-    playingFragIdxRef.current = 0
-    setPlayingFragIdx(0)
-    playSequenceFragment(seq, 0)
-  }, [playSequenceFragment])
-
-  const handleStopSequence = useCallback(() => {
-    setPlayingSeqId(null); setPlayingFragIdx(0)
-    playingSeqIdRef.current = null; playingFragIdxRef.current = 0
-    stop()
-  }, [stop])
-
-  // onEnded — next fragment
-  useEffect(() => {
-    setOnEnded(() => {
-      const seqId = playingSeqIdRef.current
-      if (!seqId) return
-      const seq = sequences.find(s => s.id === seqId)
-      if (!seq) return
-      const nextIdx = playingFragIdxRef.current + 1
-      playSequenceFragment(seq, nextIdx)
-    })
-    return () => setOnEnded(null)
-  }, [sequences, setOnEnded, playSequenceFragment])
-
   // --- Label editing ---
   const handleLabelSave = useCallback(async () => {
     if (!editingLabelId) return
@@ -198,7 +113,6 @@ function FragmentLibraryPageInner() {
 
   // --- Copy sequence ---
   const handleCopySequence = useCallback(async (seq: Sequence) => {
-    // Deep-copy fragments with new IDs, preserving all properties including subtitles
     const copiedFragments: SequenceFragment[] = seq.fragments.map(f => ({
       ...f,
       id: nanoid(),
@@ -219,10 +133,8 @@ function FragmentLibraryPageInner() {
   }, [addSubtitleFile])
 
   const handleDeleteSubtitleFile = useCallback(async (subFileId: string) => {
-    // Delete the subtitle file
     await deleteSubtitleFile(subFileId)
 
-    // Remove all subtitle bindings referencing this file from all sequences
     for (const seq of sequences) {
       const hasAffectedFragments = seq.fragments.some(f =>
         f.subtitles.some(s => s.subtitleFileId === subFileId)
@@ -263,16 +175,12 @@ function FragmentLibraryPageInner() {
       )}
 
       {sequences.map(seq => {
-        const isCurrentlyPlaying = playingSeqId === seq.id
-        const currentFragIdx = isCurrentlyPlaying ? playingFragIdx : null
-
         return (
           <div key={seq.id} style={{
             border: "1px solid #ddd",
             borderRadius: 4,
             padding: 12,
             marginBottom: 8,
-            backgroundColor: isCurrentlyPlaying ? "#fff8e1" : undefined,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {/* Label */}
@@ -299,28 +207,17 @@ function FragmentLibraryPageInner() {
                 {seq.fragments.length} fragment{seq.fragments.length !== 1 ? "s" : ""}
               </span>
 
-              <SequenceBar sequence={seq} duration={duration} playingFragIdx={currentFragIdx} />
+              <SequenceBar sequence={seq} duration={duration} />
 
-              {/* Playback controls */}
+              {/* Play → navigate to Sequence Player page */}
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                {isCurrentlyPlaying ? (
-                  <>
-                    {isPlaying ? (
-                      <button onClick={() => pause()} title="Pause"><PauseIcon /></button>
-                    ) : isPaused ? (
-                      <button onClick={() => play()} title="Resume"><PlayIcon /></button>
-                    ) : null}
-                    <button onClick={handleStopSequence} title="Stop"><StopIcon /></button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => handlePlaySequence(seq)}
-                    disabled={!isFragmentsReady || seq.fragments.length === 0}
-                    title={!isFragmentsReady ? "Audio still decoding..." : "Play sequence"}
-                  >
-                    <PlayIcon />
-                  </button>
-                )}
+                <button
+                  onClick={() => navigate(`/file/${audioId}/player/${seq.id}`)}
+                  disabled={seq.fragments.length === 0}
+                  title={seq.fragments.length === 0 ? "No fragments to play" : "Open Sequence Player"}
+                >
+                  <PlayIcon />
+                </button>
               </div>
 
               {/* Edit / Copy / Delete */}
@@ -334,14 +231,6 @@ function FragmentLibraryPageInner() {
                 <DeleteIcon />
               </button>
             </div>
-
-            {/* Playing subtitle */}
-            {isCurrentlyPlaying && currentFragIdx !== null && seq.fragments[currentFragIdx] && (
-              <SubtitleDisplay
-                fragment={seq.fragments[currentFragIdx]}
-                subtitleFiles={subtitleFiles}
-              />
-            )}
           </div>
         )
       })}
@@ -359,7 +248,6 @@ function FragmentLibraryPageInner() {
             <div className="modal-actions">
               <button onClick={async () => {
                 await deleteSequence(confirmDeleteId)
-                if (playingSeqId === confirmDeleteId) handleStopSequence()
                 setConfirmDeleteId(null)
               }} className="btn-danger">Delete</button>
               <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>

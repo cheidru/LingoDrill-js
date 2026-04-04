@@ -1,0 +1,294 @@
+/* === Sequence Player Page === */
+
+.sp-file-info {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: -8px;
+  margin-bottom: 12px;
+}
+.sp-file-info-separator {
+  margin: 0 6px;
+  color: #ccc;
+}
+
+.sp-seq-bar-container {
+  margin-bottom: 12px;
+}
+
+.sp-playall-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.sp-playall-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  color: #333;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sp-playall-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  border-color: #999;
+}
+.sp-playall-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sp-playall-btn--playing {
+  background: #fff8e1;
+  border-color: #ffc107;
+  color: #333;
+}
+.sp-playall-btn--playing:hover {
+  background: #fff3cd;
+}
+.sp-playall-btn--stop {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
+}
+.sp-playall-btn--stop:hover {
+  background: #ffcdd2;
+}
+
+.sp-volume {
+  margin-left: auto;
+}
+
+.sp-decode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+/* --- Fragment list --- */
+.sp-fragment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sp-frag-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sp-frag-item--playing {
+  border-color: #ffc107;
+  background-color: #fffde7;
+}
+.sp-frag-item--selected {
+  border-color: #4a90e2;
+}
+
+.sp-frag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.sp-frag-row:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sp-frag-idx {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #888;
+  min-width: 24px;
+  text-align: center;
+}
+.sp-frag-time {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #333;
+}
+.sp-frag-duration {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+.sp-frag-repeat {
+  font-size: 0.8rem;
+  color: #ff9800;
+  font-weight: 500;
+}
+.sp-frag-speed {
+  font-size: 0.8rem;
+  color: #9c27b0;
+  font-weight: 500;
+}
+.sp-frag-sub-indicator {
+  font-size: 0.8rem;
+}
+.sp-frag-playing-indicator {
+  color: #f44336;
+  font-size: 0.75rem;
+  font-weight: bold;
+  animation: sp-pulse 1s infinite alternate;
+}
+@keyframes sp-pulse {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+/* --- Control panel --- */
+.sp-control-panel {
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+}
+
+.sp-control-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sp-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  color: #333;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sp-ctrl-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  border-color: #999;
+}
+.sp-ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.sp-ctrl-btn--active {
+  background: #e3f2fd;
+  border-color: #42a5f5;
+  color: #1565c0;
+}
+.sp-ctrl-btn--active:hover {
+  background: #bbdefb;
+}
+.sp-ctrl-btn--close {
+  margin-left: auto;
+  color: #888;
+}
+.sp-ctrl-btn--close:hover {
+  color: #333;
+}
+
+.sp-ctrl-separator {
+  width: 1px;
+  height: 24px;
+  background-color: #ddd;
+  margin: 0 4px;
+}
+
+.sp-ctrl-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.sp-ctrl-input {
+  width: 44px;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.sp-ctrl-input:focus {
+  border-color: #4a90e2;
+  outline: none;
+}
+
+.sp-ctrl-select {
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+.sp-ctrl-select:focus {
+  border-color: #4a90e2;
+  outline: none;
+}
+
+/* --- Subtitle display in player --- */
+.sp-subtitle-display {
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid #e8e8e8;
+}
+
+/* === Mobile overrides for Sequence Player === */
+html.mobile .sp-file-info {
+  font-size: 0.95rem;
+}
+html.mobile .sp-playall-btn {
+  padding: 10px 20px;
+  font-size: 1rem;
+  min-height: 44px;
+}
+html.mobile .sp-frag-row {
+  padding: 10px 12px;
+  min-height: 44px;
+  gap: 8px;
+}
+html.mobile .sp-frag-idx {
+  font-size: 0.95rem;
+  min-width: 28px;
+}
+html.mobile .sp-frag-time {
+  font-size: 0.9rem;
+}
+html.mobile .sp-ctrl-btn {
+  width: 44px;
+  height: 44px;
+}
+html.mobile .sp-ctrl-input {
+  width: 50px;
+  padding: 6px 8px;
+  font-size: 0.95rem;
+  min-height: 36px;
+}
+html.mobile .sp-ctrl-select {
+  padding: 6px 8px;
+  font-size: 0.95rem;
+  min-height: 36px;
+}
+html.mobile .sp-control-panel {
+  padding: 10px 12px;
+}
+html.mobile .sp-subtitle-display {
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}

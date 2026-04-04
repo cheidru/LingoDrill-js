@@ -6,8 +6,10 @@ import { Header } from "./components/Header"
 import LibraryPage from "../pages/LibraryPage"
 import { FragmentLibraryPage } from "../pages/FragmentLibraryPage"
 import { FragmentEditorPage } from "../pages/FragmentEditorPage"
+import { SequencePlayerPage } from "../pages/SequencePlayerPage"
 import "./App.css"
 import "./bundle.css"
+import "./sequencePlayer.css"
 
 export default function App() {
   return (
@@ -20,6 +22,7 @@ export default function App() {
           <Route path="/file/:id/sequences" element={<FragmentLibraryPage />} />
           <Route path="/file/:id/editor" element={<FragmentEditorPage />} />
           <Route path="/file/:id/editor/:seqId" element={<FragmentEditorPage />} />
+          <Route path="/file/:id/player/:seqId" element={<SequencePlayerPage />} />
         </Routes>
       </AudioEngineProvider>
     </BrowserRouter>

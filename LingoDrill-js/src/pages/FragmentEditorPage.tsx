@@ -30,6 +30,7 @@ import type { WaveformFragment } from "../app/components/Waveform"
 import { buildWaveform } from "../utils/buildWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
 import { trimSilence } from "../utils/trimSilence"
+import { normalizeFragments } from "../utils/normalizeFragments"
 import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import type { SequenceFragment, FragmentSubtitle, SubtitleFile, Sequence } from "../core/domain/types"
@@ -383,6 +384,17 @@ function FragmentEditorPageInner() {
     newAudioId: string | null
   } | null>(null)
 
+  // --- Normalize volume state ---
+  const [normalizeMode, setNormalizeMode] = useState(false)
+  const [normalizeExcluded, setNormalizeExcluded] = useState<Set<string>>(new Set())
+  const [normalizing, setNormalizing] = useState(false)
+  const [normalizeResultInfo, setNormalizeResultInfo] = useState<{
+    normalizedName: string
+    selectedCount: number
+    totalCount: number
+    newAudioId: string | null
+  } | null>(null)
+
   const handleTrimSilence = useCallback(async () => {
     if (!audioId || trimming || vadDetecting) return
 
@@ -525,6 +537,105 @@ function FragmentEditorPageInner() {
     setVadDetecting(false)
     setVadProgress(0)
   }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, subtitleFiles, files, wrapHeavyOp])
+
+  // --- Normalize volume ---
+
+  const handleNormalizeOpen = useCallback(() => {
+    setNormalizeExcluded(new Set())
+    setNormalizeMode(true)
+  }, [])
+
+  const handleNormalizeRun = useCallback(async () => {
+    if (!audioId || normalizing || vadDetecting || trimming) return
+
+    setNormalizing(true)
+    setNormalizeMode(false)
+
+    const result = await wrapHeavyOp("Normalize volume", async () => {
+      const audioBuffer = getAudioBuffer(audioId)
+      if (!audioBuffer) {
+        throw new Error("Audio buffer not available. Wait for decoding to complete.")
+      }
+
+      const selectedFragments = fragments.filter(f => !normalizeExcluded.has(f.id))
+      if (selectedFragments.length === 0) {
+        throw new Error("No fragments selected for normalization.")
+      }
+
+      const { blob, channelData } = normalizeFragments(audioBuffer, selectedFragments)
+
+      const sourceFile = files.find(f => f.id === audioId)
+      const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
+      const normalizedName = `${baseName}_normalized.wav`
+      const normalizedFile = new File([blob], normalizedName, { type: "audio/wav" })
+
+      const newAudioId = crypto.randomUUID()
+      await addFile(normalizedFile, newAudioId)
+
+      // Build and cache waveform
+      const { buildWaveformFromRaw } = await import("../utils/buildWaveformProgressive")
+      const waveform = buildWaveformFromRaw(channelData, channelData.length, 1000)
+      const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
+      const waveformCache = new WaveformCacheStorage()
+      await waveformCache.save(newAudioId, waveform)
+
+      // Copy subtitle files
+      const subIdMap = new Map<string, string>()
+      if (subtitleFiles.length > 0) {
+        const { IndexedDBSubtitleStorage } = await import("../infrastructure/indexeddb/IndexedDBSubtitleStorage")
+        const subStorage = new IndexedDBSubtitleStorage()
+        for (const sf of subtitleFiles) {
+          const newSubId = nanoid()
+          subIdMap.set(sf.id, newSubId)
+          await subStorage.save({
+            id: newSubId,
+            audioId: newAudioId,
+            name: sf.name,
+            content: sf.content,
+            createdAt: Date.now(),
+          })
+        }
+      }
+
+      // Create sequence with same fragments (audio duration unchanged)
+      const newFragments: SequenceFragment[] = fragments.map(f => ({
+        id: nanoid(),
+        start: f.start,
+        end: f.end,
+        repeat: f.repeat,
+        speed: f.speed,
+        subtitles: f.subtitles.map(sub => ({
+          ...sub,
+          subtitleFileId: subIdMap.get(sub.subtitleFileId) ?? sub.subtitleFileId,
+        })),
+      }))
+
+      if (newFragments.length > 0) {
+        const { IndexedDBSequenceStorage } = await import("../infrastructure/indexeddb/IndexedDBSequenceStorage")
+        const seqStorage = new IndexedDBSequenceStorage()
+        await seqStorage.save({
+          id: nanoid(),
+          audioId: newAudioId,
+          label: "1",
+          fragments: newFragments.sort((a, b) => a.start - b.start),
+          createdAt: Date.now(),
+        })
+      }
+
+      return {
+        normalizedName,
+        selectedCount: selectedFragments.length,
+        totalCount: fragments.length,
+        newAudioId,
+      }
+    })
+
+    if (result) {
+      setNormalizeResultInfo(result)
+    }
+
+    setNormalizing(false)
+  }, [audioId, normalizing, vadDetecting, trimming, getAudioBuffer, fragments, normalizeExcluded, files, addFile, subtitleFiles, wrapHeavyOp])
 
   // --- File playback ---
     // --- File playback ---
@@ -996,15 +1107,20 @@ function FragmentEditorPageInner() {
           {/* Action bar */}
           <div className="action-bar">
             <button className="action-bar__btn" onClick={handleAutoDetectClick}
-              disabled={vadDetecting || trimming || vadDone || !isFragmentsReady}>
+              disabled={vadDetecting || trimming || normalizing || vadDone || !isFragmentsReady}>
               {vadDetecting && !trimming ? "Detecting..." : vadDone ? "Auto-detect speech ✓" : "Auto-detect speech"}
             </button>
-            <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming}>
+            <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming || normalizing}>
               {trimming ? "Trimming..." : "Trim silence"}
+            </button>
+            <button className="action-bar__btn" onClick={normalizeMode ? () => setNormalizeMode(false) : handleNormalizeOpen}
+              disabled={vadDetecting || trimming || normalizing || fragments.length === 0 || !isFragmentsReady}
+              style={normalizeMode ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
+              {normalizing ? "Normalizing..." : normalizeMode ? "Cancel normalize" : "Normalize volume"}
             </button>
             <button className="action-bar__btn action-bar__btn--danger"
               onClick={() => fragments.length > 0 ? setShowDeleteAllConfirm(true) : undefined}
-              disabled={vadDetecting || trimming || fragments.length === 0}>
+              disabled={vadDetecting || trimming || normalizing || fragments.length === 0}>
               Delete all fragments
             </button>
             {vadDetecting && (
@@ -1013,8 +1129,36 @@ function FragmentEditorPageInner() {
                 <span>{trimming ? "Detecting speech..." : "Detecting..."}</span>
               </div>
             )}
+            {normalizing && (
+              <div className="vad-indicator">
+                <div className="spinner spinner--vad spinner--vad-trim" />
+                <span>Normalizing...</span>
+              </div>
+            )}
           </div>
 
+
+          {/* Normalize mode banner */}
+          {normalizeMode && (
+            <div style={{
+              padding: "10px 14px",
+              backgroundColor: "#e3f2fd",
+              border: "1px solid #90caf9",
+              borderRadius: 6,
+              marginBottom: 12,
+              display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: "0.85rem", color: "#1565c0", flex: 1 }}>
+                Use checkboxes to exclude fragments. Play them on the waveform to preview.
+              </span>
+              <button className="btn-primary"
+                onClick={handleNormalizeRun}
+                disabled={fragments.length - normalizeExcluded.size === 0}>
+                Normalize {fragments.length - normalizeExcluded.size} fragment{fragments.length - normalizeExcluded.size !== 1 ? "s" : ""}
+              </button>
+              <button onClick={() => setNormalizeMode(false)}>Cancel</button>
+            </div>
+          )}
 
           {/* Fragment list */}
           <div className="fragment-list">
@@ -1067,7 +1211,24 @@ function FragmentEditorPageInner() {
                       backgroundColor: isInBlockRange ? "rgba(211, 47, 47, 0.1)" : undefined,
                       borderColor: isInBlockRange ? "#d32f2f" : undefined,
                     }}>
-                    <span className="fragment-row__time">
+                    {normalizeMode && (
+                      <input
+                        type="checkbox"
+                        checked={!normalizeExcluded.has(f.id)}
+                        onChange={() => {
+                          setNormalizeExcluded(prev => {
+                            const next = new Set(prev)
+                            if (next.has(f.id)) next.delete(f.id)
+                            else next.add(f.id)
+                            return next
+                          })
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        style={{ marginRight: 4, flexShrink: 0 }}
+                      />
+                    )}
+                    <span className="fragment-row__time"
+                      style={normalizeMode && normalizeExcluded.has(f.id) ? { opacity: 0.4 } : undefined}>
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
                     <div className="fragment-row__actions">
@@ -1315,6 +1476,36 @@ function FragmentEditorPageInner() {
                 </button>
               )}
               <button onClick={() => setTrimResultInfo(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Normalize result modal */}
+      {normalizeResultInfo && (
+        <div className="modal-overlay" onClick={() => setNormalizeResultInfo(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: "min(420px, 90vw)" }}>
+            <h3 style={{ marginTop: 0 }}>Normalization complete</h3>
+            <p style={{ fontSize: "0.9rem", marginBottom: 8 }}>
+              Created <strong style={{ wordBreak: "break-all" }}>"{normalizeResultInfo.normalizedName}"</strong>
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
+              {normalizeResultInfo.selectedCount} of {normalizeResultInfo.totalCount} fragment{normalizeResultInfo.totalCount !== 1 ? "s" : ""} normalized.
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
+              The new file with its sequence is available in your Audio Library.
+            </p>
+            <div className="modal-actions">
+              {normalizeResultInfo.newAudioId && (
+                <button className="btn-primary" onClick={() => {
+                  const newId = normalizeResultInfo.newAudioId
+                  setNormalizeResultInfo(null)
+                  if (newId) navigate(`/file/${newId}/sequences`)
+                }}>
+                  Open normalized file
+                </button>
+              )}
+              <button onClick={() => setNormalizeResultInfo(null)}>Close</button>
             </div>
           </div>
         </div>
