@@ -3,7 +3,6 @@
 // Sequence Player page — navigated to from Fragment Library play button.
 // Displays:
 // - Page header with sequence label and audio file name
-// - Sequence bar (same as on Fragment Library)
 // - Play-all button for consecutive playback
 // - Fragment list with expandable control panels
 // - Fragment control panel: play, pause, stop, infinite rewind, repeat, speed, nav, close
@@ -60,32 +59,6 @@ const PlayAllIcon = ({ size = 20 }: { size?: number }) => (
     <path d="M4 4v16l8.5-8L4 4zm9 0v16l8.5-8L13 4z" />
   </svg>
 )
-
-// --- Sequence bar (reused from FragmentLibraryPage) ---
-function SequenceBar({
-  sequence, duration, playingFragIdx, width = 200,
-}: {
-  sequence: Sequence; duration: number; playingFragIdx: number | null; width?: number
-}) {
-  const BAR_WIDTH = width
-  const MIN_FRAG_PX = 2
-
-  return (
-    <svg width={BAR_WIDTH} height={18} style={{ display: "block", flexShrink: 0 }}>
-      <rect x={0} y={2} width={BAR_WIDTH} height={14} rx={3} fill="#4caf50" opacity={0.3} />
-      {duration > 0 && sequence.fragments.map((f, i) => {
-        const startPx = (f.start / duration) * BAR_WIDTH
-        let widthPx = ((f.end - f.start) / duration) * BAR_WIDTH
-        if (widthPx < MIN_FRAG_PX) widthPx = MIN_FRAG_PX
-        const isPlaying = playingFragIdx === i
-        return (
-          <rect key={i} x={startPx} y={2} width={widthPx} height={14} rx={1}
-            fill={isPlaying ? "#f44336" : "#ffc107"} opacity={isPlaying ? 1 : 0.85} />
-        )
-      })}
-    </svg>
-  )
-}
 
 // --- Subtitle display for a fragment ---
 function SubtitleDisplay({
@@ -254,7 +227,7 @@ function SequencePlayerPageInner() {
   const {
     files,
     loadById, playFragment, pause, play, stop,
-    isFragmentsReady, isPlaying, isPaused, duration, setOnEnded,
+    isFragmentsReady, isPlaying, isPaused, setOnEnded,
     volume, setVolume,
   } = useSharedAudioEngine()
 
@@ -536,16 +509,6 @@ function SequencePlayerPageInner() {
         <span className="sp-file-info-separator">·</span>
         {sequence.fragments.length} fragment{sequence.fragments.length !== 1 ? "s" : ""}
       </p>
-
-      {/* Sequence bar */}
-      <div className="sp-seq-bar-container">
-        <SequenceBar
-          sequence={sequence}
-          duration={duration}
-          playingFragIdx={playingFragIdx}
-          width={Math.min(400, Math.max(200, typeof window !== "undefined" ? window.innerWidth - 48 : 300))}
-        />
-      </div>
 
       {/* Play-all / Stop-all + Volume */}
       <div className="sp-playall-row">
