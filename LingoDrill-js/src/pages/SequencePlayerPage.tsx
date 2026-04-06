@@ -27,29 +27,31 @@ function formatTime(sec: number): string {
 }
 
 // --- Icons ---
-const PlayIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+// Control panel icons use "1em" so CSS font-size on the button controls their size.
+// PlayAllIcon keeps an explicit px size since it's used outside the control panel.
+const PlayIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
 )
-const PauseIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+const PauseIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
 )
-const StopIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z" /></svg>
+const StopIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z" /></svg>
 )
-const InfiniteRewindIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+const InfiniteRewindIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
     <text x="12" y="15.5" textAnchor="middle" fontSize="7" fontWeight="bold" fill="currentColor">∞</text>
   </svg>
 )
-const PrevIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
+const PrevIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
 )
-const NextIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
+const NextIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
 )
-const CloseIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+const CloseIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 )
@@ -152,17 +154,17 @@ function FragmentControlPanel({
         {/* Play / Pause */}
         {isPlaying ? (
           <button className="sp-ctrl-btn" onClick={onPause} title="Pause">
-            <PauseIcon size={20} />
+            <PauseIcon />
           </button>
         ) : (
           <button className="sp-ctrl-btn" onClick={onPlay} title={isPaused ? "Resume" : "Play"}>
-            <PlayIcon size={20} />
+            <PlayIcon />
           </button>
         )}
 
         {/* Stop */}
         <button className="sp-ctrl-btn" onClick={onStop} title="Stop">
-          <StopIcon size={20} />
+          <StopIcon />
         </button>
 
         {/* Infinite rewind */}
@@ -171,7 +173,7 @@ function FragmentControlPanel({
           onClick={onInfiniteRewind}
           title={isInfiniteRewind ? "Disable infinite rewind" : "Enable infinite rewind"}
         >
-          <InfiniteRewindIcon size={20} />
+          <InfiniteRewindIcon />
         </button>
 
         {/* Separator */}
@@ -220,7 +222,7 @@ function FragmentControlPanel({
           disabled={fragmentIndex <= 0}
           title="Previous fragment"
         >
-          <PrevIcon size={20} />
+          <PrevIcon />
         </button>
         <button
           className="sp-ctrl-btn"
@@ -228,12 +230,12 @@ function FragmentControlPanel({
           disabled={fragmentIndex >= totalFragments - 1}
           title="Next fragment"
         >
-          <NextIcon size={20} />
+          <NextIcon />
         </button>
 
         {/* Close */}
         <button className="sp-ctrl-btn sp-ctrl-btn--close" onClick={onClose} title="Close control panel">
-          <CloseIcon size={20} />
+          <CloseIcon />
         </button>
       </div>
     </div>
@@ -289,11 +291,13 @@ function SequencePlayerPageInner() {
   useEffect(() => { localSpeedsRef.current = localSpeeds }, [localSpeeds])
 
   // Auto-select (expand) the playing fragment
-  useEffect(() => {
+  const [prevPlayingFragIdx, setPrevPlayingFragIdx] = useState<number | null>(null)
+  if (playingFragIdx !== prevPlayingFragIdx) {
+    setPrevPlayingFragIdx(playingFragIdx)
     if (playingFragIdx !== null) {
       setSelectedFragIdx(playingFragIdx)
     }
-  }, [playingFragIdx])
+  }
 
   // Display order: playing fragment goes to top
   const displayOrder = useMemo(() => {
@@ -512,6 +516,7 @@ function SequencePlayerPageInner() {
     return (
       <div className="page">
         <h2>Sequence Player</h2>
+        <h3>Test 4</h3>
         <p style={{ color: "#888" }}>Loading sequence...</p>
         <button onClick={() => navigate(`/file/${audioId}/sequences`)}>← Back to sequences</button>
       </div>
@@ -548,17 +553,17 @@ function SequencePlayerPageInner() {
           <>
             {isPlaying ? (
               <button className="sp-playall-btn sp-playall-btn--playing" onClick={() => pause()}>
-                <PauseIcon size={20} />
+                <PauseIcon />
                 <span>Pause all</span>
               </button>
             ) : isPaused ? (
               <button className="sp-playall-btn sp-playall-btn--playing" onClick={() => play()}>
-                <PlayIcon size={20} />
+                <PlayIcon />
                 <span>Resume all</span>
               </button>
             ) : null}
             <button className="sp-playall-btn sp-playall-btn--stop" onClick={handleStopAll}>
-              <StopIcon size={20} />
+              <StopIcon />
               <span>Stop</span>
             </button>
           </>
@@ -656,6 +661,7 @@ function SequencePlayerPageInner() {
       <div className="player-nav" style={{ marginTop: 16 }}>
         <button onClick={() => navigate(`/file/${audioId}/sequences`)}>← Back to sequences</button>
       </div>
+
     </div>
   )
 }

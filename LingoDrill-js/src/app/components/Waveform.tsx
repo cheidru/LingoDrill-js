@@ -22,6 +22,8 @@ type Props = {
   onClickOutside?: () => void
   /** Вызывается при перетаскивании границ выделенного фрагмента (только для editingId) */
   onEditDrag?: (id: string, newStart: number, newEnd: number) => void
+  /** Вызывается когда перетаскивание границы завершено (mouse/touch up) */
+  onEditEnd?: (id: string, newStart: number, newEnd: number) => void
   /** id фрагмента в режиме редактирования (или null) */
   editingId?: string | null
   currentTime?: number
@@ -63,6 +65,7 @@ export function Waveform({
   onFragmentClick,
   onClickOutside,
   onEditDrag,
+  onEditEnd,
   editingId = null,
   currentTime,
   playingFragment,
@@ -460,6 +463,8 @@ export function Waveform({
     }
 
     if (dragging) {
+      const f = fragments.find(fr => fr.id === dragging.id)
+      if (f) onEditEnd?.(dragging.id, f.start, f.end)
       setDragging(null)
       return
     }
@@ -485,6 +490,8 @@ export function Waveform({
       setIsSelecting(false)
     }
     if (dragging) {
+      const f = fragments.find(fr => fr.id === dragging.id)
+      if (f) onEditEnd?.(dragging.id, f.start, f.end)
       setDragging(null)
     }
   }
@@ -536,12 +543,12 @@ export function Waveform({
   // Refs для доступа к актуальным значениям из touch handlers
   const stateRef = useRef({
     editingId, fragments, selection, isSelecting, dragging, draggingCursor,
-    showPlaybackCursor, currentTime, onSeek, onEditDrag, onFragmentClick, onClickOutside, onSelect,
+    showPlaybackCursor, currentTime, onSeek, onEditDrag, onEditEnd, onFragmentClick, onClickOutside, onSelect,
   })
   useEffect(() => {
     stateRef.current = {
       editingId, fragments, selection, isSelecting, dragging, draggingCursor,
-      showPlaybackCursor, currentTime, onSeek, onEditDrag, onFragmentClick, onClickOutside, onSelect,
+      showPlaybackCursor, currentTime, onSeek, onEditDrag, onEditEnd, onFragmentClick, onClickOutside, onSelect,
     }
   })
 
@@ -790,6 +797,10 @@ export function Waveform({
       }
 
       if (touchActionRef.current === "drag-handle") {
+        if (s.dragging) {
+          const f = s.fragments.find(fr => fr.id === s.dragging!.id)
+          if (f) s.onEditEnd?.(s.dragging.id, f.start, f.end)
+        }
         setDragging(null)
       }
 

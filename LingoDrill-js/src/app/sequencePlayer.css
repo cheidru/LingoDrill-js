@@ -169,6 +169,7 @@
   justify-content: center;
   width: 36px;
   height: 36px;
+  font-size: 1.25rem; /* 20px — controls 1em icon size */
   border: 1px solid #ddd;
   border-radius: 6px;
   background: #fff;
@@ -273,6 +274,8 @@ html.mobile .sp-frag-time {
 html.mobile .sp-ctrl-btn {
   width: 44px;
   height: 44px;
+  font-size: 1.625rem; /* 26px */
+  padding: 0;
 }
 html.mobile .sp-ctrl-input {
   width: 50px;
@@ -291,4 +294,38 @@ html.mobile .sp-control-panel {
 html.mobile .sp-subtitle-display {
   padding: 10px 12px;
   font-size: 0.95rem;
+}
+
+/* Touch device fallback — covers devices where screen.width >= 500 (html.mobile not set) */
+@media (pointer: coarse) {
+  .sp-playall-btn {
+    padding: 10px 20px;
+    font-size: 1rem;
+    min-height: 44px;
+  }
+  .sp-frag-row {
+    padding: 10px 12px;
+    min-height: 44px;
+    gap: 8px;
+  }
+  .sp-ctrl-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.625rem; /* 26px */
+    padding: 0;
+  }
+  .sp-ctrl-input {
+    width: 50px;
+    padding: 6px 8px;
+    font-size: 0.95rem;
+    min-height: 36px;
+  }
+  .sp-ctrl-select {
+    padding: 6px 8px;
+    font-size: 0.95rem;
+    min-height: 36px;
+  }
+  .sp-control-panel {
+    padding: 10px 12px;
+  }
 }

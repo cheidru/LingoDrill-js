@@ -1029,6 +1029,10 @@ function FragmentEditorPageInner() {
                   updateLocalFragment(updated)
                 }
               }}
+              onEditEnd={(id, newStart, newEnd) => {
+                const updated = fragments.map(f => f.id === id ? { ...f, start: newStart, end: newEnd } : f)
+                persistSequence(updated)
+              }}
               editingId={editingId}
               currentTime={currentTime}
               playingFragment={playingFragment}
