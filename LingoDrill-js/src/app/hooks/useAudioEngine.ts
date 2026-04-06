@@ -196,8 +196,11 @@ export function useAudioEngine(
 
   const play = useCallback(() => {
     if (!isReady) return
-    activeEngineRef.current = "html"
-    htmlEngineRef.current?.play()
+    if (activeEngineRef.current === "web") {
+      webEngineRef.current?.play()
+    } else {
+      htmlEngineRef.current?.play()
+    }
     setIsPlaying(true)
     setIsPaused(false)
   }, [isReady])

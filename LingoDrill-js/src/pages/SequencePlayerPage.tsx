@@ -333,6 +333,7 @@ function SequencePlayerPageInner() {
     playAllModeRef.current = false
     setPlayingFragIdx(null)
     playingFragIdxRef.current = null
+    setSelectedFragIdx(null)
     stop()
   }, [stop])
 
@@ -364,6 +365,7 @@ function SequencePlayerPageInner() {
           playAllModeRef.current = false
           setPlayingFragIdx(null)
           playingFragIdxRef.current = null
+          setSelectedFragIdx(null)
           return
         }
         console.log("[SequencePlayerPage] Play-all advancing to fragment", nextIdx)
@@ -419,26 +421,14 @@ function SequencePlayerPageInner() {
   const handlePrevFragment = useCallback(() => {
     if (selectedFragIdx === null || selectedFragIdx <= 0 || !sequence) return
     const newIdx = selectedFragIdx - 1
-    setSelectedFragIdx(newIdx)
-    // If currently playing, switch to new fragment
-    if (playingFragIdx !== null) {
-      setPlayAllMode(false)
-      playAllModeRef.current = false
-      playFragmentWithOverrides(sequence, newIdx)
-    }
-  }, [selectedFragIdx, playingFragIdx, sequence, playFragmentWithOverrides])
+    playFragmentWithOverrides(sequence, newIdx)
+  }, [selectedFragIdx, sequence, playFragmentWithOverrides])
 
   const handleNextFragment = useCallback(() => {
     if (selectedFragIdx === null || !sequence || selectedFragIdx >= sequence.fragments.length - 1) return
     const newIdx = selectedFragIdx + 1
-    setSelectedFragIdx(newIdx)
-    // If currently playing, switch to new fragment
-    if (playingFragIdx !== null) {
-      setPlayAllMode(false)
-      playAllModeRef.current = false
-      playFragmentWithOverrides(sequence, newIdx)
-    }
-  }, [selectedFragIdx, playingFragIdx, sequence, playFragmentWithOverrides])
+    playFragmentWithOverrides(sequence, newIdx)
+  }, [selectedFragIdx, sequence, playFragmentWithOverrides])
 
   const handleClosePanel = useCallback(() => {
     setSelectedFragIdx(null)
