@@ -62,6 +62,25 @@
   background: #ffcdd2;
 }
 
+.sp-speed-slider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #555;
+  cursor: default;
+}
+.sp-speed-slider__input {
+  width: 80px;
+  accent-color: #4a90e2;
+  cursor: pointer;
+}
+.sp-speed-slider__value {
+  min-width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .sp-volume {
   margin-left: auto;
 }
@@ -230,18 +249,6 @@
   outline: none;
 }
 
-.sp-ctrl-select {
-  padding: 4px 6px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  background: #fff;
-  cursor: pointer;
-}
-.sp-ctrl-select:focus {
-  border-color: #4a90e2;
-  outline: none;
-}
 
 /* --- Subtitle display in player --- */
 .sp-subtitle-display {
@@ -283,10 +290,8 @@ html.mobile .sp-ctrl-input {
   font-size: 0.95rem;
   min-height: 36px;
 }
-html.mobile .sp-ctrl-select {
-  padding: 6px 8px;
-  font-size: 0.95rem;
-  min-height: 36px;
+html.mobile .sp-speed-slider__input {
+  width: 100px;
 }
 html.mobile .sp-control-panel {
   padding: 10px 12px;
@@ -320,10 +325,8 @@ html.mobile .sp-subtitle-display {
     font-size: 0.95rem;
     min-height: 36px;
   }
-  .sp-ctrl-select {
-    padding: 6px 8px;
-    font-size: 0.95rem;
-    min-height: 36px;
+  .sp-speed-slider__input {
+    width: 100px;
   }
   .sp-control-panel {
     padding: 10px 12px;

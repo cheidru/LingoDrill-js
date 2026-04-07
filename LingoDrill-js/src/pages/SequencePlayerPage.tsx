@@ -169,20 +169,18 @@ function FragmentControlPanel({
         </label>
 
         {/* Speed */}
-        <label className="sp-ctrl-label" title="Playback speed">
+        <label className="sp-speed-slider" title="Playback speed">
           <span>⚡</span>
-          <select
+          <input
+            type="range"
+            min={0.5}
+            max={1.5}
+            step={0.05}
             value={localSpeed}
             onChange={e => onSpeedChange(parseFloat(e.target.value))}
-            className="sp-ctrl-select"
-          >
-            <option value={0.5}>0.5×</option>
-            <option value={0.75}>0.75×</option>
-            <option value={1}>1×</option>
-            <option value={1.25}>1.25×</option>
-            <option value={1.5}>1.5×</option>
-            <option value={2}>2×</option>
-          </select>
+            className="sp-speed-slider__input"
+          />
+          <span className="sp-speed-slider__value">{localSpeed.toFixed(2)}×</span>
         </label>
 
         {/* Separator */}
@@ -242,6 +240,7 @@ function SequencePlayerPageInner() {
   const [playingFragIdx, setPlayingFragIdx] = useState<number | null>(null)
   const [selectedFragIdx, setSelectedFragIdx] = useState<number | null>(null)
   const [infiniteRewind, setInfiniteRewind] = useState(false)
+  const [sequenceSpeed, setSequenceSpeed] = useState(1)
 
   // Local fragment overrides (repeat, speed) — keyed by fragment index
   const [localRepeats, setLocalRepeats] = useState<Record<number, number>>({})
@@ -252,6 +251,7 @@ function SequencePlayerPageInner() {
   const playingFragIdxRef = useRef<number | null>(null)
   const infiniteRewindRef = useRef(false)
   const sequenceRef = useRef<Sequence | null>(null)
+  const sequenceSpeedRef = useRef(1)
   const localRepeatsRef = useRef<Record<number, number>>({})
   const localSpeedsRef = useRef<Record<number, number>>({})
 
@@ -259,6 +259,7 @@ function SequencePlayerPageInner() {
   useEffect(() => { playAllModeRef.current = playAllMode }, [playAllMode])
   useEffect(() => { playingFragIdxRef.current = playingFragIdx }, [playingFragIdx])
   useEffect(() => { infiniteRewindRef.current = infiniteRewind }, [infiniteRewind])
+  useEffect(() => { sequenceSpeedRef.current = sequenceSpeed }, [sequenceSpeed])
   useEffect(() => { sequenceRef.current = sequence }, [sequence])
   useEffect(() => { localRepeatsRef.current = localRepeats }, [localRepeats])
   useEffect(() => { localSpeedsRef.current = localSpeeds }, [localSpeeds])
@@ -301,6 +302,12 @@ function SequencePlayerPageInner() {
     }
   }, [])
 
+  // --- Effective speed: sequence speed × fragment speed ---
+  const getEffectiveSpeed = useCallback((fragIdx: number, f: SequenceFragment) => {
+    const fragSpeed = localSpeedsRef.current[fragIdx] ?? f.speed
+    return sequenceSpeedRef.current * fragSpeed
+  }, [])
+
   // --- Play a single fragment with local overrides ---
   const playFragmentWithOverrides = useCallback((seq: Sequence, fragIdx: number) => {
     if (fragIdx < 0 || fragIdx >= seq.fragments.length) {
@@ -309,13 +316,12 @@ function SequencePlayerPageInner() {
     }
     const f = seq.fragments[fragIdx]
     const repeat = localRepeatsRef.current[fragIdx] ?? f.repeat
-    const speed = localSpeedsRef.current[fragIdx] ?? f.speed
-    const fragment: PlayableFragment = { start: f.start, end: f.end, repeat }
+    const speed = getEffectiveSpeed(fragIdx, f)
+    const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
     console.log("[SequencePlayerPage] Playing fragment", fragIdx, "start:", f.start.toFixed(2), "end:", f.end.toFixed(2), "repeat:", repeat, "speed:", speed)
-    // TODO: apply playback speed when engine supports per-fragment speed
     playFragment(fragment)
     setPlayingFragIdx(fragIdx)
-  }, [playFragment])
+  }, [playFragment, getEffectiveSpeed])
 
   // --- Play all ---
   const handlePlayAll = useCallback(() => {
@@ -351,7 +357,9 @@ function SequencePlayerPageInner() {
         console.log("[SequencePlayerPage] Infinite rewind: replaying fragment", currentIdx)
         const f = seq.fragments[currentIdx]
         const repeat = localRepeatsRef.current[currentIdx] ?? f.repeat
-        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat }
+        const fragSpeed = localSpeedsRef.current[currentIdx] ?? f.speed
+        const speed = sequenceSpeedRef.current * fragSpeed
+        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
         playFragment(fragment)
         return
       }
@@ -371,7 +379,9 @@ function SequencePlayerPageInner() {
         console.log("[SequencePlayerPage] Play-all advancing to fragment", nextIdx)
         const f = seq.fragments[nextIdx]
         const repeat = localRepeatsRef.current[nextIdx] ?? f.repeat
-        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat }
+        const fragSpeed = localSpeedsRef.current[nextIdx] ?? f.speed
+        const speed = sequenceSpeedRef.current * fragSpeed
+        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
         playFragment(fragment)
         setPlayingFragIdx(nextIdx)
         playingFragIdxRef.current = nextIdx
@@ -531,6 +541,19 @@ function SequencePlayerPageInner() {
             <span>Play all</span>
           </button>
         )}
+        <label className="sp-speed-slider sp-seq-speed" title="Sequence playback speed (multiplied with per-fragment speed)">
+          <span>⚡</span>
+          <input
+            type="range"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={sequenceSpeed}
+            onChange={e => setSequenceSpeed(parseFloat(e.target.value))}
+            className="sp-speed-slider__input"
+          />
+          <span className="sp-speed-slider__value">{sequenceSpeed.toFixed(2)}×</span>
+        </label>
         <div className="sp-volume">
           <VolumeControl volume={volume} onVolumeChange={setVolume} />
         </div>

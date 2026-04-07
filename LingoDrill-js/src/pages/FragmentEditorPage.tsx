@@ -753,7 +753,7 @@ function FragmentEditorPageInner() {
   const handlePlayFragment = useCallback((f: SequenceFragment) => {
     stop()
     setIsFilePlayback(false)
-    const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat }
+    const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat, speed: f.speed }
     setPlayingFragment({ start: f.start, end: f.end })
     playFragment(pf)
   }, [stop, playFragment])

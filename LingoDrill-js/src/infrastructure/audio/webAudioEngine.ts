@@ -237,6 +237,7 @@ export class WebAudioEngine implements AudioEngine {
 
     this.stopSourceOnly()
     this.playbackId++  // инвалидируем все старые onended/setTimeout
+    this.playbackRate = fragment.speed ?? 1
     this.currentFragment = fragment
     this.repeatsLeft = fragment.repeat
 

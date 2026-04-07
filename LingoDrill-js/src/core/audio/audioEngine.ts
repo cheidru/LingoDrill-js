@@ -5,6 +5,7 @@ export type PlayableFragment = {
   start: number   // seconds
   end: number     // seconds
   repeat: number  // number of repetitions
+  speed: number   // playback rate (1 = normal)
 }
 
 export interface AudioEngine {  
