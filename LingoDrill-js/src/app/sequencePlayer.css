@@ -82,7 +82,6 @@
 }
 
 .sp-volume {
-  margin-left: auto;
 }
 
 .sp-decode-indicator {
@@ -157,6 +156,16 @@
 .sp-frag-sub-indicator {
   font-size: 0.8rem;
 }
+.sp-frag-disabled-indicator {
+  font-size: 0.7rem;
+  color: #c62828;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sp-frag-item--disabled {
+  opacity: 0.5;
+}
 .sp-frag-playing-indicator {
   color: #f44336;
   font-size: 0.75rem;
@@ -219,6 +228,14 @@
 }
 .sp-ctrl-btn--close:hover {
   color: #333;
+}
+.sp-ctrl-btn--disabled {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
+}
+.sp-ctrl-btn--disabled:hover {
+  background: #ffcdd2;
 }
 
 .sp-ctrl-separator {

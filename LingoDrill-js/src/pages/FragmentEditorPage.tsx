@@ -16,7 +16,7 @@
 // 11. НОВОЕ: удаление выбранного фрагмента клавишей Delete на клавиатуре
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
@@ -56,6 +56,7 @@ export function FragmentEditorPage() {
 function FragmentEditorPageInner() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId?: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const {
     getBlob, addFile, files,
@@ -173,6 +174,19 @@ function FragmentEditorPageInner() {
       if (seq.fragments.length > 0) setVadDone(true)
     }
   }, [seqId, sequences, sequenceLoaded])
+
+  // Pre-select fragment from navigation state (e.g., from Sequence Player edit button)
+  const preselectedRef = useRef(false)
+  useEffect(() => {
+    if (preselectedRef.current) return
+    const fragId = (location.state as Record<string, unknown>)?.fragmentId as string | undefined
+    if (fragId && fragments.some(f => f.id === fragId)) {
+      setEditingId(fragId)
+      const frag = fragments.find(f => f.id === fragId)
+      if (frag) savedBoundsRef.current = { start: frag.start, end: frag.end }
+      preselectedRef.current = true
+    }
+  }, [fragments, location.state])
 
   // --- Persist ---
 
@@ -957,8 +971,8 @@ function FragmentEditorPageInner() {
 
       {/* Navigation and Export — at the top */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-        <button onClick={() => navigate(audioId ? `/file/${audioId}/sequences` : "/")}>
-          ← Back to sequences
+        <button onClick={() => navigate(-1)}>
+          ← Back
         </button>
         {isReady && (
           <ExportBundleButton

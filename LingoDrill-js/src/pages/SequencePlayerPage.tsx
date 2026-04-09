@@ -5,7 +5,7 @@
 // - Page header with sequence label and audio file name
 // - Play-all button for consecutive playback
 // - Fragment list with expandable control panels
-// - Fragment control panel: play, pause, stop, infinite rewind, repeat, speed, nav, close
+// - Fragment control panel: play, pause, stop, infinite rewind, disable, repeat, speed, nav, close
 // - Subtitle display for selected fragment
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
@@ -41,6 +41,16 @@ const InfiniteRewindIcon = () => (
   <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
     <text x="12" y="15.5" textAnchor="middle" fontSize="7" fontWeight="bold" fill="currentColor">∞</text>
+  </svg>
+)
+const SkipIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="9" /><line x1="5.7" y1="5.7" x2="18.3" y2="18.3" />
+  </svg>
+)
+const EditIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
   </svg>
 )
 const PrevIcon = () => (
@@ -93,14 +103,17 @@ function FragmentControlPanel({
   isPaused,
   isInfiniteRewind,
   localRepeat,
-  localSpeed,
+  sequenceSpeed,
+  isDisabled,
   onPlay,
   onPause,
   onStop,
   onInfiniteRewind,
+  onToggleDisabled,
   onPrev,
   onNext,
   onClose,
+  onEdit,
   onRepeatChange,
   onSpeedChange,
 }: {
@@ -110,14 +123,17 @@ function FragmentControlPanel({
   isPaused: boolean
   isInfiniteRewind: boolean
   localRepeat: number
-  localSpeed: number
+  sequenceSpeed: number
+  isDisabled: boolean
   onPlay: () => void
   onPause: () => void
   onStop: () => void
   onInfiniteRewind: () => void
+  onToggleDisabled: () => void
   onPrev: () => void
   onNext: () => void
   onClose: () => void
+  onEdit: () => void
   onRepeatChange: (value: number) => void
   onSpeedChange: (value: number) => void
 }) {
@@ -149,6 +165,15 @@ function FragmentControlPanel({
           <InfiniteRewindIcon />
         </button>
 
+        {/* Disable/enable for play-all */}
+        <button
+          className={`sp-ctrl-btn ${isDisabled ? "sp-ctrl-btn--disabled" : ""}`}
+          onClick={onToggleDisabled}
+          title={isDisabled ? "Include in Play-all" : "Exclude from Play-all"}
+        >
+          <SkipIcon />
+        </button>
+
         {/* Separator */}
         <div className="sp-ctrl-separator" />
 
@@ -168,19 +193,19 @@ function FragmentControlPanel({
           />
         </label>
 
-        {/* Speed */}
-        <label className="sp-speed-slider" title="Playback speed">
+        {/* Speed (controls sequence-wide playback speed) */}
+        <label className="sp-speed-slider" title="Playback speed (applies to all fragments)">
           <span>⚡</span>
           <input
             type="range"
             min={0.5}
             max={1.5}
             step={0.05}
-            value={localSpeed}
+            value={sequenceSpeed}
             onChange={e => onSpeedChange(parseFloat(e.target.value))}
             className="sp-speed-slider__input"
           />
-          <span className="sp-speed-slider__value">{localSpeed.toFixed(2)}×</span>
+          <span className="sp-speed-slider__value">{sequenceSpeed.toFixed(2)}×</span>
         </label>
 
         {/* Separator */}
@@ -202,6 +227,11 @@ function FragmentControlPanel({
           title="Next fragment"
         >
           <NextIcon />
+        </button>
+
+        {/* Edit in Fragment Editor */}
+        <button className="sp-ctrl-btn" onClick={onEdit} title="Edit in Fragment Editor">
+          <EditIcon />
         </button>
 
         {/* Close */}
@@ -242,9 +272,10 @@ function SequencePlayerPageInner() {
   const [infiniteRewind, setInfiniteRewind] = useState(false)
   const [sequenceSpeed, setSequenceSpeed] = useState(1)
 
-  // Local fragment overrides (repeat, speed) — keyed by fragment index
+  // Local fragment overrides (repeat) — keyed by fragment index
   const [localRepeats, setLocalRepeats] = useState<Record<number, number>>({})
-  const [localSpeeds, setLocalSpeeds] = useState<Record<number, number>>({})
+  // Disabled fragments — excluded from Play-all
+  const [disabledFragments, setDisabledFragments] = useState<Record<number, boolean>>({})
 
   // Refs for callbacks
   const playAllModeRef = useRef(false)
@@ -253,7 +284,7 @@ function SequencePlayerPageInner() {
   const sequenceRef = useRef<Sequence | null>(null)
   const sequenceSpeedRef = useRef(1)
   const localRepeatsRef = useRef<Record<number, number>>({})
-  const localSpeedsRef = useRef<Record<number, number>>({})
+  const disabledFragmentsRef = useRef<Record<number, boolean>>({})
 
   // Sync refs
   useEffect(() => { playAllModeRef.current = playAllMode }, [playAllMode])
@@ -262,7 +293,7 @@ function SequencePlayerPageInner() {
   useEffect(() => { sequenceSpeedRef.current = sequenceSpeed }, [sequenceSpeed])
   useEffect(() => { sequenceRef.current = sequence }, [sequence])
   useEffect(() => { localRepeatsRef.current = localRepeats }, [localRepeats])
-  useEffect(() => { localSpeedsRef.current = localSpeeds }, [localSpeeds])
+  useEffect(() => { disabledFragmentsRef.current = disabledFragments }, [disabledFragments])
 
   // Auto-select (expand) the playing fragment
   const [prevPlayingFragIdx, setPrevPlayingFragIdx] = useState<number | null>(null)
@@ -303,9 +334,8 @@ function SequencePlayerPageInner() {
   }, [])
 
   // --- Effective speed: sequence speed × fragment speed ---
-  const getEffectiveSpeed = useCallback((fragIdx: number, f: SequenceFragment) => {
-    const fragSpeed = localSpeedsRef.current[fragIdx] ?? f.speed
-    return sequenceSpeedRef.current * fragSpeed
+  const getEffectiveSpeed = useCallback((f: SequenceFragment) => {
+    return sequenceSpeedRef.current * f.speed
   }, [])
 
   // --- Play a single fragment with local overrides ---
@@ -316,21 +346,27 @@ function SequencePlayerPageInner() {
     }
     const f = seq.fragments[fragIdx]
     const repeat = localRepeatsRef.current[fragIdx] ?? f.repeat
-    const speed = getEffectiveSpeed(fragIdx, f)
+    const speed = getEffectiveSpeed(f)
     const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
     console.log("[SequencePlayerPage] Playing fragment", fragIdx, "start:", f.start.toFixed(2), "end:", f.end.toFixed(2), "repeat:", repeat, "speed:", speed)
     playFragment(fragment)
     setPlayingFragIdx(fragIdx)
   }, [playFragment, getEffectiveSpeed])
 
-  // --- Play all ---
+  // --- Play all (skips disabled fragments) ---
   const handlePlayAll = useCallback(() => {
     if (!sequence || sequence.fragments.length === 0) return
-    console.log("[SequencePlayerPage] Starting play-all mode")
+    // Find first enabled fragment
+    let firstIdx = 0
+    while (firstIdx < sequence.fragments.length && disabledFragments[firstIdx]) {
+      firstIdx++
+    }
+    if (firstIdx >= sequence.fragments.length) return // all disabled
+    console.log("[SequencePlayerPage] Starting play-all mode from fragment", firstIdx)
     setPlayAllMode(true)
     playAllModeRef.current = true
-    playFragmentWithOverrides(sequence, 0)
-  }, [sequence, playFragmentWithOverrides])
+    playFragmentWithOverrides(sequence, firstIdx)
+  }, [sequence, disabledFragments, playFragmentWithOverrides])
 
   // --- Stop all ---
   const handleStopAll = useCallback(() => {
@@ -357,16 +393,19 @@ function SequencePlayerPageInner() {
         console.log("[SequencePlayerPage] Infinite rewind: replaying fragment", currentIdx)
         const f = seq.fragments[currentIdx]
         const repeat = localRepeatsRef.current[currentIdx] ?? f.repeat
-        const fragSpeed = localSpeedsRef.current[currentIdx] ?? f.speed
-        const speed = sequenceSpeedRef.current * fragSpeed
+        const speed = sequenceSpeedRef.current * f.speed
         const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
         playFragment(fragment)
         return
       }
 
-      // Play-all mode: advance to next
+      // Play-all mode: advance to next enabled fragment
       if (playAllModeRef.current) {
-        const nextIdx = currentIdx + 1
+        let nextIdx = currentIdx + 1
+        // Skip disabled fragments
+        while (nextIdx < seq.fragments.length && disabledFragmentsRef.current[nextIdx]) {
+          nextIdx++
+        }
         if (nextIdx >= seq.fragments.length) {
           console.log("[SequencePlayerPage] Play-all finished")
           setPlayAllMode(false)
@@ -379,8 +418,7 @@ function SequencePlayerPageInner() {
         console.log("[SequencePlayerPage] Play-all advancing to fragment", nextIdx)
         const f = seq.fragments[nextIdx]
         const repeat = localRepeatsRef.current[nextIdx] ?? f.repeat
-        const fragSpeed = localSpeedsRef.current[nextIdx] ?? f.speed
-        const speed = sequenceSpeedRef.current * fragSpeed
+        const speed = sequenceSpeedRef.current * f.speed
         const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
         playFragment(fragment)
         setPlayingFragIdx(nextIdx)
@@ -456,17 +494,28 @@ function SequencePlayerPageInner() {
     }
   }, [sequence, updateSequence])
 
-  const handleSpeedChange = useCallback((fragIdx: number, value: number) => {
-    setLocalSpeeds(prev => ({ ...prev, [fragIdx]: value }))
-    console.log("[SequencePlayerPage] Speed for fragment", fragIdx, "set to", value)
-    // Also persist to sequence
-    if (sequence) {
-      const updatedFragments = sequence.fragments.map((f, i) =>
-        i === fragIdx ? { ...f, speed: value } : f
-      )
-      updateSequence({ ...sequence, fragments: updatedFragments })
-    }
-  }, [sequence, updateSequence])
+  const handleSequenceSpeedChange = useCallback((value: number) => {
+    setSequenceSpeed(value)
+  }, [])
+
+  const handleToggleDisabled = useCallback((fragIdx: number) => {
+    setDisabledFragments(prev => {
+      const next = { ...prev }
+      if (next[fragIdx]) {
+        delete next[fragIdx]
+      } else {
+        next[fragIdx] = true
+      }
+      return next
+    })
+  }, [])
+
+  const handleEditFragment = useCallback((fragIdx: number) => {
+    if (!sequence) return
+    const frag = sequence.fragments[fragIdx]
+    stop()
+    navigate(`/file/${audioId}/editor/${seqId}`, { state: { fragmentId: frag.id } })
+  }, [sequence, audioId, seqId, navigate, stop])
 
   // --- Select fragment (toggle) ---
   const handleSelectFragment = useCallback((fragIdx: number) => {
@@ -491,7 +540,7 @@ function SequencePlayerPageInner() {
         <h2>Sequence Player</h2>
         <h3>Test 4</h3>
         <p style={{ color: "#888" }}>Loading sequence...</p>
-        <button onClick={() => navigate(`/file/${audioId}/sequences`)}>← Back to sequences</button>
+        <button onClick={() => navigate(-1)}>← Back</button>
       </div>
     )
   }
@@ -510,8 +559,11 @@ function SequencePlayerPageInner() {
         {sequence.fragments.length} fragment{sequence.fragments.length !== 1 ? "s" : ""}
       </p>
 
-      {/* Play-all / Stop-all + Volume */}
+      {/* Back + Play-all / Stop-all + Volume */}
       <div className="sp-playall-row">
+        <button className="sp-playall-btn" onClick={() => navigate(-1)}>
+          <span>← Back</span>
+        </button>
         {isPlayAllActive ? (
           <>
             {isPlaying ? (
@@ -541,22 +593,7 @@ function SequencePlayerPageInner() {
             <span>Play all</span>
           </button>
         )}
-        <label className="sp-speed-slider sp-seq-speed" title="Sequence playback speed (multiplied with per-fragment speed)">
-          <span>⚡</span>
-          <input
-            type="range"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={sequenceSpeed}
-            onChange={e => setSequenceSpeed(parseFloat(e.target.value))}
-            className="sp-speed-slider__input"
-          />
-          <span className="sp-speed-slider__value">{sequenceSpeed.toFixed(2)}×</span>
-        </label>
-        <div className="sp-volume">
-          <VolumeControl volume={volume} onVolumeChange={setVolume} />
-        </div>
+        <VolumeControl volume={volume} onVolumeChange={setVolume} />
       </div>
 
       {!isFragmentsReady && (
@@ -572,10 +609,10 @@ function SequencePlayerPageInner() {
           const isSelected = selectedFragIdx === idx
           const isCurrentlyPlaying = playingFragIdx === idx
           const repeat = localRepeats[idx] ?? frag.repeat
-          const speed = localSpeeds[idx] ?? frag.speed
+          const isFragDisabled = !!disabledFragments[idx]
 
           return (
-            <div key={frag.id} className={`sp-frag-item ${isCurrentlyPlaying ? "sp-frag-item--playing" : ""} ${isSelected ? "sp-frag-item--selected" : ""}`}>
+            <div key={frag.id} className={`sp-frag-item ${isCurrentlyPlaying ? "sp-frag-item--playing" : ""} ${isSelected ? "sp-frag-item--selected" : ""} ${isFragDisabled ? "sp-frag-item--disabled" : ""}`}>
               {/* Fragment row */}
               <div
                 className="sp-frag-row"
@@ -592,10 +629,13 @@ function SequencePlayerPageInner() {
                   <span className="sp-frag-repeat">×{repeat}</span>
                 )}
                 {frag.speed !== 1 && (
-                  <span className="sp-frag-speed">{speed}×</span>
+                  <span className="sp-frag-speed">{frag.speed}×</span>
                 )}
                 {frag.subtitles.length > 0 && (
                   <span className="sp-frag-sub-indicator" title="Has subtitles">📝</span>
+                )}
+                {isFragDisabled && (
+                  <span className="sp-frag-disabled-indicator" title="Excluded from Play-all">skip</span>
                 )}
                 {isCurrentlyPlaying && (
                   <span className="sp-frag-playing-indicator">▶</span>
@@ -612,16 +652,19 @@ function SequencePlayerPageInner() {
                     isPaused={isCurrentlyPlaying && isPaused}
                     isInfiniteRewind={infiniteRewind}
                     localRepeat={repeat}
-                    localSpeed={speed}
+                    sequenceSpeed={sequenceSpeed}
+                    isDisabled={isFragDisabled}
                     onPlay={() => isCurrentlyPlaying && isPaused ? handleFragResume() : handleFragPlay(idx)}
                     onPause={handleFragPause}
                     onStop={handleFragStop}
                     onInfiniteRewind={handleInfiniteRewind}
+                    onToggleDisabled={() => handleToggleDisabled(idx)}
                     onPrev={handlePrevFragment}
                     onNext={handleNextFragment}
                     onClose={handleClosePanel}
+                    onEdit={() => handleEditFragment(idx)}
                     onRepeatChange={(v) => handleRepeatChange(idx, v)}
-                    onSpeedChange={(v) => handleSpeedChange(idx, v)}
+                    onSpeedChange={handleSequenceSpeedChange}
                   />
 
                   {/* Subtitle display */}
@@ -631,11 +674,6 @@ function SequencePlayerPageInner() {
             </div>
           )
         })}
-      </div>
-
-      {/* Navigation */}
-      <div className="player-nav" style={{ marginTop: 16 }}>
-        <button onClick={() => navigate(`/file/${audioId}/sequences`)}>← Back to sequences</button>
       </div>
 
     </div>
