@@ -32,6 +32,12 @@ export class IndexedDBSequenceStorage {
     await db.put("sequences", sequence)
   }
 
+  async getAll(): Promise<Sequence[]> {
+    const db = await dbPromise
+    const all: Sequence[] = await db.getAll("sequences")
+    return all.sort((a, b) => a.createdAt - b.createdAt)
+  }
+
   async getNextLabel(audioId: string): Promise<string> {
     const sequences = await this.getAllByAudio(audioId)
     // Находим максимальный числовой label

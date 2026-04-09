@@ -43,6 +43,7 @@ export interface Sequence {
   label: string
   fragments: SequenceFragment[]
   createdAt: number
+  favourite?: boolean
 }
 
 // Обратная совместимость

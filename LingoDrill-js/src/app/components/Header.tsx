@@ -14,6 +14,7 @@ export function Header() {
   const navItems = [
     { label: "Audio Library", path: "/" },
     { label: "Fragment Library", path: audioId ? `/file/${audioId}/sequences` : null },
+    { label: "Favourites", path: "/favourites" },
     { label: "Settings", path: null as string | null },
     { label: "About", path: null as string | null },
   ]
