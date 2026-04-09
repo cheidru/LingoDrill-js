@@ -36,8 +36,8 @@ const CopyIcon = () => (
   </svg>
 )
 const FavouriteIcon = ({ filled }: { filled: boolean }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "#ffc107" : "none"} stroke={filled ? "#ffc107" : "currentColor"} strokeWidth="2">
-    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "#1a56db" : "none"} stroke={filled ? "#1a56db" : "currentColor"} strokeWidth="2">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 )
 
@@ -52,14 +52,14 @@ function SequenceBar({
 
   return (
     <svg width={BAR_WIDTH} height={16} style={{ display: "block", flexShrink: 0 }}>
-      <rect x={0} y={2} width={BAR_WIDTH} height={12} rx={2} fill="#4caf50" opacity={0.3} />
+      <rect x={0} y={2} width={BAR_WIDTH} height={12} rx={0} fill="#fef3c7" />
       {duration > 0 && sequence.fragments.map((f, i) => {
         const startPx = (f.start / duration) * BAR_WIDTH
         let widthPx = ((f.end - f.start) / duration) * BAR_WIDTH
         if (widthPx < MIN_FRAG_PX) widthPx = MIN_FRAG_PX
         return (
-          <rect key={i} x={startPx} y={2} width={widthPx} height={12} rx={1}
-            fill="#ffc107" opacity={0.85} />
+          <rect key={i} x={startPx} y={2} width={widthPx} height={12} rx={0}
+            fill="#f87171" opacity={0.85} />
         )
       })}
     </svg>
@@ -160,7 +160,7 @@ function FragmentLibraryPageInner() {
   return (
     <div className="page">
       <h2>Fragment Library</h2>
-      <p style={{ fontSize: "0.9rem", color: "#666", marginTop: -8, marginBottom: 12 }}>
+      <p className="sp-file-info">
         {fileName}
       </p>
 
@@ -168,7 +168,7 @@ function FragmentLibraryPageInner() {
         <button onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
+        <button className="btn-primary" onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
           + New sequence
         </button>
         <button onClick={() => setSubModalOpen(true)}>
@@ -179,31 +179,26 @@ function FragmentLibraryPageInner() {
       {isLoading && <p>Loading sequences...</p>}
 
       {!isLoading && sequences.length === 0 && (
-        <p style={{ color: "#888" }}>No sequences yet. Create one in the editor.</p>
+        <p className="empty-state">No sequences yet. Create one in the editor.</p>
       )}
 
       {sequences.map(seq => {
         return (
-          <div key={seq.id} style={{
-            border: "1px solid #ddd",
-            borderRadius: 4,
-            padding: 12,
-            marginBottom: 8,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div key={seq.id} className="seq-card">
+            <div className="seq-bar-wrap">
               {/* Label */}
               {editingLabelId === seq.id ? (
                 <input
+                  className="seq-label-input"
                   value={editingLabelValue}
                   onChange={e => setEditingLabelValue(e.target.value)}
                   onBlur={handleLabelSave}
                   onKeyDown={e => { if (e.key === "Enter") handleLabelSave() }}
                   autoFocus
-                  style={{ width: 80, fontWeight: 600 }}
                 />
               ) : (
                 <span
-                  style={{ fontWeight: 600, cursor: "pointer", minWidth: 30 }}
+                  className="seq-label"
                   onClick={() => { setEditingLabelId(seq.id); setEditingLabelValue(seq.label) }}
                   title="Click to rename"
                 >
@@ -211,39 +206,41 @@ function FragmentLibraryPageInner() {
                 </span>
               )}
 
-              <span style={{ fontSize: "0.85rem", color: "#888" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
                 {seq.fragments.length} fragment{seq.fragments.length !== 1 ? "s" : ""}
               </span>
 
               <SequenceBar sequence={seq} duration={duration} />
 
               {/* Play → navigate to Sequence Player page */}
-              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              <div className="seq-controls">
                 <button
+                  className="seq-controls__btn"
                   onClick={() => navigate(`/file/${audioId}/player/${seq.id}`)}
                   disabled={seq.fragments.length === 0}
                   title={seq.fragments.length === 0 ? "No fragments to play" : "Open Sequence Player"}
                 >
                   <PlayIcon />
                 </button>
-              </div>
 
-              {/* Edit / Copy / Delete */}
-              <button onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit">
-                <EditIcon />
-              </button>
-              <button onClick={() => handleCopySequence(seq)} title="Copy">
-                <CopyIcon />
-              </button>
-              <button onClick={() => setConfirmDeleteId(seq.id)} title="Delete" style={{ color: "#d32f2f" }}>
-                <DeleteIcon />
-              </button>
-              <button
-                onClick={() => updateSequence({ ...seq, favourite: !seq.favourite })}
-                title={seq.favourite ? "Remove from favourites" : "Add to favourites"}
-              >
-                <FavouriteIcon filled={!!seq.favourite} />
-              </button>
+                {/* Edit / Copy / Delete */}
+                <button className="seq-controls__btn" onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit">
+                  <EditIcon />
+                </button>
+                <button className="seq-controls__btn" onClick={() => handleCopySequence(seq)} title="Copy">
+                  <CopyIcon />
+                </button>
+                <button className="seq-controls__btn" onClick={() => setConfirmDeleteId(seq.id)} title="Delete" style={{ color: "var(--color-danger)" }}>
+                  <DeleteIcon />
+                </button>
+                <button
+                  className="seq-controls__btn"
+                  onClick={() => updateSequence({ ...seq, favourite: !seq.favourite })}
+                  title={seq.favourite ? "Remove from favourites" : "Add to favourites"}
+                >
+                  <FavouriteIcon filled={!!seq.favourite} />
+                </button>
+              </div>
             </div>
           </div>
         )
@@ -269,17 +266,18 @@ function FragmentLibraryPageInner() {
       {/* Subtitle file management modal */}
       {subModalOpen && (
         <div className="modal-overlay" onClick={() => setSubModalOpen(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: 420 }}>
+          <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <h3 style={{ marginTop: 0 }}>Subtitle files</h3>
 
             {subtitleFiles.length === 0 ? (
-              <p style={{ color: "#888", fontSize: "0.9rem" }}>No subtitle files uploaded yet.</p>
+              <p className="empty-state" style={{ fontSize: "0.9rem" }}>No subtitle files uploaded yet.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                 {subtitleFiles.map(sf => (
                   <div key={sf.id} style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "6px 10px", border: "1px solid #e0e0e0", borderRadius: 4,
+                    padding: "10px 14px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)",
+                    background: "var(--color-bg-subtle)",
                   }}>
                     <span style={{ fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
                       {sf.name}
@@ -287,7 +285,7 @@ function FragmentLibraryPageInner() {
                     <button
                       className="btn-sub"
                       onClick={() => handleDeleteSubtitleFile(sf.id)}
-                      style={{ color: "#d32f2f", flexShrink: 0, marginLeft: 8 }}
+                      style={{ color: "var(--color-danger)", flexShrink: 0, marginLeft: 8 }}
                       title="Delete subtitle file"
                     >
                       ✕

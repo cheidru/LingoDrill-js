@@ -9,18 +9,18 @@
 .export-bundle__checkbox {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
 }
 .export-bundle__hint {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--color-text-muted);
   margin-top: 6px;
 }
 .export-bundle__hint code {
-  background: #f0f0f0;
-  padding: 1px 4px;
-  border-radius: 3px;
+  background: var(--color-bg-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
   font-size: 0.8rem;
 }
 
@@ -32,18 +32,18 @@
   flex-wrap: wrap;
 }
 .import-bundle__row code {
-  background: #f0f0f0;
-  padding: 1px 4px;
-  border-radius: 3px;
+  background: var(--color-bg-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
   font-size: 0.8rem;
 }
 
 /* === Error Boundary Fallback === */
 .error-boundary-fallback {
   padding: 16px;
-  background-color: #fff3e0;
-  border: 1px solid #ffcc80;
-  border-radius: 8px;
+  background-color: #fff7ed;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
   margin: 12px 0;
 }
 

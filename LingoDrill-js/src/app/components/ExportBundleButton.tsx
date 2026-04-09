@@ -68,29 +68,21 @@ export function ExportBundleButton({
   }, [audioId, exporting, getBlob, audioName, waveformData, sequences, subtitleFiles, includeAudio])
 
   return (
-    <div className="export-bundle">
-      <div className="export-bundle__row">
-        <button
-          className="action-bar__btn"
-          onClick={handleExport}
-          disabled={disabled || exporting || !audioId}
-          style={{ backgroundColor: "#4caf50", color: "white", border: "none", borderRadius: 4 }}
-        >
-          {exporting ? "Exporting..." : "📦 Export for mobile"}
-        </button>
-        <label className="export-bundle__checkbox">
-          <input
-            type="checkbox"
-            checked={includeAudio}
-            onChange={e => setIncludeAudio(e.target.checked)}
-          />
-          <span style={{ fontSize: "0.85rem" }}>Include audio in bundle</span>
-        </label>
-      </div>
-      <p className="export-bundle__hint">
-        Exports a <code>.lingodrill</code> file with waveform, fragments, and subtitles.
-        Transfer it to your mobile device to avoid heavy processing there.
-      </p>
-    </div>
+    <>
+      <button
+        onClick={handleExport}
+        disabled={disabled || exporting || !audioId}
+      >
+        {exporting ? "Exporting..." : "Export for mobile"}
+      </button>
+      <label className="export-bundle__checkbox">
+        <input
+          type="checkbox"
+          checked={includeAudio}
+          onChange={e => setIncludeAudio(e.target.checked)}
+        />
+        <span style={{ fontSize: "0.85rem" }}>Include audio</span>
+      </label>
+    </>
   )
 }

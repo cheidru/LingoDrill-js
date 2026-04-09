@@ -20,8 +20,8 @@ const EditIcon = () => (
   </svg>
 )
 const FavouriteIcon = ({ filled }: { filled: boolean }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "#ffc107" : "none"} stroke={filled ? "#ffc107" : "currentColor"} strokeWidth="2">
-    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "#1a56db" : "none"} stroke={filled ? "#1a56db" : "currentColor"} strokeWidth="2">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 )
 
@@ -71,51 +71,50 @@ export function FavouritesPage() {
       {isLoading && <p>Loading...</p>}
 
       {!isLoading && sequences.length === 0 && (
-        <p style={{ color: "#888" }}>No favourite sequences yet. Star a sequence in the Fragment Library to see it here.</p>
+        <p className="empty-state">No favourite sequences yet. Star a sequence in the Fragment Library to see it here.</p>
       )}
 
       {sequences.map(seq => (
-        <div key={seq.id} style={{
-          border: "1px solid #ddd",
-          borderRadius: 4,
-          padding: 12,
-          marginBottom: 8,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div key={seq.id} className="seq-card">
+          <div className="seq-bar-wrap">
             {/* Label */}
-            <span style={{ fontWeight: 600, minWidth: 30 }}>
+            <span className="seq-label">
               #{seq.label}
             </span>
 
-            <span style={{ fontSize: "0.85rem", color: "#888" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
               {seq.fragments.length} fragment{seq.fragments.length !== 1 ? "s" : ""}
             </span>
 
-            <span style={{ fontSize: "0.85rem", color: "#666" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)" }}>
               {getAudioName(seq.audioId)}
             </span>
 
             {/* Play → navigate to Sequence Player page */}
-            <button
-              onClick={() => navigate(`/file/${seq.audioId}/player/${seq.id}`)}
-              disabled={seq.fragments.length === 0}
-              title={seq.fragments.length === 0 ? "No fragments to play" : "Open Sequence Player"}
-            >
-              <PlayIcon />
-            </button>
+            <div className="seq-controls">
+              <button
+                className="seq-controls__btn"
+                onClick={() => navigate(`/file/${seq.audioId}/player/${seq.id}`)}
+                disabled={seq.fragments.length === 0}
+                title={seq.fragments.length === 0 ? "No fragments to play" : "Open Sequence Player"}
+              >
+                <PlayIcon />
+              </button>
 
-            {/* Edit */}
-            <button onClick={() => navigate(`/file/${seq.audioId}/editor/${seq.id}`)} title="Edit">
-              <EditIcon />
-            </button>
+              {/* Edit */}
+              <button className="seq-controls__btn" onClick={() => navigate(`/file/${seq.audioId}/editor/${seq.id}`)} title="Edit">
+                <EditIcon />
+              </button>
 
-            {/* Favourite toggle */}
-            <button
-              onClick={() => handleToggleFavourite(seq)}
-              title="Remove from favourites"
-            >
-              <FavouriteIcon filled={true} />
-            </button>
+              {/* Favourite toggle */}
+              <button
+                className="seq-controls__btn"
+                onClick={() => handleToggleFavourite(seq)}
+                title="Remove from favourites"
+              >
+                <FavouriteIcon filled={true} />
+              </button>
+            </div>
           </div>
         </div>
       ))}

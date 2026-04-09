@@ -86,8 +86,8 @@ function SubtitleDisplay({
         const text = file ? file.content.slice(sub.charStart, sub.charEnd) : "(file not found)"
         return (
           <div key={i} style={{ marginBottom: i < fragment.subtitles.length - 1 ? 6 : 0 }}>
-            <div style={{ fontSize: 11, color: "#888" }}>{sub.subtitleFileName}</div>
-            <div style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{text}</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{sub.subtitleFileName}</div>
+            <div style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.5, color: "var(--color-text)" }}>{text}</div>
           </div>
         )
       })}
@@ -539,7 +539,7 @@ function SequencePlayerPageInner() {
       <div className="page">
         <h2>Sequence Player</h2>
         <h3>Test 4</h3>
-        <p style={{ color: "#888" }}>Loading sequence...</p>
+        <p className="empty-state">Loading sequence...</p>
         <button onClick={() => navigate(-1)}>← Back</button>
       </div>
     )

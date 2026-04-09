@@ -2,13 +2,13 @@
 
 .sp-file-info {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-secondary);
   margin-top: -8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .sp-file-info-separator {
-  margin: 0 6px;
-  color: #ccc;
+  margin: 0 8px;
+  color: var(--color-border-strong);
 }
 
 .sp-seq-bar-container {
@@ -19,47 +19,52 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .sp-playall-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 18px;
+  gap: 8px;
+  padding: 10px 22px;
   font-size: 0.95rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  border: 1px solid #ccc;
-  background: #f5f5f5;
-  color: #333;
-  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 .sp-playall-btn:hover:not(:disabled) {
-  background: #e8e8e8;
-  border-color: #999;
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary-light);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-md);
 }
 .sp-playall-btn:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .sp-playall-btn--playing {
-  background: #fff8e1;
-  border-color: #ffc107;
-  color: #333;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
 }
 .sp-playall-btn--playing:hover {
-  background: #fff3cd;
+  background: var(--color-primary-dark);
+  color: white;
 }
 .sp-playall-btn--stop {
-  background: #ffebee;
-  border-color: #ef9a9a;
-  color: #c62828;
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 .sp-playall-btn--stop:hover {
-  background: #ffcdd2;
+  background: var(--color-danger);
+  color: white;
 }
 
 .sp-speed-slider {
@@ -67,18 +72,19 @@
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--color-text-secondary);
   cursor: default;
 }
 .sp-speed-slider__input {
   width: 80px;
-  accent-color: #4a90e2;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 .sp-speed-slider__value {
   min-width: 38px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .sp-volume {
@@ -89,85 +95,110 @@
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: #888;
-  margin-bottom: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
 }
 
 /* --- Fragment list --- */
 .sp-fragment-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
 .sp-frag-item {
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  transition: border-color 0.15s, background 0.15s;
+  transition: all 0.2s ease;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.sp-frag-item:hover {
+  box-shadow: var(--shadow-md);
 }
 .sp-frag-item--playing {
-  border-color: #ffc107;
-  background-color: #fffde7;
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+  box-shadow: 0 0 0 1px var(--color-primary), var(--shadow-md);
 }
 .sp-frag-item--selected {
-  border-color: #4a90e2;
+  border-color: var(--color-primary-light);
+  box-shadow: var(--shadow-md);
 }
 
 .sp-frag-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 12px 16px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.1s;
+  transition: background 0.1s ease;
 }
 .sp-frag-row:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(26, 86, 219, 0.03);
 }
 
 .sp-frag-idx {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.85rem;
-  color: #888;
-  min-width: 24px;
-  text-align: center;
+  color: var(--color-primary);
+  min-width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-bg);
+  border-radius: 50%;
 }
 .sp-frag-time {
-  font-family: monospace;
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
   font-size: 0.85rem;
-  color: #333;
+  color: var(--color-text);
+  font-weight: 500;
 }
 .sp-frag-duration {
   font-size: 0.8rem;
-  color: #aaa;
+  color: var(--color-text-muted);
 }
 .sp-frag-repeat {
-  font-size: 0.8rem;
-  color: #ff9800;
-  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--color-warning);
+  font-weight: 600;
+  background: #fef3c7;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
 }
 .sp-frag-speed {
-  font-size: 0.8rem;
-  color: #9c27b0;
-  font-weight: 500;
+  font-size: 0.75rem;
+  color: #7c3aed;
+  font-weight: 600;
+  background: #f5f3ff;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
 }
 .sp-frag-sub-indicator {
   font-size: 0.8rem;
 }
 .sp-frag-disabled-indicator {
   font-size: 0.7rem;
-  color: #c62828;
-  font-weight: 600;
+  color: var(--color-danger);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  background: var(--color-danger-bg);
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
 }
 .sp-frag-item--disabled {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 .sp-frag-playing-indicator {
-  color: #f44336;
+  color: var(--color-primary);
   font-size: 0.75rem;
   font-weight: bold;
   animation: sp-pulse 1s infinite alternate;
@@ -179,9 +210,9 @@
 
 /* --- Control panel --- */
 .sp-control-panel {
-  padding: 8px 12px;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e0e0e0;
+  padding: 10px 16px;
+  background-color: var(--color-bg-subtle);
+  border-top: 1px solid var(--color-border);
 }
 
 .sp-control-row {
@@ -197,51 +228,56 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  font-size: 1.25rem; /* 20px — controls 1em icon size */
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
+  min-height: auto;
+  font-size: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
   cursor: pointer;
-  color: #333;
+  color: var(--color-text-secondary);
   padding: 0;
-  transition: background 0.15s, border-color 0.15s;
+  transition: all 0.15s ease;
 }
 .sp-ctrl-btn:hover:not(:disabled) {
-  background: #e8e8e8;
-  border-color: #999;
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary-light);
+  color: var(--color-primary);
 }
 .sp-ctrl-btn:disabled {
   opacity: 0.3;
   cursor: default;
 }
 .sp-ctrl-btn--active {
-  background: #e3f2fd;
-  border-color: #42a5f5;
-  color: #1565c0;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
 }
 .sp-ctrl-btn--active:hover {
-  background: #bbdefb;
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: white;
 }
 .sp-ctrl-btn--close {
   margin-left: auto;
-  color: #888;
+  color: var(--color-text-muted);
 }
 .sp-ctrl-btn--close:hover {
-  color: #333;
+  color: var(--color-text);
 }
 .sp-ctrl-btn--disabled {
-  background: #ffebee;
-  border-color: #ef9a9a;
-  color: #c62828;
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 .sp-ctrl-btn--disabled:hover {
-  background: #ffcdd2;
+  background: var(--color-danger);
+  color: white;
 }
 
 .sp-ctrl-separator {
   width: 1px;
   height: 24px;
-  background-color: #ddd;
+  background-color: var(--color-border);
   margin: 0 4px;
 }
 
@@ -250,28 +286,29 @@
   align-items: center;
   gap: 4px;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .sp-ctrl-input {
   width: 44px;
   padding: 4px 6px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
   text-align: center;
 }
 .sp-ctrl-input:focus {
-  border-color: #4a90e2;
+  border-color: var(--color-primary);
   outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-bg);
 }
 
 
 /* --- Subtitle display in player --- */
 .sp-subtitle-display {
-  padding: 8px 12px;
-  background-color: rgba(0, 0, 0, 0.02);
-  border-top: 1px solid #e8e8e8;
+  padding: 10px 16px;
+  background-color: var(--color-bg-subtle);
+  border-top: 1px solid var(--color-border);
 }
 
 /* === Mobile overrides for Sequence Player === */
@@ -284,13 +321,14 @@ html.mobile .sp-playall-btn {
   min-height: 44px;
 }
 html.mobile .sp-frag-row {
-  padding: 10px 12px;
+  padding: 12px 14px;
   min-height: 44px;
-  gap: 8px;
+  gap: 10px;
 }
 html.mobile .sp-frag-idx {
   font-size: 0.95rem;
-  min-width: 28px;
+  min-width: 32px;
+  height: 32px;
 }
 html.mobile .sp-frag-time {
   font-size: 0.9rem;
@@ -298,7 +336,7 @@ html.mobile .sp-frag-time {
 html.mobile .sp-ctrl-btn {
   width: 44px;
   height: 44px;
-  font-size: 1.625rem; /* 26px */
+  font-size: 1.625rem;
   padding: 0;
 }
 html.mobile .sp-ctrl-input {
@@ -318,7 +356,7 @@ html.mobile .sp-subtitle-display {
   font-size: 0.95rem;
 }
 
-/* Touch device fallback — covers devices where screen.width >= 500 (html.mobile not set) */
+/* Touch device fallback — covers devices where screen.width >= 500 */
 @media (pointer: coarse) {
   .sp-playall-btn {
     padding: 10px 20px;
@@ -326,14 +364,14 @@ html.mobile .sp-subtitle-display {
     min-height: 44px;
   }
   .sp-frag-row {
-    padding: 10px 12px;
+    padding: 12px 14px;
     min-height: 44px;
-    gap: 8px;
+    gap: 10px;
   }
   .sp-ctrl-btn {
     width: 44px;
     height: 44px;
-    font-size: 1.625rem; /* 26px */
+    font-size: 1.625rem;
     padding: 0;
   }
   .sp-ctrl-input {

@@ -1,9 +1,48 @@
+/* === Design tokens — inspired by blue/white music player UI === */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Primary palette */
+  --color-primary: #1a56db;
+  --color-primary-dark: #1342a8;
+  --color-primary-light: #3b82f6;
+  --color-primary-bg: #eff6ff;
+  --color-primary-bg-hover: #dbeafe;
+  --color-primary-bg-active: #bfdbfe;
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-danger-hover: #b91c1c;
+
+  /* Neutrals */
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-bg: #ffffff;
+  --color-bg-page: #f8fafc;
+  --color-bg-subtle: #f1f5f9;
+  --color-bg-card: #ffffff;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #213547;
-  background-color: #ffffff;
+  color: var(--color-text);
+  background-color: var(--color-bg-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -34,44 +73,47 @@ body {
   overflow-x: hidden;
 }
 
-h1 { font-size: 1.75rem; line-height: 1.1; }
-h2 { font-size: 1.35rem; margin-top: 0.5em; }
-h3 { font-size: 1.1rem; }
+h1 { font-size: 1.75rem; line-height: 1.1; font-weight: 700; color: var(--color-text); }
+h2 { font-size: 1.35rem; margin-top: 0.5em; font-weight: 700; color: var(--color-text); }
+h3 { font-size: 1.1rem; font-weight: 600; color: var(--color-text); }
 
+/* === Global button === */
 button {
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  padding: 0.5em 1em;
-  font-size: 0.9rem;
-  font-weight: 500;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  padding: 10px 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
   font-family: inherit;
-  background-color: #f9f9f9;
-  color: #213547;
+  background-color: var(--color-bg);
+  color: var(--color-text);
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition: all 0.2s ease;
   touch-action: manipulation;
 }
 button:hover {
-  border-color: #4a90e2;
-  background-color: #eef4fc;
+  border-color: var(--color-primary-light);
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 button:active {
-  background-color: #dce8f7;
+  background-color: var(--color-primary-bg-hover);
 }
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 button:focus-visible {
-  outline: 2px solid #4a90e2;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 input[type="range"] {
   touch-action: manipulation;
+  accent-color: var(--color-primary);
 }
 
-/* ===== Mobile overrides via JS-set class (reliable, ignores broken viewport) ===== */
+/* ===== Mobile overrides via JS-set class ===== */
 html.mobile {
   font-size: 17px;
 }
@@ -80,6 +122,6 @@ html.mobile h2 { font-size: 1.25rem; }
 html.mobile h3 { font-size: 1.05rem; }
 html.mobile button {
   font-size: 1rem;
-  padding: 0.6em 1.1em;
+  padding: 10px 22px;
   min-height: 44px;
 }

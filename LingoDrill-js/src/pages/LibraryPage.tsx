@@ -40,12 +40,12 @@ export default function LibraryPage() {
     <div className="page">
       <h2>Audio Library</h2>
       {isLoading && <p>Loading...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: "var(--color-danger)" }}>{error}</p>}
 
       <AudioUploader onUpload={addFile} />
 
       {/* Import bundle button */}
-      <div style={{ marginTop: 12, marginBottom: 12 }}>
+      <div style={{ marginTop: 16, marginBottom: 16 }}>
         <ImportBundleButton onImportComplete={handleImportComplete} />
       </div>
 

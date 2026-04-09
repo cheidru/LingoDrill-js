@@ -970,7 +970,7 @@ function FragmentEditorPageInner() {
       </p>
 
       {/* Navigation and Export — at the top */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+      <div className="toolbar">
         <button onClick={() => navigate(-1)}>
           ← Back
         </button>
