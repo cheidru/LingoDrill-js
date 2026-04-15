@@ -87,6 +87,49 @@
   font-weight: 500;
 }
 
+.sp-speed-btn {
+  width: auto !important;
+  gap: 4px;
+  padding: 0 10px !important;
+  font-size: 0.95rem !important;
+}
+.sp-speed-btn__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.sp-speed-modal {
+  min-width: min(420px, 92vw) !important;
+  padding: 1.5rem !important;
+}
+.sp-speed-modal__title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  text-align: center;
+}
+.sp-speed-modal__value {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary);
+  margin-bottom: 16px;
+}
+.sp-speed-modal__input {
+  width: 100%;
+  height: 40px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.sp-speed-modal__range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
 .sp-volume {
 }
 
@@ -307,11 +350,14 @@
 /* --- Subtitle display in player --- */
 .sp-subtitle-display {
   padding: 10px 16px;
-  background-color: var(--color-bg-subtle);
+  background-color: var(--color-bg);
   border-top: 1px solid var(--color-border);
 }
 
 /* === Mobile overrides for Sequence Player === */
+html.mobile .sp-frag-item {
+  scroll-margin-top: 60px;
+}
 html.mobile .sp-file-info {
   font-size: 0.95rem;
 }
@@ -345,9 +391,6 @@ html.mobile .sp-ctrl-input {
   font-size: 0.95rem;
   min-height: 36px;
 }
-html.mobile .sp-speed-slider__input {
-  width: 100px;
-}
 html.mobile .sp-control-panel {
   padding: 10px 12px;
 }
@@ -379,9 +422,6 @@ html.mobile .sp-subtitle-display {
     padding: 6px 8px;
     font-size: 0.95rem;
     min-height: 36px;
-  }
-  .sp-speed-slider__input {
-    width: 100px;
   }
   .sp-control-panel {
     padding: 10px 12px;

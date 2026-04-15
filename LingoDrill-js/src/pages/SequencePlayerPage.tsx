@@ -16,6 +16,7 @@ import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
+import { setLastSequence } from "../utils/settings"
 
 // --- Utility ---
 function formatTime(sec: number): string {
@@ -87,7 +88,7 @@ function SubtitleDisplay({
         return (
           <div key={i} style={{ marginBottom: i < fragment.subtitles.length - 1 ? 6 : 0 }}>
             <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{sub.subtitleFileName}</div>
-            <div style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.5, color: "var(--color-text)" }}>{text}</div>
+            <div style={{ fontSize: "var(--sub-font-size, 14px)", whiteSpace: "pre-wrap", lineHeight: 1.5, color: "var(--color-text)" }}>{text}</div>
           </div>
         )
       })}
@@ -137,6 +138,8 @@ function FragmentControlPanel({
   onRepeatChange: (value: number) => void
   onSpeedChange: (value: number) => void
 }) {
+  const [speedModalOpen, setSpeedModalOpen] = useState(false)
+  const isMobile = document.documentElement.classList.contains("mobile")
   return (
     <div className="sp-control-panel">
       <div className="sp-control-row">
@@ -194,19 +197,30 @@ function FragmentControlPanel({
         </label>
 
         {/* Speed (controls sequence-wide playback speed) */}
-        <label className="sp-speed-slider" title="Playback speed (applies to all fragments)">
-          <span>⚡</span>
-          <input
-            type="range"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={sequenceSpeed}
-            onChange={e => onSpeedChange(parseFloat(e.target.value))}
-            className="sp-speed-slider__input"
-          />
-          <span className="sp-speed-slider__value">{sequenceSpeed.toFixed(2)}×</span>
-        </label>
+        {isMobile ? (
+          <button
+            className="sp-ctrl-btn sp-speed-btn"
+            onClick={() => setSpeedModalOpen(true)}
+            title={`Playback speed: ${sequenceSpeed.toFixed(2)}×`}
+          >
+            <span>⚡</span>
+            <span className="sp-speed-btn__value">{sequenceSpeed.toFixed(2)}×</span>
+          </button>
+        ) : (
+          <label className="sp-speed-slider" title="Playback speed (applies to all fragments)">
+            <span>⚡</span>
+            <input
+              type="range"
+              min={0.5}
+              max={1.5}
+              step={0.05}
+              value={sequenceSpeed}
+              onChange={e => onSpeedChange(parseFloat(e.target.value))}
+              className="sp-speed-slider__input"
+            />
+            <span className="sp-speed-slider__value">{sequenceSpeed.toFixed(2)}×</span>
+          </label>
+        )}
 
         {/* Separator */}
         <div className="sp-ctrl-separator" />
@@ -239,6 +253,34 @@ function FragmentControlPanel({
           <CloseIcon />
         </button>
       </div>
+
+      {speedModalOpen && (
+        <div className="modal-overlay" onClick={() => setSpeedModalOpen(false)}>
+          <div className="modal-box sp-speed-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="sp-speed-modal__title">Playback speed</h3>
+            <div className="sp-speed-modal__value">{sequenceSpeed.toFixed(2)}×</div>
+            <input
+              type="range"
+              min={0.5}
+              max={1.5}
+              step={0.05}
+              value={sequenceSpeed}
+              onChange={e => onSpeedChange(parseFloat(e.target.value))}
+              className="sp-speed-modal__input"
+            />
+            <div className="sp-speed-modal__range">
+              <span>0.5×</span>
+              <span>1.5×</span>
+            </div>
+            <div className="modal-actions">
+              <button className="sp-ctrl-btn" onClick={() => onSpeedChange(1)} title="Reset to 1.00×" style={{ width: "auto", padding: "0 16px" }}>
+                Reset
+              </button>
+              <button onClick={() => setSpeedModalOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -264,6 +306,11 @@ function SequencePlayerPageInner() {
 
   // Find the sequence
   const sequence = sequences.find(s => s.id === seqId) ?? null
+
+  // Track last played sequence for the "Last sequence" start page setting
+  useEffect(() => {
+    if (audioId && seqId) setLastSequence({ audioId, seqId })
+  }, [audioId, seqId])
 
   // --- State ---
   const [playAllMode, setPlayAllMode] = useState(false)
@@ -366,6 +413,16 @@ function SequencePlayerPageInner() {
     setPlayAllMode(true)
     playAllModeRef.current = true
     playFragmentWithOverrides(sequence, firstIdx)
+
+    // On mobile, scroll the active fragment to just below the sticky header
+    if (document.documentElement.classList.contains("mobile")) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = document.querySelector(".sp-frag-item--playing")
+          if (el) el.scrollIntoView({ block: "start", behavior: "smooth" })
+        })
+      })
+    }
   }, [sequence, disabledFragments, playFragmentWithOverrides])
 
   // --- Stop all ---

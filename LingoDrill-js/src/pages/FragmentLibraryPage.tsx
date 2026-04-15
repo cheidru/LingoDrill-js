@@ -168,7 +168,7 @@ function FragmentLibraryPageInner() {
         <button onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <button className="btn-primary" onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
+        <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
           + New sequence
         </button>
         <button onClick={() => setSubModalOpen(true)}>

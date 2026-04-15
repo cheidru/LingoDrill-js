@@ -13,10 +13,7 @@ export function AudioUploader({ onUpload }: AudioUploaderProps) {
 
   return (
     <div>
-      <button
-        className="btn-primary"
-        onClick={() => inputRef.current?.click()}
-      >
+      <button onClick={() => inputRef.current?.click()}>
         + Upload audio
       </button>
       <input

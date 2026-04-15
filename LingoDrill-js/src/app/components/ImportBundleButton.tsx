@@ -88,12 +88,10 @@ export function ImportBundleButton({ onImportComplete }: Props) {
     <div className="import-bundle">
       <div className="import-bundle__row">
         <button
-          className="action-bar__btn"
           onClick={() => bundleInputRef.current?.click()}
           disabled={importing}
-          style={{ backgroundColor: "#2196f3", color: "white", border: "none", borderRadius: 4 }}
         >
-          {importing ? "Importing..." : "📥 Import bundle"}
+          {importing ? "Importing..." : "Import bundle"}
         </button>
         <span style={{ fontSize: "0.8rem", color: "#888" }}>
           Load a <code>.lingodrill</code> file prepared on desktop

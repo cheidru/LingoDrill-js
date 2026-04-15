@@ -248,12 +248,6 @@ export function Waveform({
         })
       }
 
-      // Draw repeat count
-      if (f.repeat && f.repeat > 1) {
-        ctx.fillStyle = isEditing ? "#0078ff" : "#333"
-        ctx.font = "11px sans-serif"
-        ctx.fillText(`×${f.repeat}`, endX + 4, 14)
-      }
     })
 
     // Playback progress

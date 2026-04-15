@@ -4,7 +4,17 @@
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Skill(update-config)",
+      "Edit",
+      "Write",
+      "Bash(ls dist/assets/*.css)"
+    ],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(rmdir:*)",
+      "Bash(del:*)",
+      "Bash(rd:*)"
     ]
   }
 }
