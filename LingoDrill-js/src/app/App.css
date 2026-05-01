@@ -332,6 +332,18 @@ html.mobile .header__overlay {
   margin-bottom: 6px;
 }
 
+/* Settings modal */
+.settings-modal__title {
+  margin: 0 0 8px;
+  text-align: left;
+}
+.modal-box.settings-modal .settings-row {
+  max-width: none;
+}
+.modal-box.settings-modal .settings-preview {
+  max-width: none;
+}
+
 /* === Modals === */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;

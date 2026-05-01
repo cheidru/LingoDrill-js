@@ -269,7 +269,11 @@ async function decodeInChunks(
   const probeDuration = probeBuffer.duration
   let byteOffset = Math.floor(probeDuration * bytesPerSecond)
 
-  for (let i = 1; i < numChunks; i++) {
+  // Iterate until we've covered the whole blob. The probe consumed only ~256KB,
+  // which is typically much less than chunkBytes — so a fixed `numChunks` loop
+  // would stop short of the file end and leave the tail as silence.
+  let chunkIndex = 1
+  while (byteOffset < blob.size) {
     if (signal?.aborted) {
       throw new DOMException("Decode aborted", "AbortError")
     }
@@ -281,7 +285,8 @@ async function decodeInChunks(
     const end = Math.min(blob.size, byteOffset + chunkBytes + overlapBytes)
     const chunkBlob = blob.slice(start, end)
     const chunkSizeBytes = end - start
-    console.log(`[decodeInChunks] chunk ${i}/${numChunks}: ${(chunkSizeBytes / 1024).toFixed(0)}KB`)
+    const progressFrac = Math.min(1, end / blob.size)
+    console.log(`[decodeInChunks] chunk ${chunkIndex}: bytes ${start}..${end} (${(chunkSizeBytes / 1024).toFixed(0)}KB)`)
 
     let chunkBuffer: AudioBuffer | null = null
     const chunkCtx = new AudioContext()
@@ -297,7 +302,7 @@ async function decodeInChunks(
         chunkCtx,
         chunkArrayBuf,
         chunkTimeout,
-        `chunk ${i}/${numChunks}`,
+        `chunk ${chunkIndex}`,
       )
     } catch (err) {
       // Abort — rethrow immediately
@@ -310,9 +315,10 @@ async function decodeInChunks(
       }
       // Some formats can't be sliced — this chunk failed.
       // Fill remaining with silence and log warning
-      console.warn(`[chunkedDecode] Chunk ${i}/${numChunks} failed:`, err)
+      console.warn(`[chunkedDecode] Chunk ${chunkIndex} failed:`, err)
       byteOffset += chunkBytes
-      onProgress?.((i + 1) / numChunks)
+      chunkIndex++
+      onProgress?.(progressFrac)
       continue
     } finally {
       try {
@@ -324,7 +330,8 @@ async function decodeInChunks(
 
     if (!chunkBuffer) {
       byteOffset += chunkBytes
-      onProgress?.((i + 1) / numChunks)
+      chunkIndex++
+      onProgress?.(progressFrac)
       continue
     }
 
@@ -344,7 +351,8 @@ async function decodeInChunks(
     }
 
     byteOffset += chunkBytes
-    onProgress?.((i + 1) / numChunks)
+    chunkIndex++
+    onProgress?.(progressFrac)
   }
 
   return outputBuffer

@@ -16,7 +16,7 @@ import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
-import { setLastSequence } from "../utils/settings"
+import { setLastSequence, getFragmentGap } from "../utils/settings"
 
 // --- Utility ---
 function formatTime(sec: number): string {
@@ -159,15 +159,6 @@ function FragmentControlPanel({
           <StopIcon />
         </button>
 
-        {/* Infinite rewind */}
-        <button
-          className={`sp-ctrl-btn ${isInfiniteRewind ? "sp-ctrl-btn--active" : ""}`}
-          onClick={onInfiniteRewind}
-          title={isInfiniteRewind ? "Disable infinite rewind" : "Enable infinite rewind"}
-        >
-          <InfiniteRewindIcon />
-        </button>
-
         {/* Disable/enable for play-all */}
         <button
           className={`sp-ctrl-btn ${isDisabled ? "sp-ctrl-btn--disabled" : ""}`}
@@ -195,6 +186,15 @@ function FragmentControlPanel({
             className="sp-ctrl-input"
           />
         </label>
+
+        {/* Infinite rewind — sits next to the playout count */}
+        <button
+          className={`sp-ctrl-btn ${isInfiniteRewind ? "sp-ctrl-btn--active" : ""}`}
+          onClick={onInfiniteRewind}
+          title={isInfiniteRewind ? "Disable infinite rewind" : "Enable infinite rewind"}
+        >
+          <InfiniteRewindIcon />
+        </button>
 
         {/* Speed (controls sequence-wide playback speed) */}
         {isMobile ? (
@@ -332,6 +332,27 @@ function SequencePlayerPageInner() {
   const sequenceSpeedRef = useRef(1)
   const localRepeatsRef = useRef<Record<number, number>>({})
   const disabledFragmentsRef = useRef<Record<number, boolean>>({})
+  const gapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearGapTimer = useCallback(() => {
+    if (gapTimerRef.current) {
+      clearTimeout(gapTimerRef.current)
+      gapTimerRef.current = null
+    }
+  }, [])
+
+  const scheduleAfterGap = useCallback((cb: () => void) => {
+    clearGapTimer()
+    const gapMs = Math.max(0, getFragmentGap()) * 1000
+    if (gapMs === 0) {
+      cb()
+      return
+    }
+    gapTimerRef.current = setTimeout(() => {
+      gapTimerRef.current = null
+      cb()
+    }, gapMs)
+  }, [clearGapTimer])
 
   // Sync refs
   useEffect(() => { playAllModeRef.current = playAllMode }, [playAllMode])
@@ -391,6 +412,7 @@ function SequencePlayerPageInner() {
       console.log("[SequencePlayerPage] Fragment index out of bounds:", fragIdx)
       return
     }
+    clearGapTimer()
     const f = seq.fragments[fragIdx]
     const repeat = localRepeatsRef.current[fragIdx] ?? f.repeat
     const speed = getEffectiveSpeed(f)
@@ -398,7 +420,7 @@ function SequencePlayerPageInner() {
     console.log("[SequencePlayerPage] Playing fragment", fragIdx, "start:", f.start.toFixed(2), "end:", f.end.toFixed(2), "repeat:", repeat, "speed:", speed)
     playFragment(fragment)
     setPlayingFragIdx(fragIdx)
-  }, [playFragment, getEffectiveSpeed])
+  }, [playFragment, getEffectiveSpeed, clearGapTimer])
 
   // --- Play all (skips disabled fragments) ---
   const handlePlayAll = useCallback(() => {
@@ -428,13 +450,14 @@ function SequencePlayerPageInner() {
   // --- Stop all ---
   const handleStopAll = useCallback(() => {
     console.log("[SequencePlayerPage] Stopping playback")
+    clearGapTimer()
     setPlayAllMode(false)
     playAllModeRef.current = false
     setPlayingFragIdx(null)
     playingFragIdxRef.current = null
     setSelectedFragIdx(null)
     stop()
-  }, [stop])
+  }, [stop, clearGapTimer])
 
   // --- onEnded: advance to next fragment in play-all, or loop in infinite rewind ---
   useEffect(() => {
@@ -445,18 +468,22 @@ function SequencePlayerPageInner() {
       const currentIdx = playingFragIdxRef.current
       if (currentIdx === null) return
 
-      // Infinite rewind: replay same fragment
+      // Infinite rewind: replay same fragment after the configured gap
       if (infiniteRewindRef.current) {
         console.log("[SequencePlayerPage] Infinite rewind: replaying fragment", currentIdx)
         const f = seq.fragments[currentIdx]
         const repeat = localRepeatsRef.current[currentIdx] ?? f.repeat
         const speed = sequenceSpeedRef.current * f.speed
         const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
-        playFragment(fragment)
+        scheduleAfterGap(() => {
+          if (playingFragIdxRef.current !== currentIdx) return
+          if (!infiniteRewindRef.current) return
+          playFragment(fragment)
+        })
         return
       }
 
-      // Play-all mode: advance to next enabled fragment
+      // Play-all mode: advance to next enabled fragment after the configured gap
       if (playAllModeRef.current) {
         let nextIdx = currentIdx + 1
         // Skip disabled fragments
@@ -477,9 +504,12 @@ function SequencePlayerPageInner() {
         const repeat = localRepeatsRef.current[nextIdx] ?? f.repeat
         const speed = sequenceSpeedRef.current * f.speed
         const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
-        playFragment(fragment)
-        setPlayingFragIdx(nextIdx)
-        playingFragIdxRef.current = nextIdx
+        scheduleAfterGap(() => {
+          if (!playAllModeRef.current) return
+          playFragment(fragment)
+          setPlayingFragIdx(nextIdx)
+          playingFragIdxRef.current = nextIdx
+        })
         return
       }
 
@@ -488,8 +518,11 @@ function SequencePlayerPageInner() {
       setPlayingFragIdx(null)
       playingFragIdxRef.current = null
     })
-    return () => setOnEnded(null)
-  }, [setOnEnded, playFragment])
+    return () => {
+      setOnEnded(null)
+      clearGapTimer()
+    }
+  }, [setOnEnded, playFragment, scheduleAfterGap, clearGapTimer])
 
   // --- Fragment control panel handlers ---
   const handleFragPlay = useCallback((fragIdx: number) => {
@@ -508,12 +541,13 @@ function SequencePlayerPageInner() {
   }, [play])
 
   const handleFragStop = useCallback(() => {
+    clearGapTimer()
     stop()
     setPlayingFragIdx(null)
     playingFragIdxRef.current = null
     setPlayAllMode(false)
     playAllModeRef.current = false
-  }, [stop])
+  }, [stop, clearGapTimer])
 
   const handleInfiniteRewind = useCallback(() => {
     setInfiniteRewind(prev => {
