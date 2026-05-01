@@ -12,6 +12,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
+import { useVocabularies } from "../app/hooks/useVocabularies"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
@@ -92,6 +93,47 @@ function SubtitleDisplay({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// --- Vocabulary display for a fragment (collapsible, collapsed by default) ---
+function VocabularyDisplay({
+  fragment, vocabularyFiles,
+}: {
+  fragment: SequenceFragment
+  vocabularyFiles: { id: string; content: string; name: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const vocabularies = fragment.vocabularies ?? []
+  if (vocabularies.length === 0) return null
+
+  return (
+    <div className="sp-vocab-display">
+      <button
+        type="button"
+        className="sp-vocab-toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span className={`sp-vocab-toggle__chevron${open ? " sp-vocab-toggle__chevron--open" : ""}`}>▶</span>
+        <span>Vocab</span>
+        <span className="sp-vocab-toggle__count">{vocabularies.length}</span>
+      </button>
+      {open && (
+        <div className="sp-vocab-content">
+          {vocabularies.map((v, i) => {
+            const file = vocabularyFiles.find(vf => vf.id === v.vocabularyFileId)
+            const text = file ? file.content.slice(v.charStart, v.charEnd) : "(file not found)"
+            return (
+              <div key={i} style={{ marginBottom: i < vocabularies.length - 1 ? 6 : 0 }}>
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{v.vocabularyFileName}</div>
+                <div style={{ fontSize: "var(--sub-font-size, 14px)", whiteSpace: "pre-wrap", lineHeight: 1.5, color: "var(--color-text)" }}>{text}</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -303,6 +345,7 @@ function SequencePlayerPageInner() {
 
   const { sequences, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles } = useSubtitles(audioId ?? null)
+  const { vocabularyFiles } = useVocabularies(audioId ?? null)
 
   // Find the sequence
   const sequence = sequences.find(s => s.id === seqId) ?? null
@@ -795,6 +838,9 @@ function SequencePlayerPageInner() {
 
                   {/* Subtitle display */}
                   <SubtitleDisplay fragment={frag} subtitleFiles={subtitleFiles} />
+
+                  {/* Vocabulary display (collapsible, collapsed by default) */}
+                  <VocabularyDisplay fragment={frag} vocabularyFiles={vocabularyFiles} />
                 </>
               )}
             </div>

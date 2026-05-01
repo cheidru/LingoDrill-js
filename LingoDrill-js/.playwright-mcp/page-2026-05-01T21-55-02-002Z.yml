@@ -1,0 +1,71 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [disabled] [ref=e7]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e24]:
+    - heading "Settings" [level=3] [ref=e25]
+    - generic [ref=e26]:
+      - generic [ref=e27]: Start page
+      - combobox "Start page" [ref=e28]:
+        - option "Audio Library" [selected]
+        - option "Favourites"
+        - option "Last sequence"
+    - generic [ref=e29]:
+      - generic [ref=e30]: Language
+      - combobox "Language" [ref=e31]:
+        - option "English" [selected]
+        - option "Russian"
+    - generic [ref=e32]:
+      - generic [ref=e33]: Theme
+      - button "Open theme settings" [ref=e35] [cursor=pointer]: Light · Normal
+    - generic [ref=e36]:
+      - generic [ref=e37]: Fragment gap
+      - generic [ref=e38]:
+        - slider "Fragment gap" [ref=e39]: "2"
+        - generic [ref=e40]: 2.0s
+    - generic [ref=e41]:
+      - generic [ref=e42]: Sub font size
+      - generic [ref=e43]:
+        - slider "Sub font size" [ref=e44]: "14"
+        - generic [ref=e45]: 14px
+    - generic [ref=e46]:
+      - generic [ref=e47]: Subtitle preview
+      - generic [ref=e48]:
+        - generic [ref=e49]: example.srt
+        - generic [ref=e50]: The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.
+    - button "Close" [ref=e52] [cursor=pointer]
+  - generic [ref=e54]:
+    - heading "Theme" [level=3] [ref=e55]
+    - generic [ref=e56]:
+      - generic [ref=e57]: Mode
+      - group "Mode" [ref=e59]:
+        - button "☀ Light" [ref=e60] [cursor=pointer]
+        - button "🌙 Dark" [ref=e61] [cursor=pointer]
+    - generic [ref=e62]:
+      - generic [ref=e63]: Color theme
+      - generic [ref=e65]:
+        - generic [ref=e66] [cursor=pointer]:
+          - radio "Normal" [checked] [active] [ref=e67]
+          - text: Normal
+        - generic [ref=e68] [cursor=pointer]:
+          - radio "Pastel" [ref=e69]
+          - text: Pastel
+        - generic [ref=e70] [cursor=pointer]:
+          - radio "Neon" [ref=e71]
+          - text: Neon
+    - button "Close" [ref=e73] [cursor=pointer]
+  - generic [ref=e11]:
+    - heading "Audio Library" [level=2] [ref=e12]
+    - button "+ Upload audio" [ref=e15] [cursor=pointer]
+    - generic [ref=e18]:
+      - button "Import bundle" [ref=e19] [cursor=pointer]
+      - generic [ref=e20]:
+        - text: Load a
+        - code [ref=e21]: .lingodrill
+        - text: file prepared on desktop
+    - paragraph [ref=e22]: No audio files uploaded yet.

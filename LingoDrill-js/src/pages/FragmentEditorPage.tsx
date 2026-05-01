@@ -20,6 +20,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
+import { useVocabularies } from "../app/hooks/useVocabularies"
 import { useHeavyOperation } from "../app/hooks/useHeavyOperation"
 import { Waveform } from "../app/components/Waveform"
 import { VolumeControl } from "../app/components/VolumeControl"
@@ -33,7 +34,7 @@ import { trimSilence } from "../utils/trimSilence"
 import { normalizeFragments } from "../utils/normalizeFragments"
 import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
-import type { SequenceFragment, FragmentSubtitle, SubtitleFile, Sequence } from "../core/domain/types"
+import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, Sequence } from "../core/domain/types"
 import { nanoid } from "nanoid"
 
 function formatTime(sec: number): string {
@@ -68,6 +69,7 @@ function FragmentEditorPageInner() {
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles } = useSubtitles(audioId ?? null)
+  const { vocabularyFiles } = useVocabularies(audioId ?? null)
 
   // --- Heavy operation error handling ---
   const { heavyError, showMobileHelp, wrapHeavyOp, clearError, closeHelp } = useHeavyOperation()
@@ -96,6 +98,11 @@ function FragmentEditorPageInner() {
   const [subModalFragId, setSubModalFragId] = useState<string | null>(null)
   const [subModalStep, setSubModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
   const [subModalFile, setSubModalFile] = useState<SubtitleFile | null>(null)
+
+  // --- Vocabulary selection modal ---
+  const [vocabModalFragId, setVocabModalFragId] = useState<string | null>(null)
+  const [vocabModalStep, setVocabModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
+  const [vocabModalFile, setVocabModalFile] = useState<VocabularyFile | null>(null)
 
   // --- Block delete state ---
   const [blockDeleteStartId, setBlockDeleteStartId] = useState<string | null>(null)
@@ -885,6 +892,73 @@ function FragmentEditorPageInner() {
     await persistSequence(updatedAll)
   }, [fragments, persistSequence])
 
+  // --- Vocabulary handlers ---
+  const handleVocabularySelect = useCallback(async () => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !vocabModalFile || !vocabModalFragId) return
+
+    const container = document.getElementById("vocab-text-container")
+    if (!container) return
+
+    const range = sel.getRangeAt(0)
+    const preRange = document.createRange()
+    preRange.selectNodeContents(container)
+    preRange.setEnd(range.startContainer, range.startOffset)
+    const charStart = preRange.toString().length
+    const charEnd = charStart + range.toString().length
+
+    const newVocab: FragmentVocabulary = {
+      vocabularyFileId: vocabModalFile.id,
+      vocabularyFileName: vocabModalFile.name,
+      charStart,
+      charEnd,
+    }
+
+    const updatedAll = fragments.map(f => {
+      if (f.id !== vocabModalFragId) return f
+      const existing = f.vocabularies ?? []
+      const filtered = existing.filter(v => v.vocabularyFileId !== vocabModalFile.id)
+      return { ...f, vocabularies: [...filtered, newVocab] }
+    })
+
+    setFragments(updatedAll)
+    await persistSequence(updatedAll)
+    setVocabModalFragId(null)
+    setVocabModalFile(null)
+    sel.removeAllRanges()
+  }, [vocabModalFragId, vocabModalFile, fragments, persistSequence])
+
+  const goToVocabStepForFile = useCallback((fragId: string, vf: VocabularyFile) => {
+    setVocabModalFile(vf)
+    const frag = fragments.find(f => f.id === fragId)
+    const existing = (frag?.vocabularies ?? []).find(v => v.vocabularyFileId === vf.id)
+    if (existing) {
+      setVocabModalStep("view-existing")
+    } else {
+      setVocabModalStep("select-text")
+    }
+  }, [fragments])
+
+  const openVocabularyModal = useCallback((fragId: string) => {
+    setVocabModalFragId(fragId)
+    if (vocabularyFiles.length === 1) {
+      goToVocabStepForFile(fragId, vocabularyFiles[0])
+    } else {
+      setVocabModalStep("choose-file")
+      setVocabModalFile(null)
+    }
+  }, [vocabularyFiles, goToVocabStepForFile])
+
+  const handleRemoveVocabulary = useCallback(async (fragId: string, vocabularyFileId: string) => {
+    const updatedAll = fragments.map(f => {
+      if (f.id !== fragId) return f
+      const newVocabs = (f.vocabularies ?? []).filter(v => v.vocabularyFileId !== vocabularyFileId)
+      return { ...f, vocabularies: newVocabs }
+    })
+    setFragments(updatedAll)
+    await persistSequence(updatedAll)
+  }, [fragments, persistSequence])
+
   // --- Auto-scroll to previous fragment's subtitle position when "select-text" step opens ---
   // When a fragment has no subtitle from the selected file, scroll to where the
   // previous fragment (by time order) has its subtitle, so the user can find the right area.
@@ -1191,6 +1265,9 @@ function FragmentEditorPageInner() {
               // or when the fragment already has subtitles bound.
               const hasSubtitles = f.subtitles && f.subtitles.length > 0
               const showSubOnUnselected = hasSubtitles || subtitleFiles.length > 0
+              const hasVocabularies = (f.vocabularies?.length ?? 0) > 0
+              const showVocabBtn = vocabularyFiles.length > 0
+              const showVocabOnUnselected = hasVocabularies || vocabularyFiles.length > 0
 
               // Block delete highlighting
               const isBlockStart = f.id === blockDeleteStartId
@@ -1284,6 +1361,14 @@ function FragmentEditorPageInner() {
                           }}>
                             Sub
                           </button>
+                          {showVocabBtn && (
+                            <button className="btn-sub" onClick={e => {
+                              e.stopPropagation()
+                              openVocabularyModal(f.id)
+                            }}>
+                              Vocab
+                            </button>
+                          )}
                         </>
                       )}
                       {/* Sub button on non-selected fragment: shown when subtitles are attached
@@ -1295,6 +1380,15 @@ function FragmentEditorPageInner() {
                           openSubtitleModal(f.id)
                         }}>
                           Sub
+                        </button>
+                      )}
+                      {!isEditing && showVocabOnUnselected && (
+                        <button className="btn-sub" onClick={e => {
+                          e.stopPropagation()
+                          startEditingWithAnim(f.id)
+                          openVocabularyModal(f.id)
+                        }}>
+                          Vocab
                         </button>
                       )}
                       <button className="btn-sub" onClick={e => { e.stopPropagation(); deleteLocalFragment(f.id) }}
@@ -1440,6 +1534,86 @@ function FragmentEditorPageInner() {
                     <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
                   )}
                   <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Vocabulary modal */}
+      {vocabModalFragId && (
+        <div className="modal-overlay" onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>
+          <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()}>
+            {vocabModalStep === "choose-file" ? (
+              <>
+                <h3 style={{ marginTop: 0 }}>Choose vocabulary file</h3>
+                {vocabularyFiles.length === 0 ? (
+                  <p>No vocabulary files uploaded. Upload a vocabulary file first from the Sequences page.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {vocabularyFiles.map(vf => (
+                      <button key={vf.id} onClick={() => goToVocabStepForFile(vocabModalFragId, vf)}
+                        style={{ textAlign: "left", padding: "8px 12px" }}>
+                        {vf.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="modal-actions">
+                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>Cancel</button>
+                </div>
+              </>
+            ) : vocabModalStep === "view-existing" ? (
+              <>
+                <h3 style={{ marginTop: 0 }}>Attached vocabulary</h3>
+                {(() => {
+                  const frag = fragments.find(f => f.id === vocabModalFragId)
+                  const existing = (frag?.vocabularies ?? []).find(v => v.vocabularyFileId === vocabModalFile?.id)
+                  const text = existing && vocabModalFile
+                    ? vocabModalFile.content.slice(existing.charStart, existing.charEnd)
+                    : "(not found)"
+                  return (
+                    <>
+                      <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: 8 }}>
+                        File: {vocabModalFile?.name}
+                      </p>
+                      <div className="subtitle-content" style={{ minHeight: 60, maxHeight: "40vh" }}>
+                        {text}
+                      </div>
+                    </>
+                  )
+                })()}
+                <div className="modal-actions">
+                  <button onClick={() => setVocabModalStep("select-text")} className="btn-primary">Edit</button>
+                  <button onClick={async () => {
+                    if (vocabModalFile) {
+                      await handleRemoveVocabulary(vocabModalFragId, vocabModalFile.id)
+                    }
+                    setVocabModalFragId(null)
+                    setVocabModalFile(null)
+                  }} className="btn-danger">Unbind</button>
+                  {vocabularyFiles.length > 1 && (
+                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>Back</button>
+                  )}
+                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0 }}>Select text for vocabulary</h3>
+                <p style={{ fontSize: "0.85rem", color: "#666" }}>
+                  Select the text portion that corresponds to this fragment, then click "Bind selected text".
+                </p>
+                <div id="vocab-text-container" className="subtitle-content">
+                  {vocabModalFile?.content}
+                </div>
+                <div className="modal-actions">
+                  <button onClick={handleVocabularySelect} className="btn-primary">Bind selected text</button>
+                  {vocabularyFiles.length > 1 && (
+                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>Back</button>
+                  )}
+                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>Cancel</button>
                 </div>
               </>
             )}

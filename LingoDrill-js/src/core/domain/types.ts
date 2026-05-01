@@ -28,6 +28,23 @@ export interface FragmentSubtitle {
   charEnd: number
 }
 
+/** Файл словаря, привязанный к аудиофайлу */
+export interface VocabularyFile {
+  id: string
+  audioId: AudioFileId
+  name: string
+  content: string
+  createdAt: number
+}
+
+/** Привязка словаря к фрагменту: ссылка на файл + диапазон символов */
+export interface FragmentVocabulary {
+  vocabularyFileId: string
+  vocabularyFileName: string
+  charStart: number
+  charEnd: number
+}
+
 export interface SequenceFragment {
   id: string
   start: number       // в секундах
@@ -35,6 +52,7 @@ export interface SequenceFragment {
   repeat: number      // количество повторений
   speed: number       // скорость воспроизведения (1 = нормальная)
   subtitles: FragmentSubtitle[]  // привязанные субтитры
+  vocabularies?: FragmentVocabulary[]  // привязанный словарь
 }
 
 export interface Sequence {

@@ -9,12 +9,15 @@ import { FragmentEditorPage } from "../pages/FragmentEditorPage"
 import { SequencePlayerPage } from "../pages/SequencePlayerPage"
 import { FavouritesPage } from "../pages/FavouritesPage"
 import { SettingsPage } from "../pages/SettingsPage"
-import { getStartPage, getLastSequence, applySubFontSize } from "../utils/settings"
+import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColorTheme, applyLanguage } from "../utils/settings"
 import "./App.css"
 import "./bundle.css"
 import "./sequencePlayer.css"
 
 applySubFontSize()
+applyTheme()
+applyColorTheme()
+applyLanguage()
 
 const SESSION_REDIRECT_KEY = "lingodrill.startPageRedirected"
 

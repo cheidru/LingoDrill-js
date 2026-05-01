@@ -1,9 +1,15 @@
 export type StartPage = "library" | "favourites" | "last-sequence"
+export type Language = "en" | "ru"
+export type Theme = "light" | "dark"
+export type ColorTheme = "normal" | "pastel" | "neon"
 
 const KEY_START_PAGE = "lingodrill.startPage"
 const KEY_SUB_FONT_SIZE = "lingodrill.subFontSize"
 const KEY_LAST_SEQUENCE = "lingodrill.lastSequence"
 const KEY_FRAGMENT_GAP = "lingodrill.fragmentGap"
+const KEY_LANGUAGE = "lingodrill.language"
+const KEY_THEME = "lingodrill.theme"
+const KEY_COLOR_THEME = "lingodrill.colorTheme"
 
 export const DEFAULT_START_PAGE: StartPage = "library"
 export const DEFAULT_SUB_FONT_SIZE = 14
@@ -12,6 +18,9 @@ export const SUB_FONT_SIZE_MAX = 32
 export const DEFAULT_FRAGMENT_GAP = 2
 export const FRAGMENT_GAP_MIN = 0
 export const FRAGMENT_GAP_MAX = 10
+export const DEFAULT_LANGUAGE: Language = "en"
+export const DEFAULT_THEME: Theme = "light"
+export const DEFAULT_COLOR_THEME: ColorTheme = "normal"
 
 export function getStartPage(): StartPage {
   const v = localStorage.getItem(KEY_START_PAGE)
@@ -70,4 +79,50 @@ export function getFragmentGap(): number {
 export function setFragmentGap(n: number): void {
   const clamped = Math.max(FRAGMENT_GAP_MIN, Math.min(FRAGMENT_GAP_MAX, n))
   localStorage.setItem(KEY_FRAGMENT_GAP, String(clamped))
+}
+
+export function getLanguage(): Language {
+  const v = localStorage.getItem(KEY_LANGUAGE)
+  if (v === "en" || v === "ru") return v
+  return DEFAULT_LANGUAGE
+}
+
+export function setLanguage(v: Language): void {
+  localStorage.setItem(KEY_LANGUAGE, v)
+  document.documentElement.lang = v
+  window.dispatchEvent(new CustomEvent("lingodrill:languagechange", { detail: v }))
+}
+
+export function getTheme(): Theme {
+  const v = localStorage.getItem(KEY_THEME)
+  if (v === "light" || v === "dark") return v
+  return DEFAULT_THEME
+}
+
+export function setTheme(v: Theme): void {
+  localStorage.setItem(KEY_THEME, v)
+  applyTheme(v)
+}
+
+export function applyTheme(v: Theme = getTheme()): void {
+  document.documentElement.setAttribute("data-theme", v)
+}
+
+export function getColorTheme(): ColorTheme {
+  const v = localStorage.getItem(KEY_COLOR_THEME)
+  if (v === "normal" || v === "pastel" || v === "neon") return v
+  return DEFAULT_COLOR_THEME
+}
+
+export function setColorTheme(v: ColorTheme): void {
+  localStorage.setItem(KEY_COLOR_THEME, v)
+  applyColorTheme(v)
+}
+
+export function applyColorTheme(v: ColorTheme = getColorTheme()): void {
+  document.documentElement.setAttribute("data-color-theme", v)
+}
+
+export function applyLanguage(v: Language = getLanguage()): void {
+  document.documentElement.lang = v
 }

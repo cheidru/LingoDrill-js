@@ -10,22 +10,37 @@ import {
   setSubFontSize,
   getFragmentGap,
   setFragmentGap,
+  getLanguage,
+  setLanguage,
+  getTheme,
+  setTheme,
+  getColorTheme,
+  setColorTheme,
   SUB_FONT_SIZE_MIN,
   SUB_FONT_SIZE_MAX,
   FRAGMENT_GAP_MIN,
   FRAGMENT_GAP_MAX,
   type StartPage,
+  type Language,
+  type Theme,
+  type ColorTheme,
 } from "../../utils/settings"
+import { useT } from "../../utils/i18n"
 
 export function Header() {
   const navigate = useNavigate()
   const location = useLocation()
   const { selectedFile } = useSharedAudioEngine()
+  const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
   const [startPage, setStartPageState] = useState<StartPage>(getStartPage())
   const [subFontSize, setSubFontSizeState] = useState<number>(getSubFontSize())
   const [fragmentGap, setFragmentGapState] = useState<number>(getFragmentGap())
+  const [language, setLanguageState] = useState<Language>(getLanguage())
+  const [themeMode, setThemeModeState] = useState<Theme>(getTheme())
+  const [colorTheme, setColorThemeState] = useState<ColorTheme>(getColorTheme())
 
   const audioIdMatch = location.pathname.match(/\/file\/([^/]+)/)
   const audioId = audioIdMatch ? audioIdMatch[1] : selectedFile?.id ?? null
@@ -36,6 +51,7 @@ export function Header() {
 
   const closeAll = () => {
     setSettingsOpen(false)
+    setThemeOpen(false)
     setMenuOpen(false)
   }
 
@@ -56,6 +72,18 @@ export function Header() {
     setFragmentGapState(n)
     setFragmentGap(n)
   }
+  const onLanguageChange = (v: Language) => {
+    setLanguageState(v)
+    setLanguage(v)
+  }
+  const onThemeChange = (v: Theme) => {
+    setThemeModeState(v)
+    setTheme(v)
+  }
+  const onColorThemeChange = (v: ColorTheme) => {
+    setColorThemeState(v)
+    setColorTheme(v)
+  }
 
   const openSettings = () => {
     setSettingsOpen(true)
@@ -67,12 +95,12 @@ export function Header() {
   return (
     <>
       <header className="header">
-        <span className="header__logo">LingoDrill</span>
+        <span className="header__logo">{t("app.title")}</span>
 
         <button
           className="header__burger"
           onClick={() => (menuOpen ? closeAll() : setMenuOpen(true))}
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-label={menuOpen ? t("menu.close") : t("menu.open")}
           aria-expanded={menuOpen}
         >
           <span className="header__burger-icon" aria-hidden="true">{menuOpen ? "✕" : "☰"}</span>
@@ -83,29 +111,29 @@ export function Header() {
             onClick={() => handleNav("/")}
             className={`header__nav-btn${pathIncludes("/") ? " header__nav-btn--active" : ""}`}
           >
-            Audio Library
+            {t("nav.audioLibrary")}
           </button>
           <button
             onClick={() => audioId && handleNav(`/file/${audioId}/sequences`)}
             disabled={!audioId}
             className={`header__nav-btn${audioId && pathIncludes(`/file/${audioId}/sequences`) ? " header__nav-btn--active" : ""}${!audioId ? " header__nav-btn--disabled" : ""}`}
           >
-            Fragment Library
+            {t("nav.fragmentLibrary")}
           </button>
           <button
             onClick={() => handleNav("/favourites")}
             className={`header__nav-btn${pathIncludes("/favourites") ? " header__nav-btn--active" : ""}`}
           >
-            Favourites
+            {t("nav.favourites")}
           </button>
           <button
             onClick={openSettings}
             className="header__nav-btn"
           >
-            Settings
+            {t("nav.settings")}
           </button>
           <button disabled className="header__nav-btn header__nav-btn--disabled">
-            About
+            {t("nav.about")}
           </button>
         </nav>
       </header>
@@ -116,24 +144,48 @@ export function Header() {
       {settingsOpen && (
         <div className="modal-overlay" onClick={() => setSettingsOpen(false)}>
           <div className="modal-box modal-box--wide settings-modal" onClick={e => e.stopPropagation()}>
-            <h3 className="settings-modal__title">Settings</h3>
+            <h3 className="settings-modal__title">{t("settings.title")}</h3>
 
             <div className="settings-row">
-              <label className="settings-row__label" htmlFor="settings-modal-start-page">Start page</label>
+              <label className="settings-row__label" htmlFor="settings-modal-start-page">{t("settings.startPage")}</label>
               <select
                 id="settings-modal-start-page"
                 value={startPage}
                 onChange={e => onStartPageChange(e.target.value as StartPage)}
                 className="settings-row__control"
               >
-                <option value="library">Audio Library</option>
-                <option value="favourites">Favourites</option>
-                <option value="last-sequence">Last sequence</option>
+                <option value="library">{t("settings.startPage.library")}</option>
+                <option value="favourites">{t("settings.startPage.favourites")}</option>
+                <option value="last-sequence">{t("settings.startPage.lastSequence")}</option>
               </select>
             </div>
 
             <div className="settings-row">
-              <label className="settings-row__label" htmlFor="settings-modal-fragment-gap">Fragment gap</label>
+              <label className="settings-row__label" htmlFor="settings-modal-language">{t("settings.language")}</label>
+              <select
+                id="settings-modal-language"
+                value={language}
+                onChange={e => onLanguageChange(e.target.value as Language)}
+                className="settings-row__control"
+              >
+                <option value="en">{t("settings.language.en")}</option>
+                <option value="ru">{t("settings.language.ru")}</option>
+              </select>
+            </div>
+
+            <div className="settings-row">
+              <label className="settings-row__label">{t("settings.theme")}</label>
+              <div className="settings-row__control">
+                <button onClick={() => setThemeOpen(true)} aria-label={t("settings.theme.open")}>
+                  {themeMode === "dark" ? t("settings.theme.dark") : t("settings.theme.light")}
+                  {" · "}
+                  {t(`settings.theme.${colorTheme}`)}
+                </button>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <label className="settings-row__label" htmlFor="settings-modal-fragment-gap">{t("settings.fragmentGap")}</label>
               <div className="settings-row__control settings-row__control--inline">
                 <input
                   id="settings-modal-fragment-gap"
@@ -149,7 +201,7 @@ export function Header() {
             </div>
 
             <div className="settings-row">
-              <label className="settings-row__label" htmlFor="settings-modal-sub-font-size">Sub font size</label>
+              <label className="settings-row__label" htmlFor="settings-modal-sub-font-size">{t("settings.subFontSize")}</label>
               <div className="settings-row__control settings-row__control--inline">
                 <input
                   id="settings-modal-sub-font-size"
@@ -165,17 +217,71 @@ export function Header() {
             </div>
 
             <div className="settings-preview">
-              <div className="settings-preview__label">Subtitle preview</div>
+              <div className="settings-preview__label">{t("settings.preview")}</div>
               <div className="sp-subtitle-display">
                 <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>example.srt</div>
                 <div style={{ fontSize: "var(--sub-font-size, 14px)", whiteSpace: "pre-wrap", lineHeight: 1.5, color: "var(--color-text)" }}>
-                  The quick brown fox jumps over the lazy dog.
+                  The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.
                 </div>
               </div>
             </div>
 
             <div className="modal-actions">
-              <button onClick={() => setSettingsOpen(false)}>Close</button>
+              <button onClick={() => setSettingsOpen(false)}>{t("common.close")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {themeOpen && (
+        <div className="modal-overlay" onClick={() => setThemeOpen(false)}>
+          <div className="modal-box theme-modal" onClick={e => e.stopPropagation()} style={{ textAlign: "left" }}>
+            <h3 style={{ marginTop: 0 }}>{t("settings.theme.title")}</h3>
+
+            <div className="settings-row">
+              <label className="settings-row__label">{t("settings.theme.mode")}</label>
+              <div className="settings-row__control">
+                <div className="theme-toggle" role="group" aria-label={t("settings.theme.mode")}>
+                  <button
+                    type="button"
+                    className={`theme-toggle__btn${themeMode === "light" ? " theme-toggle__btn--active" : ""}`}
+                    onClick={() => onThemeChange("light")}
+                  >
+                    ☀ {t("settings.theme.light")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`theme-toggle__btn${themeMode === "dark" ? " theme-toggle__btn--active" : ""}`}
+                    onClick={() => onThemeChange("dark")}
+                  >
+                    🌙 {t("settings.theme.dark")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-row" style={{ alignItems: "flex-start" }}>
+              <label className="settings-row__label">{t("settings.theme.colorTheme")}</label>
+              <div className="settings-row__control">
+                <div className="theme-radios">
+                  {(["normal", "pastel", "neon"] as ColorTheme[]).map(opt => (
+                    <label key={opt} className="theme-radios__option">
+                      <input
+                        type="radio"
+                        name="lingodrill-color-theme"
+                        value={opt}
+                        checked={colorTheme === opt}
+                        onChange={() => onColorThemeChange(opt)}
+                      />
+                      {t(`settings.theme.${opt}`)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setThemeOpen(false)}>{t("common.close")}</button>
             </div>
           </div>
         </div>

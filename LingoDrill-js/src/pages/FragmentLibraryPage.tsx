@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
+import { useVocabularies } from "../app/hooks/useVocabularies"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import { nanoid } from "nanoid"
@@ -83,6 +84,7 @@ function FragmentLibraryPageInner() {
 
   const { sequences, isLoading, addSequence, deleteSequence, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles, addSubtitleFile, deleteSubtitleFile } = useSubtitles(audioId ?? null)
+  const { vocabularyFiles, addVocabularyFile, deleteVocabularyFile } = useVocabularies(audioId ?? null)
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
@@ -91,6 +93,9 @@ function FragmentLibraryPageInner() {
   // Subtitle management modal state
   const [subModalOpen, setSubModalOpen] = useState(false)
   const subFileInputRef = useRef<HTMLInputElement>(null)
+  // Vocabulary management modal state
+  const [vocabModalOpen, setVocabModalOpen] = useState(false)
+  const vocabFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (audioId) loadById(audioId)
@@ -137,6 +142,30 @@ function FragmentLibraryPageInner() {
     if (subFileInputRef.current) subFileInputRef.current.value = ""
   }, [addSubtitleFile])
 
+  const handleVocabFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await addVocabularyFile(file)
+    if (vocabFileInputRef.current) vocabFileInputRef.current.value = ""
+  }, [addVocabularyFile])
+
+  const handleDeleteVocabularyFile = useCallback(async (vocabFileId: string) => {
+    await deleteVocabularyFile(vocabFileId)
+    for (const seq of sequences) {
+      const hasAffected = seq.fragments.some(f =>
+        (f.vocabularies ?? []).some(v => v.vocabularyFileId === vocabFileId)
+      )
+      if (hasAffected) {
+        const updatedFragments = seq.fragments.map(f => ({
+          ...f,
+          vocabularies: (f.vocabularies ?? []).filter(v => v.vocabularyFileId !== vocabFileId),
+        }))
+        await updateSequence({ ...seq, fragments: updatedFragments })
+      }
+    }
+    console.log("[FragmentLibrary] Deleted vocabulary file and cleaned up bindings:", vocabFileId)
+  }, [deleteVocabularyFile, sequences, updateSequence])
+
   const handleDeleteSubtitleFile = useCallback(async (subFileId: string) => {
     await deleteSubtitleFile(subFileId)
 
@@ -173,6 +202,9 @@ function FragmentLibraryPageInner() {
         </button>
         <button onClick={() => setSubModalOpen(true)}>
           Sub ({subtitleFiles.length})
+        </button>
+        <button onClick={() => setVocabModalOpen(true)}>
+          Vocab ({vocabularyFiles.length})
         </button>
       </div>
 
@@ -312,6 +344,60 @@ function FragmentLibraryPageInner() {
 
             <div className="modal-actions">
               <button onClick={() => setSubModalOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vocabulary file management modal */}
+      {vocabModalOpen && (
+        <div className="modal-overlay" onClick={() => setVocabModalOpen(false)}>
+          <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <h3 style={{ marginTop: 0 }}>Vocabulary files</h3>
+
+            {vocabularyFiles.length === 0 ? (
+              <p className="empty-state" style={{ fontSize: "0.9rem" }}>No vocabulary files uploaded yet.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {vocabularyFiles.map(vf => (
+                  <div key={vf.id} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "10px 14px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)",
+                    background: "var(--color-bg-subtle)",
+                  }}>
+                    <span style={{ fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                      {vf.name}
+                    </span>
+                    <button
+                      className="btn-sub"
+                      onClick={() => handleDeleteVocabularyFile(vf.id)}
+                      style={{ color: "var(--color-danger)", flexShrink: 0, marginLeft: 8 }}
+                      title="Delete vocabulary file"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <button className="btn-primary" onClick={() => vocabFileInputRef.current?.click()}>
+                  + Add vocabulary file
+                </button>
+                <input
+                  ref={vocabFileInputRef}
+                  type="file"
+                  accept=".txt,.csv,.tsv,.md,.json"
+                  onChange={handleVocabFileUpload}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setVocabModalOpen(false)}>Close</button>
             </div>
           </div>
         </div>
