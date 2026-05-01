@@ -44,6 +44,8 @@ export interface Sequence {
   fragments: SequenceFragment[]
   createdAt: number
   favourite?: boolean
+  /** Sequence-wide playback speed multiplier. Defaults to 1.0 if missing. */
+  playbackSpeed?: number
 }
 
 // Обратная совместимость

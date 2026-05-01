@@ -133,22 +133,6 @@ export function Header() {
             </div>
 
             <div className="settings-row">
-              <label className="settings-row__label" htmlFor="settings-modal-sub-font-size">Sub font size</label>
-              <div className="settings-row__control settings-row__control--inline">
-                <input
-                  id="settings-modal-sub-font-size"
-                  type="range"
-                  min={SUB_FONT_SIZE_MIN}
-                  max={SUB_FONT_SIZE_MAX}
-                  step={1}
-                  value={subFontSize}
-                  onChange={e => onSubFontSizeChange(parseInt(e.target.value, 10))}
-                />
-                <span className="settings-row__value">{subFontSize}px</span>
-              </div>
-            </div>
-
-            <div className="settings-row">
               <label className="settings-row__label" htmlFor="settings-modal-fragment-gap">Fragment gap</label>
               <div className="settings-row__control settings-row__control--inline">
                 <input
@@ -161,6 +145,22 @@ export function Header() {
                   onChange={e => onFragmentGapChange(parseFloat(e.target.value))}
                 />
                 <span className="settings-row__value">{fragmentGap.toFixed(1)}s</span>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <label className="settings-row__label" htmlFor="settings-modal-sub-font-size">Sub font size</label>
+              <div className="settings-row__control settings-row__control--inline">
+                <input
+                  id="settings-modal-sub-font-size"
+                  type="range"
+                  min={SUB_FONT_SIZE_MIN}
+                  max={SUB_FONT_SIZE_MAX}
+                  step={1}
+                  value={subFontSize}
+                  onChange={e => onSubFontSizeChange(parseInt(e.target.value, 10))}
+                />
+                <span className="settings-row__value">{subFontSize}px</span>
               </div>
             </div>
 

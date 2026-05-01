@@ -332,7 +332,18 @@ html.mobile .header__overlay {
   margin-bottom: 6px;
 }
 
-/* Settings modal */
+/* Settings modal — width is fixed so the subtitle preview reflows
+   vertically (height grows) instead of pushing the modal wider when the
+   preview font size changes. Height is content-driven, with viewport-cap
+   scrolling as a safety net for very large font sizes. */
+.modal-box.settings-modal {
+  width: min(560px, 92vw);
+  min-width: 0;
+  max-width: min(560px, 92vw);
+  height: auto;
+  max-height: 90vh;
+  overflow-y: auto;
+}
 .settings-modal__title {
   margin: 0 0 8px;
   text-align: left;
@@ -342,6 +353,13 @@ html.mobile .header__overlay {
 }
 .modal-box.settings-modal .settings-preview {
   max-width: none;
+}
+.modal-box.settings-modal .sp-subtitle-display {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* === Modals === */

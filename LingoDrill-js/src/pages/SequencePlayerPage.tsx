@@ -104,7 +104,7 @@ function FragmentControlPanel({
   isPaused,
   isInfiniteRewind,
   localRepeat,
-  sequenceSpeed,
+  fragmentSpeed,
   isDisabled,
   onPlay,
   onPause,
@@ -116,7 +116,7 @@ function FragmentControlPanel({
   onClose,
   onEdit,
   onRepeatChange,
-  onSpeedChange,
+  onFragmentSpeedChange,
 }: {
   fragmentIndex: number
   totalFragments: number
@@ -124,7 +124,7 @@ function FragmentControlPanel({
   isPaused: boolean
   isInfiniteRewind: boolean
   localRepeat: number
-  sequenceSpeed: number
+  fragmentSpeed: number
   isDisabled: boolean
   onPlay: () => void
   onPause: () => void
@@ -136,7 +136,7 @@ function FragmentControlPanel({
   onClose: () => void
   onEdit: () => void
   onRepeatChange: (value: number) => void
-  onSpeedChange: (value: number) => void
+  onFragmentSpeedChange: (value: number) => void
 }) {
   const [speedModalOpen, setSpeedModalOpen] = useState(false)
   const isMobile = document.documentElement.classList.contains("mobile")
@@ -196,29 +196,29 @@ function FragmentControlPanel({
           <InfiniteRewindIcon />
         </button>
 
-        {/* Speed (controls sequence-wide playback speed) */}
+        {/* Speed (controls this fragment's playback speed; saved per fragment) */}
         {isMobile ? (
           <button
             className="sp-ctrl-btn sp-speed-btn"
             onClick={() => setSpeedModalOpen(true)}
-            title={`Playback speed: ${sequenceSpeed.toFixed(2)}×`}
+            title={`Fragment speed: ${fragmentSpeed.toFixed(2)}×`}
           >
             <span>⚡</span>
-            <span className="sp-speed-btn__value">{sequenceSpeed.toFixed(2)}×</span>
+            <span className="sp-speed-btn__value">{fragmentSpeed.toFixed(2)}×</span>
           </button>
         ) : (
-          <label className="sp-speed-slider" title="Playback speed (applies to all fragments)">
+          <label className="sp-speed-slider" title="Fragment playback speed (saved per fragment)">
             <span>⚡</span>
             <input
               type="range"
               min={0.5}
               max={1.5}
               step={0.05}
-              value={sequenceSpeed}
-              onChange={e => onSpeedChange(parseFloat(e.target.value))}
+              value={fragmentSpeed}
+              onChange={e => onFragmentSpeedChange(parseFloat(e.target.value))}
               className="sp-speed-slider__input"
             />
-            <span className="sp-speed-slider__value">{sequenceSpeed.toFixed(2)}×</span>
+            <span className="sp-speed-slider__value">{fragmentSpeed.toFixed(2)}×</span>
           </label>
         )}
 
@@ -257,15 +257,15 @@ function FragmentControlPanel({
       {speedModalOpen && (
         <div className="modal-overlay" onClick={() => setSpeedModalOpen(false)}>
           <div className="modal-box sp-speed-modal" onClick={e => e.stopPropagation()}>
-            <h3 className="sp-speed-modal__title">Playback speed</h3>
-            <div className="sp-speed-modal__value">{sequenceSpeed.toFixed(2)}×</div>
+            <h3 className="sp-speed-modal__title">Fragment speed</h3>
+            <div className="sp-speed-modal__value">{fragmentSpeed.toFixed(2)}×</div>
             <input
               type="range"
               min={0.5}
               max={1.5}
               step={0.05}
-              value={sequenceSpeed}
-              onChange={e => onSpeedChange(parseFloat(e.target.value))}
+              value={fragmentSpeed}
+              onChange={e => onFragmentSpeedChange(parseFloat(e.target.value))}
               className="sp-speed-modal__input"
             />
             <div className="sp-speed-modal__range">
@@ -273,7 +273,7 @@ function FragmentControlPanel({
               <span>1.5×</span>
             </div>
             <div className="modal-actions">
-              <button className="sp-ctrl-btn" onClick={() => onSpeedChange(1)} title="Reset to 1.00×" style={{ width: "auto", padding: "0 16px" }}>
+              <button className="sp-ctrl-btn" onClick={() => onFragmentSpeedChange(1)} title="Reset to 1.00×" style={{ width: "auto", padding: "0 16px" }}>
                 Reset
               </button>
               <button onClick={() => setSpeedModalOpen(false)}>Close</button>
@@ -318,6 +318,13 @@ function SequencePlayerPageInner() {
   const [selectedFragIdx, setSelectedFragIdx] = useState<number | null>(null)
   const [infiniteRewind, setInfiniteRewind] = useState(false)
   const [sequenceSpeed, setSequenceSpeed] = useState(1)
+
+  // Sync sequenceSpeed from the loaded sequence (persisted as sequence.playbackSpeed)
+  const sequenceSpeedSyncedRef = useRef<string | null>(null)
+  if (sequence && sequenceSpeedSyncedRef.current !== sequence.id) {
+    sequenceSpeedSyncedRef.current = sequence.id
+    setSequenceSpeed(sequence.playbackSpeed ?? 1)
+  }
 
   // Local fragment overrides (repeat) — keyed by fragment index
   const [localRepeats, setLocalRepeats] = useState<Record<number, number>>({})
@@ -401,9 +408,9 @@ function SequencePlayerPageInner() {
     }
   }, [])
 
-  // --- Effective speed: sequence speed × fragment speed ---
+  // --- Effective speed: per-fragment speed (global propagates to fragments on change) ---
   const getEffectiveSpeed = useCallback((f: SequenceFragment) => {
-    return sequenceSpeedRef.current * f.speed
+    return f.speed
   }, [])
 
   // --- Play a single fragment with local overrides ---
@@ -473,7 +480,7 @@ function SequencePlayerPageInner() {
         console.log("[SequencePlayerPage] Infinite rewind: replaying fragment", currentIdx)
         const f = seq.fragments[currentIdx]
         const repeat = localRepeatsRef.current[currentIdx] ?? f.repeat
-        const speed = sequenceSpeedRef.current * f.speed
+        const speed = f.speed
         const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
         scheduleAfterGap(() => {
           if (playingFragIdxRef.current !== currentIdx) return
@@ -502,7 +509,7 @@ function SequencePlayerPageInner() {
         console.log("[SequencePlayerPage] Play-all advancing to fragment", nextIdx)
         const f = seq.fragments[nextIdx]
         const repeat = localRepeatsRef.current[nextIdx] ?? f.repeat
-        const speed = sequenceSpeedRef.current * f.speed
+        const speed = f.speed
         const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
         scheduleAfterGap(() => {
           if (!playAllModeRef.current) return
@@ -587,7 +594,22 @@ function SequencePlayerPageInner() {
 
   const handleSequenceSpeedChange = useCallback((value: number) => {
     setSequenceSpeed(value)
-  }, [])
+    if (sequence) {
+      // Propagate the new global to each fragment's individual speed so the
+      // per-fragment slider's default tracks the global. Per-fragment
+      // customizations are reset to the new global (they can be re-tuned after).
+      const updatedFragments = sequence.fragments.map(f => ({ ...f, speed: value }))
+      updateSequence({ ...sequence, fragments: updatedFragments, playbackSpeed: value })
+    }
+  }, [sequence, updateSequence])
+
+  const handleFragmentSpeedChange = useCallback((fragIdx: number, value: number) => {
+    if (!sequence) return
+    const updatedFragments = sequence.fragments.map((f, i) =>
+      i === fragIdx ? { ...f, speed: value } : f
+    )
+    updateSequence({ ...sequence, fragments: updatedFragments })
+  }, [sequence, updateSequence])
 
   const handleToggleDisabled = useCallback((fragIdx: number) => {
     setDisabledFragments(prev => {
@@ -684,6 +706,19 @@ function SequencePlayerPageInner() {
             <span>Play all</span>
           </button>
         )}
+        <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
+          <span className="sp-global-speed__icon">⚡</span>
+          <input
+            type="range"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={sequenceSpeed}
+            onChange={e => handleSequenceSpeedChange(parseFloat(e.target.value))}
+            className="sp-global-speed__input"
+          />
+          <span className="sp-global-speed__value">{sequenceSpeed.toFixed(2)}×</span>
+        </label>
         <VolumeControl volume={volume} onVolumeChange={setVolume} />
       </div>
 
@@ -743,7 +778,7 @@ function SequencePlayerPageInner() {
                     isPaused={isCurrentlyPlaying && isPaused}
                     isInfiniteRewind={infiniteRewind}
                     localRepeat={repeat}
-                    sequenceSpeed={sequenceSpeed}
+                    fragmentSpeed={frag.speed}
                     isDisabled={isFragDisabled}
                     onPlay={() => isCurrentlyPlaying && isPaused ? handleFragResume() : handleFragPlay(idx)}
                     onPause={handleFragPause}
@@ -755,7 +790,7 @@ function SequencePlayerPageInner() {
                     onClose={handleClosePanel}
                     onEdit={() => handleEditFragment(idx)}
                     onRepeatChange={(v) => handleRepeatChange(idx, v)}
-                    onSpeedChange={handleSequenceSpeedChange}
+                    onFragmentSpeedChange={(v) => handleFragmentSpeedChange(idx, v)}
                   />
 
                   {/* Subtitle display */}

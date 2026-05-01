@@ -1186,8 +1186,11 @@ function FragmentEditorPageInner() {
                 playingFragment.start === f.start && playingFragment.end === f.end
               const isThisFragPaused = !isFilePlayback && isPaused && playingFragment != null &&
                 playingFragment.start === f.start && playingFragment.end === f.end
-              // CHANGE 3: Show Sub button in non-selected fragment only if it has subtitles attached
+              // Show Sub button on a non-selected fragment whenever there are subtitle files
+              // available (so the user can attach one without first re-selecting the fragment)
+              // or when the fragment already has subtitles bound.
               const hasSubtitles = f.subtitles && f.subtitles.length > 0
+              const showSubOnUnselected = hasSubtitles || subtitleFiles.length > 0
 
               // Block delete highlighting
               const isBlockStart = f.id === blockDeleteStartId
@@ -1283,8 +1286,9 @@ function FragmentEditorPageInner() {
                           </button>
                         </>
                       )}
-                      {/* CHANGE 3: Sub button in non-selected fragment only if subtitles are attached */}
-                      {!isEditing && hasSubtitles && (
+                      {/* Sub button on non-selected fragment: shown when subtitles are attached
+                          or when subtitle files are available to attach */}
+                      {!isEditing && showSubOnUnselected && (
                         <button className="btn-sub" onClick={e => {
                           e.stopPropagation()
                           startEditingWithAnim(f.id)

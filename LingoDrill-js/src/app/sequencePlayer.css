@@ -67,6 +67,34 @@
   color: white;
 }
 
+.sp-global-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+.sp-global-speed__icon {
+  font-size: 0.95rem;
+}
+.sp-global-speed__input {
+  width: 100px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.sp-global-speed__value {
+  min-width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 .sp-speed-slider {
   display: flex;
   align-items: center;
