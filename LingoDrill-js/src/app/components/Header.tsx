@@ -1,6 +1,6 @@
 // app/components/Header.tsx
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useSharedAudioEngine } from "../hooks/useSharedAudioEngine"
 import {
@@ -10,8 +10,6 @@ import {
   setSubFontSize,
   getFragmentGap,
   setFragmentGap,
-  getLanguage,
-  setLanguage,
   getTheme,
   setTheme,
   getColorTheme,
@@ -21,7 +19,6 @@ import {
   FRAGMENT_GAP_MIN,
   FRAGMENT_GAP_MAX,
   type StartPage,
-  type Language,
   type Theme,
   type ColorTheme,
 } from "../../utils/settings"
@@ -38,16 +35,11 @@ export function Header() {
   const [startPage, setStartPageState] = useState<StartPage>(getStartPage())
   const [subFontSize, setSubFontSizeState] = useState<number>(getSubFontSize())
   const [fragmentGap, setFragmentGapState] = useState<number>(getFragmentGap())
-  const [language, setLanguageState] = useState<Language>(getLanguage())
   const [themeMode, setThemeModeState] = useState<Theme>(getTheme())
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(getColorTheme())
 
   const audioIdMatch = location.pathname.match(/\/file\/([^/]+)/)
   const audioId = audioIdMatch ? audioIdMatch[1] : selectedFile?.id ?? null
-
-  useEffect(() => {
-    if (!menuOpen) setSettingsOpen(false)
-  }, [menuOpen])
 
   const closeAll = () => {
     setSettingsOpen(false)
@@ -71,10 +63,6 @@ export function Header() {
   const onFragmentGapChange = (n: number) => {
     setFragmentGapState(n)
     setFragmentGap(n)
-  }
-  const onLanguageChange = (v: Language) => {
-    setLanguageState(v)
-    setLanguage(v)
   }
   const onThemeChange = (v: Theme) => {
     setThemeModeState(v)
@@ -157,19 +145,6 @@ export function Header() {
                 <option value="library">{t("settings.startPage.library")}</option>
                 <option value="favourites">{t("settings.startPage.favourites")}</option>
                 <option value="last-sequence">{t("settings.startPage.lastSequence")}</option>
-              </select>
-            </div>
-
-            <div className="settings-row">
-              <label className="settings-row__label" htmlFor="settings-modal-language">{t("settings.language")}</label>
-              <select
-                id="settings-modal-language"
-                value={language}
-                onChange={e => onLanguageChange(e.target.value as Language)}
-                className="settings-row__control"
-              >
-                <option value="en">{t("settings.language.en")}</option>
-                <option value="ru">{t("settings.language.ru")}</option>
               </select>
             </div>
 
