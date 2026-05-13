@@ -213,10 +213,17 @@ async function decodeFull(
 
 /**
  * Максимальный размер выходного буфера в сэмплах (на один канал).
- * ~60 мин @ 48kHz = ~172M сэмплов × 4 bytes × 2 ch ≈ 1.3GB.
- * Для мобильных ограничиваем ~45 мин @ 48kHz стерео ≈ ~1GB.
+ * Адаптивно в зависимости от платформы:
+ * - Мобильные: ~45 мин @ 48kHz стерео ≈ ~1GB float32 (защита от OOM-kill)
+ * - Десктоп:   ~8 ч  @ 48kHz стерео ≈ ~11GB float32 — браузер сам решает,
+ *              хватит ли памяти; реальный лимит определит allocation try/catch.
+ *              Главное — не отказываться превентивно от chunked-пути,
+ *              который и так предназначен для больших файлов.
  */
-const MAX_OUTPUT_SAMPLES = 48_000 * 60 * 45 // ~129.6M samples
+function getMaxOutputSamples(): number {
+  if (isMobile()) return 48_000 * 60 * 45        // ~45 min
+  return 48_000 * 60 * 60 * 8                    // ~8 hours
+}
 
 async function decodeInChunks(
   blob: Blob,
@@ -241,13 +248,16 @@ async function decodeInChunks(
   const numberOfChannels = probeBuffer.numberOfChannels
   const totalSamples = Math.ceil(totalDuration * sampleRate)
 
-  // Guard против OOM при аллокации выходного буфера
-  if (totalSamples > MAX_OUTPUT_SAMPLES) {
-    const maxMinutes = Math.floor(MAX_OUTPUT_SAMPLES / sampleRate / 60)
+  // Guard против OOM при аллокации выходного буфера.
+  // На десктопе лимит ~8ч — больше реально не влезет в память вкладки.
+  // На мобильных — ~45 мин (исторический conservative-default).
+  const maxOutputSamples = getMaxOutputSamples()
+  if (totalSamples > maxOutputSamples) {
+    const maxMinutes = Math.floor(maxOutputSamples / sampleRate / 60)
     throw new Error(
       `Audio too long for in-browser decoding (~${Math.ceil(totalDuration / 60)} min). ` +
       `Maximum supported: ~${maxMinutes} min. ` +
-      `Please split the file or use a desktop browser.`
+      `Please split the file.`
     )
   }
 
