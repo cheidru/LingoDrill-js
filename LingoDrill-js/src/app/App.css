@@ -800,3 +800,314 @@ html.mobile .decode-indicator {
 html.mobile .vad-indicator {
   font-size: 0.9rem;
 }
+
+/* ===========================================================
+   STUDIO DARK design language — applied to ALL themes.
+   Sharp corners, ghost buttons, mono labels, hairline borders.
+   Colors come from each theme's CSS variables, so palettes stay
+   intact — only the form changes.
+   =========================================================== */
+
+/* --- Header: thinner bar, mono nav links, primary underline on active --- */
+.header {
+  min-height: 48px;
+  background: var(--color-bg);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: none;
+  padding: 0 24px;
+}
+.header__nav-btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+  padding: 6px 12px;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+}
+.header__nav-btn:hover {
+  background: transparent;
+  color: var(--color-primary-light);
+  border-bottom-color: transparent;
+}
+.header__nav-btn--active {
+  color: var(--color-primary);
+  background: transparent;
+  border-bottom-color: var(--color-primary);
+}
+
+.header__burger {
+  border-radius: var(--radius-sm);
+}
+.header__nav {
+  background: var(--color-bg);
+}
+.header__submenu {
+  background: var(--color-bg-subtle);
+}
+
+/* --- Audio library list items — sharp, hairline, no shadow --- */
+.audio-list__item {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.audio-list__item:hover {
+  border-color: var(--color-primary);
+  box-shadow: none;
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-card));
+}
+.audio-list__item--selected {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-card));
+  border-color: var(--color-primary);
+  border-left: 3px solid var(--color-primary);
+  box-shadow: none;
+}
+.audio-list__item span {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.page {
+  padding: 24px clamp(16px, 4vw, 32px);
+}
+
+/* --- Filled action variants --- */
+.btn-primary,
+.btn-save {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: var(--color-bg-page);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  box-shadow: var(--glow-primary);
+}
+.btn-primary:hover,
+.btn-save:hover {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary-light);
+  color: var(--color-bg-page);
+}
+
+.btn-danger,
+.btn-delete {
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
+}
+.btn-danger:hover,
+.btn-delete:hover {
+  background: var(--color-danger);
+  color: var(--color-bg-page);
+  border-color: var(--color-danger);
+}
+
+/* --- Action bar (Editor) --- */
+.action-bar__btn {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  border-radius: var(--radius-sm);
+}
+.action-bar__btn--danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.action-bar__btn--danger:hover {
+  background: var(--color-danger);
+  color: var(--color-bg-page);
+}
+
+/* --- Fragment row (Editor) — sharp, hairline, accent stripe when editing --- */
+.fragment-row {
+  border-radius: var(--radius-sm);
+  border-color: var(--color-border);
+  background: var(--color-bg-card);
+}
+.fragment-row:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-card));
+}
+.fragment-row--editing {
+  border-color: var(--color-primary);
+  border-left: 3px solid var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-card));
+  box-shadow: var(--glow-primary);
+}
+.fragment-row__time {
+  font-family: var(--font-mono);
+}
+
+/* Subtitle prompt banner */
+.subtitle-prompt {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  border-left-width: 3px;
+}
+
+.subtitle-display {
+  border-color: var(--color-border);
+  background: var(--color-bg-subtle);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* --- Sequence cards (FragmentLibrary) --- */
+.seq-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.seq-card:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-card));
+  box-shadow: none;
+}
+.seq-label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.8rem;
+}
+.seq-controls__btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-muted);
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.seq-controls__btn:hover {
+  background: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.seq-subtitle {
+  border-color: var(--color-border);
+  background: var(--color-bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- Theme toggle (in Settings modal): square segmented control --- */
+.theme-toggle {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.theme-toggle__btn {
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: transparent;
+}
+.theme-toggle__btn--active {
+  background: var(--color-primary);
+  color: var(--color-bg-page);
+}
+
+/* --- Modals: square corners, theme-driven shadow + glow --- */
+.modal-box {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg), var(--glow-primary);
+}
+
+/* --- Settings rows --- */
+.settings-row {
+  border-bottom-color: var(--color-border);
+}
+.settings-row__label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+.settings-row__value {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+}
+
+/* --- Progress bar — sharp handle, primary glow --- */
+.progress-track {
+  background: var(--color-border);
+  border-radius: 0;
+}
+.progress-fill {
+  background: var(--color-primary);
+  border-radius: 0;
+}
+.progress-handle {
+  border-radius: 2px;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+.progress-time {
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+/* --- Waveform canvas --- */
+.waveform-canvas {
+  border-color: var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-page);
+}
+.waveform-zoom__btn {
+  font-size: 0.9rem;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+/* --- Volume control --- */
+.volume-control__icon {
+  color: var(--color-text-muted);
+}
+
+/* --- File player time --- */
+.file-player__time,
+.file-info {
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+/* --- Spinners pick up theme colors --- */
+.spinner--wf {
+  border-top-color: var(--color-primary);
+}
+.spinner--decode {
+  border-top-color: var(--color-accent);
+}
+
+/* --- Equaliser loader --- */
+.eq-loader__bar {
+  background: var(--color-primary);
+}

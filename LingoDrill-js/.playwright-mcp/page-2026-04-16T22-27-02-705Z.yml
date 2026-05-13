@@ -1,0 +1,20 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - button "Open menu" [ref=e5] [cursor=pointer]:
+      - generic [ref=e6]: ☰
+  - generic [ref=e7]:
+    - heading "Audio Library" [level=2] [ref=e8]
+    - button "+ Upload audio" [ref=e10] [cursor=pointer]
+    - generic [ref=e13]:
+      - button "Import bundle" [ref=e14] [cursor=pointer]
+      - generic [ref=e15]:
+        - text: Load a
+        - code [ref=e16]: .lingodrill
+        - text: file prepared on desktop
+    - generic [ref=e17]:
+      - heading "Audio Library" [level=3] [ref=e18]
+      - list [ref=e19]:
+        - listitem [ref=e20] [cursor=pointer]:
+          - generic [ref=e21]: sample.wav
+          - button "Delete" [ref=e22]

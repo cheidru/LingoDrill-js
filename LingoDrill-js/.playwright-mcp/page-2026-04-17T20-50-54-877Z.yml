@@ -1,0 +1,17 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [ref=e7] [cursor=pointer]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]: Settings▸
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e85]:
+    - heading "Fragment Library" [level=2] [ref=e86]
+    - paragraph [ref=e87]: sample.wav
+    - generic [ref=e88]:
+      - button "← Back" [ref=e89] [cursor=pointer]
+      - button "+ New sequence" [ref=e90] [cursor=pointer]
+      - button "Sub (0)" [ref=e91] [cursor=pointer]
+    - paragraph [ref=e92]: No sequences yet. Create one in the editor.

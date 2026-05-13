@@ -71,6 +71,12 @@ const PlayAllIcon = ({ size = 20 }: { size?: number }) => (
     <path d="M4 4v16l8.5-8L4 4zm9 0v16l8.5-8L13 4z" />
   </svg>
 )
+const SpeedIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 4C6.48 4 2 8.48 2 14h3a7 7 0 0 1 14 0h3c0-5.52-4.48-10-10-10z" />
+    <path d="M14.5 15c0 1.38-1.12 2.5-2.5 2.5S9.5 16.38 9.5 15c0-1.16.79-2.13 1.86-2.41l5.92-5.18-3.92 6.65c.69.41 1.14 1.17 1.14 2.04z" />
+  </svg>
+)
 
 // --- Subtitle display for a fragment ---
 function SubtitleDisplay({
@@ -245,12 +251,12 @@ function FragmentControlPanel({
             onClick={() => setSpeedModalOpen(true)}
             title={`Fragment speed: ${fragmentSpeed.toFixed(2)}×`}
           >
-            <span>⚡</span>
+            <SpeedIcon />
             <span className="sp-speed-btn__value">{fragmentSpeed.toFixed(2)}×</span>
           </button>
         ) : (
           <label className="sp-speed-slider" title="Fragment playback speed (saved per fragment)">
-            <span>⚡</span>
+            <span className="sp-speed-slider__icon"><SpeedIcon /></span>
             <input
               type="range"
               min={0.5}
@@ -750,7 +756,7 @@ function SequencePlayerPageInner() {
           </button>
         )}
         <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
-          <span className="sp-global-speed__icon">⚡</span>
+          <span className="sp-global-speed__icon"><SpeedIcon /></span>
           <input
             type="range"
             min={0.5}
@@ -811,9 +817,16 @@ function SequencePlayerPageInner() {
                 )}
               </div>
 
-              {/* Control panel (when selected) */}
+              {/* Expansion (when selected): subtitles + vocab on top, control panel pinned at the bottom */}
               {isSelected && (
                 <>
+                  {/* Subtitle display */}
+                  <SubtitleDisplay fragment={frag} subtitleFiles={subtitleFiles} />
+
+                  {/* Vocabulary display (collapsible, collapsed by default) */}
+                  <VocabularyDisplay fragment={frag} vocabularyFiles={vocabularyFiles} />
+
+                  {/* Control panel — anchored at the bottom of the fragment box */}
                   <FragmentControlPanel
                     fragmentIndex={idx}
                     totalFragments={sequence.fragments.length}
@@ -835,12 +848,6 @@ function SequencePlayerPageInner() {
                     onRepeatChange={(v) => handleRepeatChange(idx, v)}
                     onFragmentSpeedChange={(v) => handleFragmentSpeedChange(idx, v)}
                   />
-
-                  {/* Subtitle display */}
-                  <SubtitleDisplay fragment={frag} subtitleFiles={subtitleFiles} />
-
-                  {/* Vocabulary display (collapsible, collapsed by default) */}
-                  <VocabularyDisplay fragment={frag} vocabularyFiles={vocabularyFiles} />
                 </>
               )}
             </div>

@@ -1,0 +1,27 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [ref=e7] [cursor=pointer]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]: Settings▸
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e43]:
+    - heading "Sequence Player" [level=2] [ref=e44]
+    - paragraph [ref=e45]:
+      - strong [ref=e46]: "#1"
+      - text: ·sample.wav·1 fragment
+    - generic [ref=e47]:
+      - button "← Back" [ref=e48] [cursor=pointer]:
+        - generic [ref=e49]: ← Back
+      - button "Play all" [ref=e50] [cursor=pointer]:
+        - img [ref=e51]
+        - generic [ref=e53]: Play all
+      - generic [ref=e54]:
+        - img [ref=e55]
+        - slider [ref=e59]: "0.8"
+    - generic [ref=e62] [cursor=pointer]:
+      - generic [ref=e63]: "1"
+      - generic [ref=e64]: 0:00.1 – 0:02.9
+      - generic [ref=e65]: 2.8s

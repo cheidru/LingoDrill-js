@@ -1,0 +1,30 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [disabled] [ref=e7]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e11]:
+    - heading "Audio Library" [level=2] [ref=e12]
+    - paragraph [ref=e13]: Loading...
+    - button "+ Upload audio" [ref=e15] [cursor=pointer]
+    - generic [ref=e18]:
+      - button "Import bundle" [ref=e19] [cursor=pointer]
+      - generic [ref=e20]:
+        - text: Load a
+        - code [ref=e21]: .lingodrill
+        - text: file prepared on desktop
+    - generic [ref=e22]:
+      - generic [ref=e23]: 🎧
+      - paragraph [ref=e24]: No audio yet
+      - paragraph [ref=e25]:
+        - text: Use
+        - strong [ref=e26]: + Upload audio
+        - text: above to add a file, or
+        - strong [ref=e27]: Import bundle
+        - text: to load a
+        - code [ref=e28]: .lingodrill
+        - text: export from desktop.

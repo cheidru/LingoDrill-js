@@ -1,0 +1,53 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [ref=e7] [cursor=pointer]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]: Settings▸
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e43]:
+    - heading "Sequence Player" [level=2] [ref=e44]
+    - paragraph [ref=e45]:
+      - strong [ref=e46]: "#1"
+      - text: ·sample.wav·1 fragment
+    - generic [ref=e47]:
+      - button "← Back" [ref=e48] [cursor=pointer]:
+        - generic [ref=e49]: ← Back
+      - button "Play all" [ref=e50] [cursor=pointer]:
+        - img [ref=e51]
+        - generic [ref=e53]: Play all
+      - generic [ref=e54]:
+        - img [ref=e55]
+        - slider [ref=e59]: "0.8"
+    - generic [ref=e61]:
+      - generic [ref=e62] [cursor=pointer]:
+        - generic [ref=e63]: "1"
+        - generic [ref=e64]: 0:00.1 – 0:02.9
+        - generic [ref=e65]: 2.8s
+      - generic [ref=e67]:
+        - button "Play" [ref=e68] [cursor=pointer]:
+          - img [ref=e69]
+        - button "Stop" [ref=e71] [cursor=pointer]:
+          - img [ref=e72]
+        - button "Enable infinite rewind" [ref=e74] [cursor=pointer]:
+          - img [ref=e75]:
+            - generic [ref=e77]: ∞
+        - button "Exclude from Play-all" [ref=e78] [cursor=pointer]:
+          - img [ref=e79]
+        - generic "Repeat count" [ref=e83]:
+          - generic [ref=e84]: ×
+          - spinbutton "×" [ref=e85]: "1"
+        - generic "Playback speed (applies to all fragments)" [ref=e86]:
+          - generic [ref=e87]: ⚡
+          - slider "⚡ 1.00×" [ref=e88] [cursor=pointer]: "1"
+          - generic [ref=e89]: 1.00×
+        - button "Previous fragment" [disabled] [ref=e91]:
+          - img [ref=e92]
+        - button "Next fragment" [disabled] [ref=e94]:
+          - img [ref=e95]
+        - button "Edit in Fragment Editor" [ref=e97] [cursor=pointer]:
+          - img [ref=e98]
+        - button "Close control panel" [ref=e100] [cursor=pointer]:
+          - img [ref=e101]

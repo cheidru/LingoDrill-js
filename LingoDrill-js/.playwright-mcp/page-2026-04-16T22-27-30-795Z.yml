@@ -1,0 +1,45 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - button "Close menu" [expanded] [ref=e23] [cursor=pointer]:
+      - generic [ref=e6]: ✕
+    - navigation [ref=e24]:
+      - button "Audio Library" [ref=e25] [cursor=pointer]
+      - button "Fragment Library" [disabled] [ref=e26]
+      - button "Favourites" [ref=e27] [cursor=pointer]
+      - button "Settings" [expanded] [active] [ref=e28] [cursor=pointer]:
+        - text: Settings
+        - generic [ref=e29]: ▾
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: Start page
+          - combobox "Start page" [ref=e35]:
+            - option "Audio Library" [selected]
+            - option "Favourites"
+            - option "Last sequence"
+        - generic [ref=e36]:
+          - generic [ref=e37]: Sub font size
+          - generic [ref=e38]:
+            - slider "Sub font size" [ref=e39]: "14"
+            - generic [ref=e40]: 14px
+        - generic [ref=e41]:
+          - generic [ref=e42]: Preview
+          - generic [ref=e43]:
+            - generic [ref=e44]: example.srt
+            - generic [ref=e45]: The quick brown fox jumps over the lazy dog.
+      - button "About" [disabled] [ref=e30]
+  - generic [ref=e7]:
+    - heading "Audio Library" [level=2] [ref=e8]
+    - button "+ Upload audio" [ref=e10] [cursor=pointer]
+    - generic [ref=e13]:
+      - button "Import bundle" [ref=e14] [cursor=pointer]
+      - generic [ref=e15]:
+        - text: Load a
+        - code [ref=e16]: .lingodrill
+        - text: file prepared on desktop
+    - generic [ref=e17]:
+      - heading "Audio Library" [level=3] [ref=e18]
+      - list [ref=e19]:
+        - listitem [ref=e20] [cursor=pointer]:
+          - generic [ref=e21]: sample.wav
+          - button "Delete" [ref=e22]

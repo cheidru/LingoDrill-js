@@ -1,0 +1,29 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [disabled] [ref=e7]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [expanded] [active] [ref=e9] [cursor=pointer]: Settings▾
+      - generic [ref=e107]:
+        - generic [ref=e108]:
+          - text: Start page
+          - combobox "Start page" [ref=e109]:
+            - option "Audio Library" [selected]
+            - option "Favourites"
+            - option "Last sequence"
+        - generic [ref=e110]:
+          - text: Sub font size
+          - generic [ref=e111]:
+            - slider "Sub font size" [ref=e112]: "14"
+            - generic [ref=e113]: 14px
+        - generic [ref=e114]:
+          - generic [ref=e115]: Preview
+          - generic [ref=e116]:
+            - generic [ref=e117]: example.srt
+            - generic [ref=e118]: The quick brown fox jumps over the lazy dog.
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e104]:
+    - heading "Favourites" [level=2] [ref=e105]
+    - paragraph [ref=e106]: No favourite sequences yet. Star a sequence in the Fragment Library to see it here.

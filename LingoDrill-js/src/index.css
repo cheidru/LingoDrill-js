@@ -1,4 +1,8 @@
-/* === Design tokens — inspired by blue/white music player UI === */
+/* Google fonts for Studio Dark (Geist + JetBrains Mono) — loaded once, used selectively */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+/* === Design tokens — Light + Normal (default) ===
+   Clean, modern blue/white. Polished neutrals, soft shadows, generous radii. */
 :root {
   /* Primary palette */
   --color-primary: #1a56db;
@@ -7,6 +11,9 @@
   --color-primary-bg: #eff6ff;
   --color-primary-bg-hover: #dbeafe;
   --color-primary-bg-active: #bfdbfe;
+
+  /* Accent — used for special highlights (e.g. record indicator) */
+  --color-accent: #ea580c;
 
   /* Semantic */
   --color-success: #16a34a;
@@ -31,14 +38,21 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 
+  /* Glow — primary halo used by Studio Dark; transparent elsewhere by default */
+  --glow-primary: 0 0 0 transparent;
+
   /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-pill: 999px;
 
+  /* Font stacks */
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+
   /* Typography */
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.5;
   font-weight: 400;
   color: var(--color-text);
@@ -49,7 +63,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* === Dark theme === */
+/* === Dark + Normal — slate/blue dark === */
 html[data-theme="dark"] {
   --color-text: #e2e8f0;
   --color-text-secondary: #cbd5e1;
@@ -64,13 +78,16 @@ html[data-theme="dark"] {
   --color-primary-bg-hover: #1e3a8a;
   --color-primary-bg-active: #1e40af;
   --color-danger-bg: #3a1212;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 24px -6px rgba(0, 0, 0, 0.55);
 }
 html[data-theme="dark"] body {
   color: var(--color-text);
   background-color: var(--color-bg-page);
 }
 
-/* === Color themes === */
+/* === Color theme: Pastel — soft, muted teal-rose === */
 html[data-color-theme="pastel"] {
   --color-primary: #7c9eb2;
   --color-primary-dark: #5e85a0;
@@ -79,28 +96,186 @@ html[data-color-theme="pastel"] {
   --color-warning: #f0c987;
   --color-danger: #d99a9a;
   --color-danger-hover: #c47878;
+  --color-accent: #d9a37a;
 }
 html[data-color-theme="pastel"][data-theme="light"] {
   --color-primary-bg: #eaf2f7;
+  --color-primary-bg-hover: #d6e6ef;
+  --color-primary-bg-active: #c2d9e6;
+  --color-bg-page: #fbf8f5;
+  --color-bg-subtle: #f3eee8;
+  --color-border: #e7ddd3;
+  --color-border-strong: #d6c9bd;
 }
+html[data-color-theme="pastel"][data-theme="dark"] {
+  --color-primary: #9bb8ca;
+  --color-primary-dark: #7c9eb2;
+  --color-primary-light: #bccfdc;
+  --color-primary-bg: #2a3845;
+  --color-primary-bg-hover: #34465a;
+  --color-primary-bg-active: #3f546c;
+  --color-bg-page: #1a1f24;
+  --color-bg: #232930;
+  --color-bg-card: #232930;
+  --color-bg-subtle: #2a3038;
+  --color-border: #3a414b;
+  --color-border-strong: #4a525e;
+  --color-text: #ece4d9;
+  --color-text-secondary: #c8bfb2;
+  --color-text-muted: #8a8174;
+}
+
+/* === Color theme: Neon (Light) — bright cyan === */
 html[data-color-theme="neon"] {
-  --color-primary: #00e5ff;
-  --color-primary-dark: #00b8d4;
+  --color-primary: #00b8d4;
+  --color-primary-dark: #008fa6;
   --color-primary-light: #18ffff;
-  --color-success: #76ff03;
-  --color-warning: #ffea00;
+  --color-success: #00c853;
+  --color-warning: #ffab00;
   --color-danger: #ff1744;
   --color-danger-hover: #d50000;
+  --color-accent: #ff6b35;
 }
 html[data-color-theme="neon"][data-theme="light"] {
   --color-primary-bg: #e0f7fa;
+  --color-primary-bg-hover: #b2ebf2;
+  --color-primary-bg-active: #80deea;
 }
+
+/* === Studio Dark — DAW-inspired dark mode (Dark + Neon)
+   Mirrors the Stitch "Sequence Player — Studio Dark" tokens:
+   slate-950 page, slate-900 cards, cyan-400 accent, orange-500 highlights,
+   Geist headlines and JetBrains Mono for timestamps. */
 html[data-color-theme="neon"][data-theme="dark"] {
-  --color-primary-bg: #003a44;
-  --color-bg-page: #050810;
-  --color-bg: #0a0e1a;
-  --color-bg-card: #0a0e1a;
-  --color-bg-subtle: #0a0e1a;
+  --color-primary: #00e5ff;
+  --color-primary-dark: #00b8d4;
+  --color-primary-light: #5ceaff;
+  --color-primary-bg: #002e33;
+  --color-primary-bg-hover: #003e44;
+  --color-primary-bg-active: #004e55;
+
+  --color-accent: #ff6b35;
+
+  --color-bg-page: #0e1116;
+  --color-bg: #161b22;
+  --color-bg-card: #161b22;
+  --color-bg-subtle: #1f2733;
+
+  --color-border: #2a323d;
+  --color-border-strong: #3a4452;
+
+  --color-text: #e6edf3;
+  --color-text-secondary: #c9d1d9;
+  --color-text-muted: #8b949e;
+
+  --color-danger: #ff5470;
+  --color-danger-hover: #ff2d55;
+  --color-danger-bg: #2a1018;
+  --color-warning: #ffb454;
+  --color-success: #3fb950;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 10px -2px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 16px 32px -8px rgba(0, 0, 0, 0.8);
+
+  --glow-primary: 0 0 12px rgba(0, 229, 255, 0.35);
+
+  --font-body: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
+}
+html[data-color-theme="neon"][data-theme="dark"] body {
+  font-family: var(--font-body);
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(0, 229, 255, 0.05), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(255, 107, 53, 0.04), transparent 60%),
+    var(--color-bg-page);
+}
+html[data-color-theme="neon"][data-theme="dark"] h1,
+html[data-color-theme="neon"][data-theme="dark"] h2,
+html[data-color-theme="neon"][data-theme="dark"] h3 {
+  font-family: var(--font-body);
+  letter-spacing: -0.025em;
+}
+html[data-color-theme="neon"][data-theme="dark"] .header__logo {
+  text-transform: uppercase;
+  letter-spacing: -0.04em;
+  color: var(--color-primary);
+}
+
+/* === Studio Dark — full-app reskin (applied to ALL themes) =================
+   Sharp corners, uppercase tracking-tight headings, ghost buttons,
+   hairline borders, console-grade typography. Mirrors the Stitch
+   "Sequence Player — Studio Dark" design language. Colors stay
+   theme-driven via CSS variables so each palette is preserved.
+   ========================================================================= */
+:root {
+  /* Override the global radii so the entire app inherits sharp corners. */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-pill: 4px;
+}
+
+/* Global headings: uppercase, font-black, tracking-tight */
+h1 {
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+h2 {
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+h3 {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 0.85rem;
+}
+
+/* Global buttons: ghost-by-default, sharp, uppercase, mono accent */
+button {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+button:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+  color: var(--color-primary);
+}
+button:active {
+  background: var(--color-primary-bg);
+}
+button:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: var(--glow-primary);
+}
+
+/* Custom thin scrollbar, console-grade — neutral by default,
+   cyan/primary on hover. Works in both light and dark themes. */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--color-bg-page);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 0;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
 
 * {
