@@ -41,6 +41,7 @@ export async function watchdogDecode(
   arrayBuffer: ArrayBuffer,
   timeoutMs: number = DEFAULT_WATCHDOG_MS,
   chunkInfo?: string,
+  sampleRate?: number,
 ): Promise<AudioBuffer> {
   // Копируем буфер ПЕРЕД передачей в воркер.
   // decodeInWorker() использует transfer list, что отсоединяет (detach) переданный
@@ -53,6 +54,7 @@ export async function watchdogDecode(
       bufferCopy,
       timeoutMs,
       chunkInfo ?? "",
+      sampleRate,
     )
 
     const audioBuffer = resultToAudioBuffer(result)

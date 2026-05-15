@@ -1,0 +1,33 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [ref=e7] [cursor=pointer]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e11]:
+    - heading "Audio Library" [level=2] [ref=e12]
+    - button "+ Upload audio" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - heading "Audio Library" [level=3] [ref=e16]
+      - list [ref=e17]:
+        - listitem [ref=e18] [cursor=pointer]:
+          - generic [ref=e19]: bigtest.mp3
+          - button "Delete" [ref=e20]
+        - listitem [ref=e21] [cursor=pointer]:
+          - generic [ref=e22]: longtest.mp3
+          - button "Delete" [ref=e23]
+    - generic [ref=e25]:
+      - heading "Player" [level=3] [ref=e26]
+      - generic [ref=e30]:
+        - generic [ref=e31]: 0:00
+        - generic [ref=e32]: 200:00
+      - generic [ref=e33]:
+        - button "Play" [ref=e34] [cursor=pointer]
+        - button "Stop" [ref=e35] [cursor=pointer]
+        - generic [ref=e36]:
+          - img [ref=e37]
+          - slider [ref=e41]: "0.8"
+      - button "Fragments" [ref=e43] [cursor=pointer]

@@ -1,0 +1,32 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [ref=e7] [cursor=pointer]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e41]:
+    - heading "Fragment Library" [level=2] [ref=e42]
+    - paragraph [ref=e43]: bigtest.mp3
+    - generic [ref=e44]:
+      - button "← Back" [ref=e45] [cursor=pointer]
+      - button "+ New sequence" [ref=e46] [cursor=pointer]
+      - button "Sub (0)" [ref=e47] [cursor=pointer]
+      - button "Vocab (0)" [ref=e48] [cursor=pointer]
+    - generic [ref=e50]:
+      - generic "Click to rename" [ref=e51]: "#1"
+      - generic [ref=e52]: 3 fragments
+      - img [ref=e53]
+      - generic [ref=e58]:
+        - button "Open Sequence Player" [ref=e59] [cursor=pointer]:
+          - img [ref=e60]
+        - button "Edit" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+        - button "Copy" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+        - button "Delete" [ref=e70] [cursor=pointer]:
+          - img [ref=e71]
+        - button "Add to favourites" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]

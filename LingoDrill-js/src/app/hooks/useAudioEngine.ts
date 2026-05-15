@@ -10,6 +10,9 @@
 // 5. ИСПРАВЛЕНИЕ: loadById пропускает повторную загрузку и decode если тот же
 //    файл уже загружен (или в процессе загрузки). Это предотвращает мгновенное
 //    появление ошибок при навигации между страницами для одного audioId.
+// 6. Декодирование фрагментов теперь ЛЕНИВОЕ: loadById больше не декодирует
+//    файл сразу. Декодирование запускается по требованию через
+//    ensureFragmentsDecoded() — при первом воспроизведении фрагмента.
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { HtmlAudioEngine } from "../../infrastructure/audio/htmlAudioEngine"
@@ -41,8 +44,15 @@ export function useAudioEngine(
   // AbortController for cancelling in-flight decode when switching files
   const decodeAbortRef = useRef<AbortController | null>(null)
 
+  // In-flight lazy decode — фрагменты декодируются по требованию
+  // (ensureFragmentsDecoded), а не сразу при загрузке файла.
+  const decodePromiseRef = useRef<Promise<void> | null>(null)
+
   const [isReady, setIsReady] = useState(false)
   const [isFragmentsReady, setIsFragmentsReady] = useState(false)
+  // Зеркало isFragmentsReady в ref — чтобы playFragment/ensureFragmentsDecoded
+  // видели актуальное значение без устаревших замыканий.
+  const isFragmentsReadyRef = useRef(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -91,6 +101,14 @@ export function useAudioEngine(
     webEngineRef.current?.setVolume(volume)
   }, [volume])
 
+  // Update isFragmentsReady state + ref together — the ref must be current
+  // synchronously so playFragment() (called right after an awaited decode)
+  // sees the new value before React flushes the re-render.
+  const setFragmentsReady = useCallback((ready: boolean) => {
+    isFragmentsReadyRef.current = ready
+    setIsFragmentsReady(ready)
+  }, [])
+
   // Timer for currentTime
   useEffect(() => {
     if (!isPlaying) return
@@ -121,10 +139,11 @@ export function useAudioEngine(
       decodeAbortRef.current?.abort()
       const abortController = new AbortController()
       decodeAbortRef.current = abortController
+      decodePromiseRef.current = null
 
       loadedIdRef.current = id
       setIsReady(false)
-      setIsFragmentsReady(false)
+      setFragmentsReady(false)
       setDecodeProgress(0)
       setDecodeError(null)
 
@@ -149,50 +168,91 @@ export function useAudioEngine(
         checkDuration()
       })
 
-      // Шаг 2: Фоновое декодирование (chunked) для WebAudioEngine
+      // Шаг 2: фрагменты декодируются ЛЕНИВО. Декодирование всего файла в
+      // AudioBuffer запускается только по требованию (ensureFragmentsDecoded —
+      // при первом воспроизведении фрагмента). Если файл уже декодировали в
+      // этой сессии, буфер лежит в кеше — используем его сразу.
       const cached = bufferCacheRef.current.get(id)
       if (cached) {
         webEngine.loadFromBuffer(cached)
         webEngine.setVolume(volumeRef.current)
-        setIsFragmentsReady(true)
+        setFragmentsReady(true)
         setDecodeProgress(1)
-      } else {
-        try {
-          const totalDuration = htmlEngine.getDuration()
-
-          const audioBuffer = await decodeAudioChunked(blob, totalDuration, {
-            chunkDurationSec: 30,
-            onProgress: (p) => {
-              // Only update state if this decode is still current
-              if (loadedIdRef.current === id && !abortController.signal.aborted) {
-                setDecodeProgress(p)
-              }
-            },
-            signal: abortController.signal,
-          })
-
-          // Проверяем что не переключились на другой файл
-          if (loadedIdRef.current === id && !abortController.signal.aborted) {
-            bufferCacheRef.current.set(id, audioBuffer)
-            webEngine.loadFromBuffer(audioBuffer)
-            webEngine.setVolume(volumeRef.current)
-            setIsFragmentsReady(true)
-            setDecodeProgress(1)
-          }
-        } catch (err) {
-          if (err instanceof DOMException && err.name === "AbortError") {
-            // User switched files — silently ignore
-            return
-          }
-          console.error("Background decode failed:", err)
-          if (loadedIdRef.current === id) {
-            setDecodeError(err instanceof Error ? err : new Error(String(err)))
-          }
-        }
       }
     },
-    [getBlob]
+    [getBlob, setFragmentsReady]
   )
+
+  /**
+   * Декодирует весь файл в AudioBuffer для воспроизведения фрагментов.
+   * Вызывается лениво — при первом воспроизведении фрагмента или когда
+   * декодированный звук нужен для построения waveform. Повторные вызовы во
+   * время декодирования возвращают тот же промис; после успеха резолвятся
+   * мгновенно (буфер берётся из кеша).
+   */
+  const ensureFragmentsDecoded = useCallback(async (): Promise<void> => {
+    const id = loadedIdRef.current
+    if (!id) return
+
+    // Уже декодировано
+    const cached = bufferCacheRef.current.get(id)
+    if (cached) {
+      if (!isFragmentsReadyRef.current) {
+        webEngineRef.current?.loadFromBuffer(cached)
+        webEngineRef.current?.setVolume(volumeRef.current)
+        setFragmentsReady(true)
+        setDecodeProgress(1)
+      }
+      return
+    }
+
+    // Декодирование уже идёт — ждём его
+    if (decodePromiseRef.current) {
+      return decodePromiseRef.current
+    }
+
+    const blob = await getBlob(id)
+    if (!blob || loadedIdRef.current !== id) return
+
+    const abortController = decodeAbortRef.current
+    setDecodeError(null)
+    setDecodeProgress(0)
+
+    const run = async (): Promise<void> => {
+      try {
+        const totalDuration = htmlEngineRef.current?.getDuration() ?? 0
+        const audioBuffer = await decodeAudioChunked(blob, totalDuration, {
+          chunkDurationSec: 30,
+          onProgress: (p) => {
+            if (loadedIdRef.current === id && !abortController?.signal.aborted) {
+              setDecodeProgress(p)
+            }
+          },
+          signal: abortController?.signal,
+        })
+        if (loadedIdRef.current === id && !abortController?.signal.aborted) {
+          bufferCacheRef.current.set(id, audioBuffer)
+          webEngineRef.current?.loadFromBuffer(audioBuffer)
+          webEngineRef.current?.setVolume(volumeRef.current)
+          setFragmentsReady(true)
+          setDecodeProgress(1)
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return
+        console.error("Fragment decode failed:", err)
+        if (loadedIdRef.current === id) {
+          setDecodeError(err instanceof Error ? err : new Error(String(err)))
+        }
+        throw err
+      } finally {
+        decodePromiseRef.current = null
+      }
+    }
+
+    const p = run()
+    decodePromiseRef.current = p
+    return p
+  }, [getBlob, setFragmentsReady])
 
   const play = useCallback(() => {
     if (!isReady) return
@@ -237,14 +297,14 @@ export function useAudioEngine(
   const playFragment = useCallback(
     (fragment: PlayableFragment) => {
       const webEngine = webEngineRef.current
-      if (!webEngine || !isFragmentsReady) return
+      if (!webEngine || !isFragmentsReadyRef.current) return
       htmlEngineRef.current?.stop()
       activeEngineRef.current = "web"
       webEngine.playFragment(fragment)
       setIsPlaying(true)
       setIsPaused(false)
     },
-    [isFragmentsReady]
+    []
   )
 
   const setVolume = useCallback((v: number) => {
@@ -277,6 +337,7 @@ export function useAudioEngine(
     setVolume,
     setOnEnded,
     getAudioBuffer,
+    ensureFragmentsDecoded,
     // NEW
     decodeProgress,
     decodeError,

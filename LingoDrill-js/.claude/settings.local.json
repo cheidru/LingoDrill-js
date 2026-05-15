@@ -39,13 +39,33 @@
       "mcp__chrome-devtools__navigate_page",
       "mcp__chrome-devtools__resize_page",
       "mcp__chrome-devtools__take_screenshot",
-      "mcp__chrome-devtools__evaluate_script"
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__stitch__create_project",
+      "Bash(curl -sL \"https://lh3.googleusercontent.com/aida/ADBb0uhznbcBU2DacODbdm0SY-yiaSgcaGOYACLHYjH6kuL74OsQcmHukI0l2DGK1tbgATBbMA1K4XMPfgOIgTkVfSoN9URUg8JZ_Nv2o7AO9_-1RvKA9Uga9al5wpIqFRgwbx2LCf4ifIVZFIbRVXwjdA-Ie_NatV76Cc6wVxoNrVrS9BUACDQDWeg3wBVj_qL7LgMvrmHxXrySVVCLXaTDcc_zSsq9VBqFxZNCwmDeAJIETWuo0FcYxvyR7rhq\" -o /tmp/al_dark.png)",
+      "Bash(curl -sL \"https://lh3.googleusercontent.com/aida/ADBb0ugKGeSr_kBjnnCmXrRGXzPimyi58lpPcKpijOZ4wh30J1fAcg1TMJgb4TsjTRG9xvWii9xW3KNQUa7ITSgX2wDP6vgEEdTb8TT8usVrDrzX1zW7shkYyEPE4_G80uaDkuqwjhjQUhsaKSXJuho4PQ4LLfkTxmGhlfwM0agAQQ8A4JvSMjfWO9dUn4LR_00g57ugIeLgKYSfFgcFr7GjbSgVs_UC8zTbctsv1qpopjr13JePIQZDElsmA-s2\" -o /tmp/al_light.png)",
+      "Bash(node *)",
+      "mcp__playwright__browser_navigate",
+      "Bash(ffmpeg -version)",
+      "Bash(cygpath -w /tmp/bigtest.mp3)",
+      "Bash(cmd /c \"echo %TEMP%\\\\bigtest.mp3\")",
+      "Bash(ls -la \"C:/Users/chei/AppData/Local/Temp/bigtest.mp3\" 2>/dev/null && echo \"EXISTS\" || echo \"MISSING\")",
+      "Read(//c/Users/chei/AppData/Local/Temp/**)",
+      "mcp__playwright__browser_file_upload",
+      "Bash(cp /tmp/bigtest.mp3 \"e:/LingoDrill/LingoDrill-js/LingoDrill-js/.playwright-mcp/bigtest.mp3\" && ls -la \"e:/LingoDrill/LingoDrill-js/LingoDrill-js/.playwright-mcp/bigtest.mp3\")",
+      "mcp__playwright__browser_wait_for",
+      "Bash(ls -la console-full.log .playwright-mcp/console-full.log)",
+      "Bash(find . -name \"console-full.log\")",
+      "Bash(ffmpeg -y -f lavfi -i \"sine=frequency=440:sample_rate=44100:duration=12000\" -c:a libmp3lame -b:a 64k longtest.mp3)",
+      "Bash(grep -oE \"\\\\[WARNING\\\\].*?\\(@|$\\)\" console-v1.log)"
     ],
     "deny": [
       "Bash(rm:*)",
       "Bash(rmdir:*)",
       "Bash(del:*)",
       "Bash(rd:*)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

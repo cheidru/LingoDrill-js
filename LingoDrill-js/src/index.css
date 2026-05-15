@@ -1,42 +1,43 @@
-/* Google fonts for Studio Dark (Geist + JetBrains Mono) — loaded once, used selectively */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap");
+/* Google fonts — Geist + JetBrains Mono (Studio Dark) + Hanken Grotesk (Studio High-Contrast Light) */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;900&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap");
 
 /* === Design tokens — Light + Normal (default) ===
-   Clean, modern blue/white. Polished neutrals, soft shadows, generous radii. */
+   Studio High-Contrast Light: electric-blue primary, lavender-tinted neutrals,
+   Hanken Grotesk headlines + Inter body, 4px radii, hairline borders. */
 :root {
-  /* Primary palette */
-  --color-primary: #1a56db;
-  --color-primary-dark: #1342a8;
-  --color-primary-light: #3b82f6;
-  --color-primary-bg: #eff6ff;
-  --color-primary-bg-hover: #dbeafe;
-  --color-primary-bg-active: #bfdbfe;
+  /* Primary palette — Electric Blue (HCL primary_container) */
+  --color-primary: #0052ff;
+  --color-primary-dark: #003ec7;
+  --color-primary-light: #b7c4ff;
+  --color-primary-bg: #dfe3ff;
+  --color-primary-bg-hover: #c8d0ff;
+  --color-primary-bg-active: #b7c4ff;
 
-  /* Accent — used for special highlights (e.g. record indicator) */
-  --color-accent: #ea580c;
+  /* Accent — Teal tertiary (HCL tertiary) */
+  --color-accent: #005851;
 
   /* Semantic */
   --color-success: #16a34a;
   --color-warning: #f59e0b;
-  --color-danger: #dc2626;
-  --color-danger-bg: #fef2f2;
-  --color-danger-hover: #b91c1c;
+  --color-danger: #ba1a1a;
+  --color-danger-bg: #ffdad6;
+  --color-danger-hover: #93000a;
 
-  /* Neutrals */
-  --color-text: #1e293b;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
+  /* Neutrals — HCL surface/outline tokens */
+  --color-text: #131b2e;
+  --color-text-secondary: #434656;
+  --color-text-muted: #737688;
+  --color-border: #c3c5d9;
+  --color-border-strong: #737688;
   --color-bg: #ffffff;
-  --color-bg-page: #f8fafc;
-  --color-bg-subtle: #f1f5f9;
+  --color-bg-page: #faf8ff;
+  --color-bg-subtle: #f2f3ff;
   --color-bg-card: #ffffff;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  /* Shadows — HCL prefers tonal layers + hairline borders over ambient shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.06);
 
   /* Glow — primary halo used by Studio Dark; transparent elsewhere by default */
   --glow-primary: 0 0 0 transparent;
@@ -47,8 +48,9 @@
   --radius-lg: 16px;
   --radius-pill: 999px;
 
-  /* Font stacks */
+  /* Font stacks — HCL: Hanken Grotesk headlines + Inter body */
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-headline: "Hanken Grotesk", "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
 
   /* Typography */
@@ -65,6 +67,12 @@
 
 /* === Dark + Normal — slate/blue dark === */
 html[data-theme="dark"] {
+  --color-primary: #1a56db;
+  --color-primary-dark: #1342a8;
+  --color-primary-light: #3b82f6;
+  --color-accent: #ea580c;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
   --color-text: #e2e8f0;
   --color-text-secondary: #cbd5e1;
   --color-text-muted: #94a3b8;

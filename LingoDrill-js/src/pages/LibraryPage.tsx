@@ -36,6 +36,8 @@ export default function LibraryPage() {
     window.location.reload()
   }, [])
 
+  const isMobile = typeof document !== "undefined" && document.documentElement.classList.contains("mobile")
+
   return (
     <div className="page">
       <h2>Audio Library</h2>
@@ -44,10 +46,12 @@ export default function LibraryPage() {
 
       <AudioUploader onUpload={addFile} />
 
-      {/* Import bundle button */}
-      <div style={{ marginTop: 16, marginBottom: 16 }}>
-        <ImportBundleButton onImportComplete={handleImportComplete} />
-      </div>
+      {/* Import bundle button — mobile only */}
+      {isMobile && (
+        <div style={{ marginTop: 16, marginBottom: 16 }}>
+          <ImportBundleButton onImportComplete={handleImportComplete} />
+        </div>
+      )}
 
       <AudioLibrary files={files} selectedFile={selectedFile} selectFile={id => void handleSelect(id)} onDelete={id => void handleDelete(id)} />
       {selectedFile && (

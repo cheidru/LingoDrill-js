@@ -40,9 +40,8 @@ const StopIcon = () => (
   <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z" /></svg>
 )
 const InfiniteRewindIcon = () => (
-  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
-    <text x="12" y="15.5" textAnchor="middle" fontSize="7" fontWeight="bold" fill="currentColor">∞</text>
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9.828 9.172a4 4 0 1 0 0 5.656a10 10 0 0 0 2.172 -2.828a10 10 0 0 1 2.172 -2.828a4 4 0 1 1 0 5.656a10 10 0 0 1 -2.172 -2.828a10 10 0 0 0 -2.172 -2.828" />
   </svg>
 )
 const SkipIcon = () => (
@@ -344,7 +343,7 @@ function SequencePlayerPageInner() {
 
   const {
     files,
-    loadById, playFragment, pause, play, stop,
+    loadById, ensureFragmentsDecoded, playFragment, pause, play, stop,
     isFragmentsReady, isPlaying, isPaused, setOnEnded,
     volume, setVolume,
   } = useSharedAudioEngine()
@@ -439,13 +438,14 @@ function SequencePlayerPageInner() {
     return indices
   }, [sequence, playingFragIdx])
 
-  // Load audio
+  // Load audio. The player exists to play fragments, so decode eagerly here
+  // (fragment decoding is otherwise lazy — see ensureFragmentsDecoded).
   useEffect(() => {
     if (audioId) {
       console.log("[SequencePlayerPage] Loading audio:", audioId)
-      loadById(audioId)
+      loadById(audioId).then(() => ensureFragmentsDecoded()).catch(() => {})
     }
-  }, [audioId, loadById])
+  }, [audioId, loadById, ensureFragmentsDecoded])
 
   // Stop playback on unmount
   const stopRef = useRef(stop)

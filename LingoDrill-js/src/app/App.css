@@ -222,6 +222,7 @@ html.mobile .header__overlay {
 .spinner { border: 3px solid var(--color-border); border-radius: 50%; animation: spin 0.8s linear infinite; }
 .spinner--wf { width: 24px; height: 24px; border-top-color: var(--color-primary); }
 .spinner--decode { width: 14px; height: 14px; border-width: 2px; border-top-color: var(--color-warning); }
+.spinner--btn { width: 12px; height: 12px; border-width: 2px; border-color: rgba(0, 0, 0, 0.15); border-top-color: currentColor; display: inline-block; vertical-align: middle; }
 .spinner--vad { width: 20px; height: 20px; }
 .spinner--vad-detect { border-top-color: var(--color-success); }
 .spinner--vad-trim { border-top-color: var(--color-warning); }
@@ -231,7 +232,6 @@ html.mobile .header__overlay {
 .frag-editor__loading { display: flex; align-items: center; gap: 8px; padding: 20px 0; color: var(--color-text-muted); }
 .file-player { display: flex; align-items: center; gap: 6px; margin-top: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .file-player__time { font-size: 0.8rem; color: var(--color-text-muted); }
-.decode-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: var(--color-text-muted); }
 .action-bar { margin-top: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .action-bar__btn { padding: 10px 22px; }
 .action-bar__btn--danger { color: var(--color-danger); }
@@ -793,9 +793,6 @@ html.mobile .file-info {
 html.mobile .subtitle-prompt {
   font-size: 0.95rem;
   padding: 12px 14px;
-}
-html.mobile .decode-indicator {
-  font-size: 0.9rem;
 }
 html.mobile .vad-indicator {
   font-size: 0.9rem;

@@ -14,8 +14,10 @@
 // 2. OfflineAudioContext.createBuffer() — некоторые мобильные браузеры
 //    (Safari iOS < 17, старые WebView) не поддерживают createBuffer на OfflineAudioContext.
 //    Заменено на new AudioBuffer() конструктор с fallback на обычный AudioContext.
-// 3. Pre-allocation guard: для длинных файлов (>60 мин, 48kHz стерео ≈ ~1.3 GB Float32)
-//    создание выходного буфера само по себе вызывает OOM. Добавлена проверка.
+// 3. Длинные файлы: браузер не создаёт AudioBuffer длиннее ~2^29 сэмплов
+//    на канал. Такие файлы декодируются с пониженной частотой дискретизации
+//    (resolveDecodeSampleRate) — буфер остаётся в пределах лимита. Файл
+//    отклоняется только если не помещается даже на MIN_DECODE_RATE.
 // 4. Probe-чанк 512KB мог быть слишком большим для сжатых форматов на мобильных.
 //    Уменьшен до 256KB с fallback на 128KB.
 // 5. Добавлен signal?.aborted check перед каждой тяжёлой операцией.
@@ -113,17 +115,26 @@ export async function decodeAudioChunked(
     throw new DOMException("Decode aborted", "AbortError")
   }
 
+  // Decide the decode sample rate. Long files would overflow the browser's
+  // per-channel AudioBuffer frame-count cap (~2^29) — decoding them at a
+  // reduced rate keeps the buffer allocatable. Throws only if the file is too
+  // long to fit even at the minimum supported rate.
+  const forcedRate = resolveDecodeSampleRate(totalDuration)
+  if (forcedRate != null) {
+    console.log(`[chunkedDecode] long file → decoding at reduced rate ${forcedRate}Hz`)
+  }
+
   // If file is small (< 5 seconds or < 1MB), just decode in one shot
   if (totalDuration <= 5 || blob.size < 1_000_000) {
     console.log("[chunkedDecode] small file → decodeFull")
-    return decodeFull(blob, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, signal)
   }
 
 // WAV/PCM files cannot be split into chunks — each chunk needs the WAV header.
 // Detect by MIME type or by checking the RIFF/WAVE magic bytes.
   if (blob.type === "audio/wav" || blob.type === "audio/wave" || blob.type === "audio/x-wav") {
     console.log("[chunkedDecode] WAV file detected (by MIME type) → decodeFull")
-    return decodeFull(blob, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, signal)
   }
   // Also check magic bytes for WAV files that might have wrong/missing MIME type
   try {
@@ -132,7 +143,7 @@ export async function decodeAudioChunked(
     const wave = String.fromCharCode(header[8], header[9], header[10], header[11])
     if (riff === "RIFF" && wave === "WAVE") {
       console.log("[chunkedDecode] WAV file detected (by magic bytes) → decodeFull")
-      return decodeFull(blob, onProgress, signal)
+      return decodeFull(blob, forcedRate, onProgress, signal)
     }
   } catch {
     // ignore — proceed with chunked decode
@@ -143,7 +154,7 @@ export async function decodeAudioChunked(
 
   // Try chunked approach first
   try {
-    return await decodeInChunks(blob, totalDuration, numChunks, onProgress, signal)
+    return await decodeInChunks(blob, totalDuration, numChunks, forcedRate, onProgress, signal)
   } catch (err) {
     // If abort — don't fallback, just rethrow
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -154,8 +165,76 @@ export async function decodeAudioChunked(
       throw err
     }
     console.warn("[chunkedDecode] Chunked approach failed, falling back to full decode:", err)
-    return decodeFull(blob, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, signal)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Sample-rate resolution — keeps the output AudioBuffer under the browser cap
+// ---------------------------------------------------------------------------
+
+/**
+ * Chrome refuses to construct an AudioBuffer whose per-channel length exceeds
+ * ~2^29 (≈536.9M) frames. We stay safely below that.
+ * Mobile devices have far less RAM, so they get a tighter budget (~1GB stereo
+ * float32) regardless of the browser cap.
+ */
+function getMaxSafeFrames(): number {
+  return isMobile() ? 130_000_000 : 500_000_000
+}
+
+/** Lowest sample rate we will decode at — still intelligible for speech. */
+const MIN_DECODE_RATE = 16_000
+
+/** Read the platform's default AudioContext sample rate (usually 44.1/48kHz). */
+function getPlatformSampleRate(): number {
+  try {
+    const ctx = new AudioContext()
+    const rate = ctx.sampleRate
+    ctx.close().catch(() => {})
+    return rate
+  } catch {
+    return 48_000
+  }
+}
+
+/**
+ * Decide which sample rate to decode at so the resulting AudioBuffer stays
+ * under the per-channel frame-count cap.
+ *
+ * Returns `null` when the platform default already fits (no resampling needed).
+ * Returns a reduced rate for long files. Throws when the file is so long it
+ * cannot fit even at MIN_DECODE_RATE — the caller surfaces this as a
+ * "split the file" message.
+ */
+function resolveDecodeSampleRate(totalDuration: number): number | null {
+  if (totalDuration <= 0) return null
+
+  const maxFrames = getMaxSafeFrames()
+  const maxFitRate = Math.floor(maxFrames / totalDuration)
+  const platformRate = getPlatformSampleRate()
+
+  if (platformRate <= maxFitRate) {
+    return null // default rate already produces an allocatable buffer
+  }
+
+  if (maxFitRate < MIN_DECODE_RATE) {
+    const maxMinutes = Math.floor(maxFrames / MIN_DECODE_RATE / 60)
+    throw new Error(
+      `Audio too long for in-browser decoding (~${Math.ceil(totalDuration / 60)} min). ` +
+      `Maximum supported: ~${maxMinutes} min. ` +
+      `Please split the file.`
+    )
+  }
+
+  return maxFitRate
+}
+
+/** Create an AudioContext, optionally pinned to a reduced sample rate. */
+function makeDecodeContext(forcedRate: number | null): AudioContext {
+  return forcedRate != null
+    ? new AudioContext({ sampleRate: forcedRate })
+    : new AudioContext()
 }
 
 // ---------------------------------------------------------------------------
@@ -164,10 +243,11 @@ export async function decodeAudioChunked(
 
 async function decodeFull(
   blob: Blob,
+  forcedRate: number | null,
   onProgress?: (p: number) => void,
   signal?: AbortSignal,
 ): Promise<AudioBuffer> {
-  console.log(`[decodeFull] start, blob=${(blob.size / 1e6).toFixed(1)}MB`)
+  console.log(`[decodeFull] start, blob=${(blob.size / 1e6).toFixed(1)}MB${forcedRate ? `, rate=${forcedRate}Hz` : ""}`)
 
   if (signal?.aborted) {
     throw new DOMException("Decode aborted", "AbortError")
@@ -192,9 +272,9 @@ async function decodeFull(
 
   const decodeTimeout = getFullDecodeTimeoutMs(blob.size)
   console.log(`[decodeFull] calling watchdogDecode (${decodeTimeout}ms timeout)...`)
-  const ctx = new AudioContext()
+  const ctx = makeDecodeContext(forcedRate)
   try {
-    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, decodeTimeout, "full file decode")
+    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, decodeTimeout, "full file decode", forcedRate ?? undefined)
     console.log(`[decodeFull] success! ${audioBuffer.duration.toFixed(1)}s, ${audioBuffer.sampleRate}Hz`)
     onProgress?.(1)
     return audioBuffer
@@ -211,24 +291,11 @@ async function decodeFull(
 // Chunked decode
 // ---------------------------------------------------------------------------
 
-/**
- * Максимальный размер выходного буфера в сэмплах (на один канал).
- * Адаптивно в зависимости от платформы:
- * - Мобильные: ~45 мин @ 48kHz стерео ≈ ~1GB float32 (защита от OOM-kill)
- * - Десктоп:   ~8 ч  @ 48kHz стерео ≈ ~11GB float32 — браузер сам решает,
- *              хватит ли памяти; реальный лимит определит allocation try/catch.
- *              Главное — не отказываться превентивно от chunked-пути,
- *              который и так предназначен для больших файлов.
- */
-function getMaxOutputSamples(): number {
-  if (isMobile()) return 48_000 * 60 * 45        // ~45 min
-  return 48_000 * 60 * 60 * 8                    // ~8 hours
-}
-
 async function decodeInChunks(
   blob: Blob,
   totalDuration: number,
   numChunks: number,
+  forcedRate: number | null,
   onProgress?: (p: number) => void,
   signal?: AbortSignal,
 ): Promise<AudioBuffer> {
@@ -240,7 +307,7 @@ async function decodeInChunks(
 
   // Step 1: Determine format info by decoding a small initial portion.
   console.log("[decodeInChunks] probing format...")
-  const probeResult = await decodeProbe(blob, signal)
+  const probeResult = await decodeProbe(blob, forcedRate, signal)
   const { probeBuffer } = probeResult
   console.log(`[decodeInChunks] probe OK: ${probeBuffer.sampleRate}Hz, ${probeBuffer.numberOfChannels}ch`)
 
@@ -248,20 +315,8 @@ async function decodeInChunks(
   const numberOfChannels = probeBuffer.numberOfChannels
   const totalSamples = Math.ceil(totalDuration * sampleRate)
 
-  // Guard против OOM при аллокации выходного буфера.
-  // На десктопе лимит ~8ч — больше реально не влезет в память вкладки.
-  // На мобильных — ~45 мин (исторический conservative-default).
-  const maxOutputSamples = getMaxOutputSamples()
-  if (totalSamples > maxOutputSamples) {
-    const maxMinutes = Math.floor(maxOutputSamples / sampleRate / 60)
-    throw new Error(
-      `Audio too long for in-browser decoding (~${Math.ceil(totalDuration / 60)} min). ` +
-      `Maximum supported: ~${maxMinutes} min. ` +
-      `Please split the file.`
-    )
-  }
-
-  // Step 2: Pre-allocate the output buffer
+  // Step 2: Pre-allocate the output buffer. resolveDecodeSampleRate() already
+  // guarantees totalSamples stays under the browser's AudioBuffer cap.
   console.log(`[decodeInChunks] allocating output: ${totalSamples} samples (${(totalSamples * 4 / 1e6).toFixed(1)}MB per ch)`)
   const outputBuffer = createOutputBuffer(numberOfChannels, totalSamples, sampleRate)
   console.log("[decodeInChunks] allocation OK")
@@ -299,7 +354,7 @@ async function decodeInChunks(
     console.log(`[decodeInChunks] chunk ${chunkIndex}: bytes ${start}..${end} (${(chunkSizeBytes / 1024).toFixed(0)}KB)`)
 
     let chunkBuffer: AudioBuffer | null = null
-    const chunkCtx = new AudioContext()
+    const chunkCtx = makeDecodeContext(forcedRate)
     try {
       const chunkArrayBuf = await chunkBlob.arrayBuffer()
 
@@ -313,6 +368,7 @@ async function decodeInChunks(
         chunkArrayBuf,
         chunkTimeout,
         `chunk ${chunkIndex}`,
+        forcedRate ?? undefined,
       )
     } catch (err) {
       // Abort — rethrow immediately
@@ -378,6 +434,7 @@ async function decodeInChunks(
  */
 async function decodeProbe(
   blob: Blob,
+  forcedRate: number | null,
   signal?: AbortSignal,
 ): Promise<{ probeBuffer: AudioBuffer }> {
   const probeSizes = [
@@ -393,10 +450,10 @@ async function decodeProbe(
     }
 
     const probeBlob = blob.slice(0, probeSize)
-    const probeCtx = new AudioContext()
+    const probeCtx = makeDecodeContext(forcedRate)
     try {
       const probeArrayBuf = await probeBlob.arrayBuffer()
-      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, probeTimeout, "probe decode")
+      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, probeTimeout, "probe decode", forcedRate ?? undefined)
       return { probeBuffer }
     } catch (err) {
       console.warn(`[chunkedDecode] Probe at ${probeSize} bytes failed:`, err)

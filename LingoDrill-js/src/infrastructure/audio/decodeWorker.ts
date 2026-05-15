@@ -29,6 +29,9 @@ const workerCode = `
 self.onmessage = async function(e) {
   try {
     var arrayBuffer = e.data.arrayBuffer;
+    // Optional reduced sample rate — long files are decoded at a lower rate so
+    // the resulting AudioBuffer stays under the browser's frame-count cap.
+    var sampleRate = e.data.sampleRate;
 
     // Determine which AudioContext constructor is available in this worker scope.
     // AudioContext is available in workers in modern Chrome/Firefox/Safari,
@@ -37,13 +40,14 @@ self.onmessage = async function(e) {
     var ctx;
 
     if (CtxClass) {
-      ctx = new CtxClass();
+      ctx = sampleRate ? new CtxClass({ sampleRate: sampleRate }) : new CtxClass();
     } else if (self.OfflineAudioContext || self.webkitOfflineAudioContext) {
       // Fallback: OfflineAudioContext is more widely available in workers.
       // We need to provide (numberOfChannels, length, sampleRate).
       // Use generous defaults — the actual decode result determines the real values.
       var OCtx = self.OfflineAudioContext || self.webkitOfflineAudioContext;
-      ctx = new OCtx(2, 44100 * 60, 44100);
+      var rate = sampleRate || 44100;
+      ctx = new OCtx(2, rate * 60, rate);
     } else {
       self.postMessage({ error: "Web Workers not supported on this device" });
       return;
@@ -106,12 +110,14 @@ export interface WorkerDecodeResult {
  * @param arrayBuffer - compressed audio data (will be transferred, not copied)
  * @param timeoutMs - max time before worker is killed (default: 5000ms)
  * @param label - optional label for error messages
+ * @param sampleRate - optional reduced decode rate for long files
  * @returns decoded channel data + metadata
  */
 export function decodeInWorker(
   arrayBuffer: ArrayBuffer,
   timeoutMs = 5_000,
   label = "",
+  sampleRate?: number,
 ): Promise<WorkerDecodeResult> {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -181,7 +187,7 @@ export function decodeInWorker(
     }, timeoutMs);
 
     // Transfer the ArrayBuffer to the worker (zero-copy)
-    worker.postMessage({ arrayBuffer }, [arrayBuffer]);
+    worker.postMessage({ arrayBuffer, sampleRate }, [arrayBuffer]);
   });
 }
 

@@ -1,0 +1,35 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: LingoDrill
+    - navigation [ref=e5]:
+      - button "Audio Library" [ref=e6] [cursor=pointer]
+      - button "Fragment Library" [ref=e7] [cursor=pointer]
+      - button "Favourites" [ref=e8] [cursor=pointer]
+      - button "Settings" [ref=e9] [cursor=pointer]
+      - button "About" [disabled] [ref=e10]
+  - generic [ref=e52]:
+    - heading "Fragment Editor" [level=2] [ref=e53]
+    - paragraph [ref=e54]: bigtest.mp3
+    - generic [ref=e55]:
+      - button "← Back" [ref=e56] [cursor=pointer]
+      - button "Export for mobile" [ref=e57] [cursor=pointer]
+      - generic [ref=e58] [cursor=pointer]:
+        - checkbox "Include audio" [checked] [ref=e59]
+        - generic [ref=e60]: Include audio
+    - generic [ref=e78]:
+      - generic [ref=e79]: Zoom
+      - button "−" [disabled] [ref=e80]
+      - generic [ref=e81]: 1.0×
+      - button "+" [ref=e82] [cursor=pointer]
+      - generic [ref=e83]: (scroll to zoom, pinch on touch)
+    - generic [ref=e63]:
+      - button "▶ Play all" [ref=e64] [cursor=pointer]
+      - button "⏹ Stop" [disabled] [ref=e65]
+      - generic [ref=e66]:
+        - img [ref=e67]
+        - slider [ref=e71]: "0.8"
+    - generic [ref=e72]:
+      - button "Auto-detect speech" [ref=e73] [cursor=pointer]
+      - button "Trim silence" [ref=e74] [cursor=pointer]
+      - button "Normalize volume" [disabled] [ref=e75]
+      - button "Delete all fragments" [disabled] [ref=e76]

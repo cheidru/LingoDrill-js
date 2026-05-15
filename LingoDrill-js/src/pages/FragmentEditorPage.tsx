@@ -61,7 +61,7 @@ function FragmentEditorPageInner() {
 
   const {
     getBlob, addFile, files,
-    loadById, playFragment, pause, play, stop, seekTo,
+    loadById, ensureFragmentsDecoded, playFragment, pause, play, stop, seekTo,
     isReady, isFragmentsReady, isPlaying, isPaused, duration, currentTime,
     volume, setVolume, getAudioBuffer,
     decodeError,
@@ -82,6 +82,13 @@ function FragmentEditorPageInner() {
   const [waveformLoading, setWaveformLoading] = useState(true)
   const [playingFragment, setPlayingFragment] =
     useState<{ start: number; end: number } | null>(null)
+
+  // Id of the fragment whose audio is currently being decoded on demand
+  // (lazy decode triggered by pressing its play button the first time).
+  const [decodingFragmentId, setDecodingFragmentId] = useState<string | null>(null)
+  // Monotonic id of the latest play request — lets a slow decode bail out
+  // if the user has since asked to play a different fragment.
+  const playRequestRef = useRef(0)
 
   const [fragments, setFragments] = useState<SequenceFragment[]>([])
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
@@ -137,7 +144,14 @@ function FragmentEditorPageInner() {
         return
       }
 
-      if (!isFragmentsReady) return
+      // No cached waveform — building one needs the decoded audio buffer,
+      // so trigger the (otherwise lazy) decode here.
+      try {
+        await ensureFragmentsDecoded()
+      } catch {
+        return // decode failed — decodeError banner is shown separately
+      }
+      if (cancelled) return
 
       const audioBuffer = getAudioBuffer(audioId)
       if (!audioBuffer || cancelled) return
@@ -167,7 +181,7 @@ function FragmentEditorPageInner() {
     load()
 
     return () => { cancelled = true }
-  }, [audioId, isFragmentsReady, getAudioBuffer, getBlob, wrapHeavyOp])
+  }, [audioId, getAudioBuffer, getBlob, wrapHeavyOp, ensureFragmentsDecoded])
 
   // Load sequence fragments
   useEffect(() => {
@@ -771,13 +785,34 @@ function FragmentEditorPageInner() {
   }, [capturePositions, fragments, playingFragment, stop])
 
   // --- Fragment playback ---
-  const handlePlayFragment = useCallback((f: SequenceFragment) => {
+  // Fragment audio is decoded lazily: the first time any fragment is played we
+  // decode the whole file, showing a spinner on that fragment's play button.
+  const handlePlayFragment = useCallback(async (f: SequenceFragment) => {
+    const reqId = ++playRequestRef.current
     stop()
     setIsFilePlayback(false)
     const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat, speed: f.speed }
     setPlayingFragment({ start: f.start, end: f.end })
+
+    if (!isFragmentsReady) {
+      setDecodingFragmentId(f.id)
+      try {
+        await ensureFragmentsDecoded()
+      } catch {
+        // Decode failed — the decodeError banner is rendered separately.
+        if (playRequestRef.current === reqId) {
+          setDecodingFragmentId(null)
+          setPlayingFragment(null)
+        }
+        return
+      }
+      // User pressed play on a different fragment while decoding — abandon this.
+      if (playRequestRef.current !== reqId) return
+      setDecodingFragmentId(null)
+    }
+
     playFragment(pf)
-  }, [stop, playFragment])
+  }, [stop, playFragment, ensureFragmentsDecoded, isFragmentsReady])
 
   const handlePauseFragment = useCallback(() => {
     pause()
@@ -1036,6 +1071,8 @@ function FragmentEditorPageInner() {
 
   if (!audioId) return <div className="page"><p>No audio file selected.</p></div>
 
+  const isMobile = typeof document !== "undefined" && document.documentElement.classList.contains("mobile")
+
   return (
     <div className="page">
       <h2>Fragment Editor</h2>
@@ -1048,7 +1085,7 @@ function FragmentEditorPageInner() {
         <button onClick={() => navigate(-1)}>
           ← Back
         </button>
-        {isReady && (
+        {isReady && !isMobile && (
           <ExportBundleButton
             audioId={audioId}
             audioName={audioName}
@@ -1143,13 +1180,6 @@ function FragmentEditorPageInner() {
             )}
           </div>
 
-          {!isFragmentsReady && !decodeError && (
-            <div className="decode-indicator">
-              <div className="spinner spinner--decode" />
-              Decoding audio for fragments...
-            </div>
-          )}
-
           {decodeError && !isFragmentsReady && (
             <div style={{
               marginTop: 8, marginBottom: 8,
@@ -1199,14 +1229,14 @@ function FragmentEditorPageInner() {
           {/* Action bar */}
           <div className="action-bar">
             <button className="action-bar__btn" onClick={handleAutoDetectClick}
-              disabled={vadDetecting || trimming || normalizing || vadDone || !isFragmentsReady}>
+              disabled={vadDetecting || trimming || normalizing || vadDone}>
               {vadDetecting && !trimming ? "Detecting..." : vadDone ? "Auto-detect speech ✓" : "Auto-detect speech"}
             </button>
             <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming || normalizing}>
               {trimming ? "Trimming..." : "Trim silence"}
             </button>
             <button className="action-bar__btn" onClick={normalizeMode ? () => setNormalizeMode(false) : handleNormalizeOpen}
-              disabled={vadDetecting || trimming || normalizing || fragments.length === 0 || !isFragmentsReady}
+              disabled={vadDetecting || trimming || normalizing || fragments.length === 0}
               style={normalizeMode ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
               {normalizing ? "Normalizing..." : normalizeMode ? "Cancel normalize" : "Normalize volume"}
             </button>
@@ -1330,14 +1360,17 @@ function FragmentEditorPageInner() {
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
                     <div className="fragment-row__actions">
-                      <button className="btn-sub" onClick={e => {
+                      <button className="btn-sub" disabled={decodingFragmentId === f.id} onClick={e => {
                         e.stopPropagation()
+                        if (decodingFragmentId === f.id) return
                         if (!isEditing) startEditingWithAnim(f.id)
                         if (isThisFragPlaying) { handlePauseFragment() }
                         else if (isThisFragPaused) { handleResumeFragment() }
-                        else { handlePlayFragment(f) }
+                        else { void handlePlayFragment(f) }
                       }}>
-                        {isThisFragPlaying ? "⏸" : "▶"}
+                        {decodingFragmentId === f.id
+                          ? <span className="spinner spinner--btn" />
+                          : isThisFragPlaying ? "⏸" : "▶"}
                       </button>
                       {isEditing && (
                         <>
