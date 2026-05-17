@@ -10,6 +10,7 @@ const KEY_FRAGMENT_GAP = "lingodrill.fragmentGap"
 const KEY_LANGUAGE = "lingodrill.language"
 const KEY_THEME = "lingodrill.theme"
 const KEY_COLOR_THEME = "lingodrill.colorTheme"
+const KEY_ONBOARDING_SEEN = "lingodrill.onboardingSeen"
 
 export const DEFAULT_START_PAGE: StartPage = "library"
 export const DEFAULT_SUB_FONT_SIZE = 14
@@ -121,6 +122,14 @@ export function setColorTheme(v: ColorTheme): void {
 
 export function applyColorTheme(v: ColorTheme = getColorTheme()): void {
   document.documentElement.setAttribute("data-color-theme", v)
+}
+
+export function hasSeenOnboarding(): boolean {
+  return localStorage.getItem(KEY_ONBOARDING_SEEN) === "1"
+}
+
+export function setOnboardingSeen(): void {
+  localStorage.setItem(KEY_ONBOARDING_SEEN, "1")
 }
 
 export function applyLanguage(v: Language = getLanguage()): void {

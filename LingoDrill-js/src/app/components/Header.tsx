@@ -1,9 +1,12 @@
 // app/components/Header.tsx
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useSharedAudioEngine } from "../hooks/useSharedAudioEngine"
+import { OnboardingModal } from "./OnboardingModal"
 import {
+  hasSeenOnboarding,
+  setOnboardingSeen,
   getStartPage,
   setStartPage,
   getSubFontSize,
@@ -32,6 +35,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [startPage, setStartPageState] = useState<StartPage>(getStartPage())
   const [subFontSize, setSubFontSizeState] = useState<number>(getSubFontSize())
   const [fragmentGap, setFragmentGapState] = useState<number>(getFragmentGap())
@@ -40,6 +44,20 @@ export function Header() {
 
   const audioIdMatch = location.pathname.match(/\/file\/([^/]+)/)
   const audioId = audioIdMatch ? audioIdMatch[1] : selectedFile?.id ?? null
+
+  useEffect(() => {
+    if (!hasSeenOnboarding()) setAboutOpen(true)
+  }, [])
+
+  const openAbout = () => {
+    setAboutOpen(true)
+    setMenuOpen(false)
+  }
+
+  const closeAbout = () => {
+    setOnboardingSeen()
+    setAboutOpen(false)
+  }
 
   const closeAll = () => {
     setSettingsOpen(false)
@@ -120,7 +138,10 @@ export function Header() {
           >
             {t("nav.settings")}
           </button>
-          <button disabled className="header__nav-btn header__nav-btn--disabled">
+          <button
+            onClick={openAbout}
+            className="header__nav-btn"
+          >
             {t("nav.about")}
           </button>
         </nav>
@@ -261,6 +282,8 @@ export function Header() {
           </div>
         </div>
       )}
+
+      {aboutOpen && <OnboardingModal onClose={closeAbout} />}
     </>
   )
 }
