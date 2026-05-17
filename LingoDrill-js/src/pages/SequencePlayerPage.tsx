@@ -76,6 +76,13 @@ const SpeedIcon = () => (
     <path d="M14.5 15c0 1.38-1.12 2.5-2.5 2.5S9.5 16.38 9.5 15c0-1.16.79-2.13 1.86-2.41l5.92-5.18-3.92 6.65c.69.41 1.14 1.17 1.14 2.04z" />
   </svg>
 )
+// Replay / rewind-count icon: circular arrow with a play triangle inside.
+const RewindCountIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+    <path d="M10.5 10v5L15 12.5z" />
+  </svg>
+)
 
 // --- Subtitle display for a fragment ---
 function SubtitleDisplay({
@@ -186,6 +193,7 @@ function FragmentControlPanel({
   onFragmentSpeedChange: (value: number) => void
 }) {
   const [speedModalOpen, setSpeedModalOpen] = useState(false)
+  const [rewindModalOpen, setRewindModalOpen] = useState(false)
   const isMobile = document.documentElement.classList.contains("mobile")
   return (
     <div className="sp-control-panel">
@@ -218,21 +226,15 @@ function FragmentControlPanel({
         {/* Separator */}
         <div className="sp-ctrl-separator" />
 
-        {/* Repeat */}
-        <label className="sp-ctrl-label" title="Repeat count">
-          <span>×</span>
-          <input
-            type="number"
-            min={1}
-            max={99}
-            value={localRepeat}
-            onChange={e => {
-              const v = parseInt(e.target.value)
-              if (!isNaN(v) && v >= 1) onRepeatChange(v)
-            }}
-            className="sp-ctrl-input"
-          />
-        </label>
+        {/* Rewind count — opens a modal to pick the repeat count */}
+        <button
+          className="sp-ctrl-btn sp-speed-btn sp-rewind-btn"
+          onClick={() => setRewindModalOpen(true)}
+          title={`Rewind count: ×${localRepeat}`}
+        >
+          <RewindCountIcon />
+          <span className="sp-speed-btn__value">×{localRepeat}</span>
+        </button>
 
         {/* Infinite rewind — sits next to the playout count */}
         <button
@@ -324,6 +326,51 @@ function FragmentControlPanel({
                 Reset
               </button>
               <button onClick={() => setSpeedModalOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rewindModalOpen && (
+        <div className="modal-overlay" onClick={() => setRewindModalOpen(false)}>
+          <div className="modal-box sp-speed-modal sp-rewind-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="sp-speed-modal__title">Rewind count</h3>
+            <div className="sp-speed-modal__value">×{localRepeat}</div>
+            <div className="sp-rewind-stepper">
+              <button
+                className="sp-ctrl-btn"
+                onClick={() => onRepeatChange(Math.max(1, localRepeat - 1))}
+                disabled={localRepeat <= 1}
+                title="Decrease"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                step={1}
+                value={localRepeat}
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10)
+                  if (!isNaN(v) && v >= 1) onRepeatChange(Math.min(99, v))
+                }}
+                className="sp-ctrl-input sp-rewind-stepper__input"
+              />
+              <button
+                className="sp-ctrl-btn"
+                onClick={() => onRepeatChange(Math.min(99, localRepeat + 1))}
+                disabled={localRepeat >= 99}
+                title="Increase"
+              >
+                +
+              </button>
+            </div>
+            <div className="modal-actions">
+              <button className="sp-ctrl-btn" onClick={() => onRepeatChange(1)} title="Reset to ×1" style={{ width: "auto", padding: "0 16px" }}>
+                Reset
+              </button>
+              <button onClick={() => setRewindModalOpen(false)}>Close</button>
             </div>
           </div>
         </div>

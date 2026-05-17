@@ -25,8 +25,18 @@
 // 7. decodeFull() теперь тоже использует watchdogDecode.
 // 8. ИСПРАВЛЕНИЕ: таймауты адаптивные — на десктопе щедрые (60-120с),
 //    на мобильных короткие (5-8с) чтобы не ждать OOM-kill браузера.
+// 9. ИСПРАВЛЕНИЕ: byte-range chunking некорректен для сжатого аудио —
+//    произвольные срезы не содержат заголовка контейнера и не выровнены
+//    по фреймам, поэтому decodeAudioData() их отклоняет. На десктопе всегда
+//    используем decodeFull (один цельный decode) — это и надёжнее, и без
+//    «тихих» (silence) участков в waveform.
+// 10. ИСПРАВЛЕНИЕ: WAV декодируется вручную (decodeWav.ts), без
+//     decodeAudioData(). Браузерный декодер строже, чем <audio>, и отклоняет
+//     валидные WAV-файлы (лишние RIFF-чанки, 24-bit, WAVE_FORMAT_EXTENSIBLE)
+//     с "EncodingError: Unable to decode audio data".
 
 import { watchdogDecode, watchdogRace, DecodeTimeoutError } from "./watchdogDecode"
+import { parseWavHeader, readWavSamples, isWavSignature, type WavInfo } from "./decodeWav"
 
 export { DecodeTimeoutError }
 
@@ -124,29 +134,32 @@ export async function decodeAudioChunked(
     console.log(`[chunkedDecode] long file → decoding at reduced rate ${forcedRate}Hz`)
   }
 
+  // WAV/PCM: decode by parsing the RIFF container ourselves. decodeAudioData()
+  // rejects some valid WAV files with "EncodingError: Unable to decode audio
+  // data" (extra RIFF chunks, 24-bit samples, WAVE_FORMAT_EXTENSIBLE headers),
+  // and WAV cannot be byte-sliced for chunked decode anyway.
+  if (await looksLikeWav(blob)) {
+    console.log("[chunkedDecode] WAV file → manual RIFF decode")
+    return decodeWavBlob(blob, forcedRate, onProgress, signal)
+  }
+
   // If file is small (< 5 seconds or < 1MB), just decode in one shot
   if (totalDuration <= 5 || blob.size < 1_000_000) {
     console.log("[chunkedDecode] small file → decodeFull")
     return decodeFull(blob, forcedRate, onProgress, signal)
   }
 
-// WAV/PCM files cannot be split into chunks — each chunk needs the WAV header.
-// Detect by MIME type or by checking the RIFF/WAVE magic bytes.
-  if (blob.type === "audio/wav" || blob.type === "audio/wave" || blob.type === "audio/x-wav") {
-    console.log("[chunkedDecode] WAV file detected (by MIME type) → decodeFull")
+  // Desktop: byte-range chunking is unsound for compressed audio. Arbitrary
+  // mid-file slices lack the container header and frame alignment, so
+  // decodeAudioData() rejects them — every chunk after the probe fails, which
+  // either silently fills the buffer with silence (wrong waveform) or, when a
+  // rejection is slow enough to trip the per-chunk watchdog, surfaces as
+  // "Audio decoding failed". Desktops have ample memory for a single
+  // whole-file decode (the only real OOM guard — output buffer size — is
+  // already handled by resolveDecodeSampleRate), so always take that path.
+  if (!isMobile()) {
+    console.log("[chunkedDecode] desktop → decodeFull (skip byte-range chunking)")
     return decodeFull(blob, forcedRate, onProgress, signal)
-  }
-  // Also check magic bytes for WAV files that might have wrong/missing MIME type
-  try {
-    const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
-    const riff = String.fromCharCode(header[0], header[1], header[2], header[3])
-    const wave = String.fromCharCode(header[8], header[9], header[10], header[11])
-    if (riff === "RIFF" && wave === "WAVE") {
-      console.log("[chunkedDecode] WAV file detected (by magic bytes) → decodeFull")
-      return decodeFull(blob, forcedRate, onProgress, signal)
-    }
-  } catch {
-    // ignore — proceed with chunked decode
   }
 
   const numChunks = Math.max(1, Math.ceil(totalDuration / chunkDurationSec))
@@ -274,7 +287,7 @@ async function decodeFull(
   console.log(`[decodeFull] calling watchdogDecode (${decodeTimeout}ms timeout)...`)
   const ctx = makeDecodeContext(forcedRate)
   try {
-    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, decodeTimeout, "full file decode", forcedRate ?? undefined)
+    const audioBuffer = await watchdogDecode(ctx, arrayBuffer, decodeTimeout, "full file decode")
     console.log(`[decodeFull] success! ${audioBuffer.duration.toFixed(1)}s, ${audioBuffer.sampleRate}Hz`)
     onProgress?.(1)
     return audioBuffer
@@ -285,6 +298,87 @@ async function decodeFull(
       // close() может бросить если контекст уже закрыт — игнорируем
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// WAV decode (manual RIFF parsing — bypasses decodeAudioData)
+// ---------------------------------------------------------------------------
+
+/** True if the blob is (or claims to be) a RIFF/WAVE file. */
+async function looksLikeWav(blob: Blob): Promise<boolean> {
+  if (blob.type === "audio/wav" || blob.type === "audio/wave" || blob.type === "audio/x-wav") {
+    return true
+  }
+  try {
+    const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
+    return isWavSignature(header)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Decode a WAV blob by parsing the RIFF container directly, writing PCM
+ * straight into the output AudioBuffer. This bypasses decodeAudioData(), which
+ * rejects some valid WAV files. Falls back to the browser decoder if the file
+ * turns out not to be a WAV we can parse (e.g. compressed ADPCM in a .wav).
+ */
+async function decodeWavBlob(
+  blob: Blob,
+  forcedRate: number | null,
+  onProgress?: (p: number) => void,
+  signal?: AbortSignal,
+): Promise<AudioBuffer> {
+  if (signal?.aborted) throw new DOMException("Decode aborted", "AbortError")
+  onProgress?.(0)
+
+  const readTimeout = getReadTimeoutMs(blob.size)
+  const arrayBuffer = await watchdogRace(
+    blob.arrayBuffer(),
+    readTimeout,
+    "Reading audio file into memory",
+  )
+  onProgress?.(0.2)
+
+  if (signal?.aborted) throw new DOMException("Decode aborted", "AbortError")
+
+  let info: WavInfo
+  try {
+    info = parseWavHeader(arrayBuffer)
+  } catch (err) {
+    console.warn("[chunkedDecode] manual WAV parse failed, using browser decoder:", err)
+    return decodeFull(blob, forcedRate, onProgress, signal)
+  }
+
+  // Downsample only when the file is long enough that a full-rate buffer would
+  // overflow the browser's per-channel frame cap (see resolveDecodeSampleRate).
+  const decimation = forcedRate != null && forcedRate < info.sampleRate
+    ? Math.ceil(info.sampleRate / forcedRate)
+    : 1
+  const outRate = info.sampleRate / decimation
+  const outLength = Math.ceil(info.frameCount / decimation)
+  console.log(
+    `[chunkedDecode] WAV: ${info.numChannels}ch ${info.sampleRate}Hz ${info.bitsPerSample}-bit, ` +
+    `${info.frameCount} frames` +
+    (decimation > 1 ? ` → decimated ÷${decimation} (${outRate.toFixed(0)}Hz)` : ""),
+  )
+
+  const buffer = createOutputBuffer(info.numChannels, outLength, outRate)
+  const targets: Float32Array[] = []
+  for (let ch = 0; ch < info.numChannels; ch++) {
+    targets.push(buffer.getChannelData(ch))
+  }
+
+  try {
+    readWavSamples(arrayBuffer, info, targets, decimation)
+  } catch (err) {
+    console.warn("[chunkedDecode] manual WAV sample read failed, using browser decoder:", err)
+    return decodeFull(blob, forcedRate, onProgress, signal)
+  }
+
+  onProgress?.(1)
+  console.log(`[chunkedDecode] WAV decoded: ${buffer.duration.toFixed(1)}s`)
+  return buffer
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +462,6 @@ async function decodeInChunks(
         chunkArrayBuf,
         chunkTimeout,
         `chunk ${chunkIndex}`,
-        forcedRate ?? undefined,
       )
     } catch (err) {
       // Abort — rethrow immediately
@@ -453,7 +546,7 @@ async function decodeProbe(
     const probeCtx = makeDecodeContext(forcedRate)
     try {
       const probeArrayBuf = await probeBlob.arrayBuffer()
-      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, probeTimeout, "probe decode", forcedRate ?? undefined)
+      const probeBuffer = await watchdogDecode(probeCtx, probeArrayBuf, probeTimeout, "probe decode")
       return { probeBuffer }
     } catch (err) {
       console.warn(`[chunkedDecode] Probe at ${probeSize} bytes failed:`, err)

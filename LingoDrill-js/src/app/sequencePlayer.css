@@ -170,6 +170,25 @@
   margin-top: 4px;
 }
 
+/* Rewind-count modal stepper */
+.sp-rewind-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.sp-rewind-stepper .sp-ctrl-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 1.4rem;
+}
+.sp-rewind-stepper__input {
+  width: 72px;
+  height: 40px;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .sp-volume {
 }
 

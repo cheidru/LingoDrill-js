@@ -1,19 +1,21 @@
 // infrastructure/audio/watchdogDecode.ts
 //
-// Декодирование аудио в Web Worker с hard-kill таймаутом.
+// Декодирование аудио на main thread с watchdog-таймаутом (Promise.race).
 //
-// При таймауте worker.terminate() мгновенно уничтожает поток
-// вместе со ВСЕЙ памятью нативного декодера.
-// Если Web Workers недоступны — fallback на main-thread decode + ctx.close().
+// ИСТОРИЯ / ПОЧЕМУ БЕЗ WORKER'А:
+// Раньше decode пытался выполняться в Web Worker, чтобы worker.terminate()
+// мог hard-kill'нуть нативный декодер при таймауте. Но Web Audio API
+// (AudioContext / OfflineAudioContext) доступен ТОЛЬКО в Window — в обычном
+// Worker'е его нет ни в одном браузере. Поэтому worker всегда отвечал
+// "not supported", а реальный decode всё равно шёл на main thread.
 //
-// ИСПРАВЛЕНИЕ (detached ArrayBuffer):
-// decodeInWorker() передаёт ArrayBuffer воркеру через transfer list,
-// что ОТСОЕДИНЯЕТ (detach) оригинальный буфер. Если воркер падает
-// и нужен fallback на main-thread decode, буфер уже недоступен.
-// Решение: копируем ArrayBuffer ДО передачи в воркер, чтобы fallback
-// мог использовать оригинал.
-
-import { decodeInWorker, resultToAudioBuffer, type WorkerDecodeResult } from "./decodeWorker"
+// Хуже того: чтобы передать буфер в worker (transfer его detach'ит),
+// watchdogDecode копировал ВЕСЬ ArrayBuffer через arrayBuffer.slice(0).
+// Для крупного несжатого WAV эта лишняя копия (сотни МБ) сама по себе
+// могла исчерпать память вкладки — slice() бросал RangeError или последующий
+// decode падал в OOM, и пользователь видел "Audio decoding failed".
+//
+// Теперь decode идёт напрямую на main thread: без worker'а и без копии буфера.
 
 /** Default watchdog timeout in ms */
 const DEFAULT_WATCHDOG_MS = 5_000
@@ -31,81 +33,41 @@ export class DecodeTimeoutError extends Error {
 }
 
 /**
- * Decode audio in a Web Worker with a hard-kill timeout.
+ * Decode audio data on the main thread with a watchdog timeout.
  *
- * When the timeout fires, worker.terminate() instantly destroys
- * the worker thread AND the native decoder's memory allocation.
+ * `decodeAudioData()` resamples to `ctx.sampleRate`, so a reduced-rate
+ * AudioContext (see makeDecodeContext in chunkedDecode.ts) already pins the
+ * output rate — no separate sampleRate argument is needed here.
+ *
+ * NOTE: the watchdog rejects the JS promise on timeout but cannot abort the
+ * browser's native decoder. It exists to surface a clear error instead of
+ * hanging indefinitely; callers treat a timeout as "file too large for this
+ * device". The caller owns `ctx` and is responsible for closing it.
+ *
+ * @param ctx          AudioContext to decode with (caller closes it)
+ * @param arrayBuffer  compressed/encoded audio bytes (detached by decodeAudioData)
+ * @param timeoutMs    max time before the decode promise is rejected
+ * @param chunkInfo    optional label for error messages
  */
 export async function watchdogDecode(
   ctx: AudioContext,
   arrayBuffer: ArrayBuffer,
   timeoutMs: number = DEFAULT_WATCHDOG_MS,
   chunkInfo?: string,
-  sampleRate?: number,
-): Promise<AudioBuffer> {
-  // Копируем буфер ПЕРЕД передачей в воркер.
-  // decodeInWorker() использует transfer list, что отсоединяет (detach) переданный
-  // ArrayBuffer. Если воркер упадёт и нужен fallback на main-thread,
-  // оригинальный arrayBuffer останется доступным.
-  const bufferCopy = arrayBuffer.slice(0)
-
-  try {
-    const result: WorkerDecodeResult = await decodeInWorker(
-      bufferCopy,
-      timeoutMs,
-      chunkInfo ?? "",
-      sampleRate,
-    )
-
-    const audioBuffer = resultToAudioBuffer(result)
-    return audioBuffer
-  } catch (workerErr) {
-    const msg = workerErr instanceof Error ? workerErr.message : String(workerErr)
-
-    if (msg.includes("timed out")) {
-      ctx.close().catch(() => {})
-      throw new DecodeTimeoutError(chunkInfo)
-    }
-
-    if (msg.includes("not supported")) {
-      console.warn("[watchdogDecode] Workers unavailable, falling back to main thread")
-      // Используем оригинальный arrayBuffer — он НЕ был отсоединён,
-      // т.к. в воркер передали копию.
-      return mainThreadDecodeFallback(ctx, arrayBuffer, timeoutMs, chunkInfo)
-    }
-
-    // Для любых других ошибок воркера — тоже пробуем fallback на main thread.
-    // Это покрывает случаи когда AudioContext недоступен в воркере,
-    // ошибки формата и прочие проблемы декодирования в воркере.
-    console.warn("[watchdogDecode] Worker decode failed, falling back to main thread:", msg)
-    return mainThreadDecodeFallback(ctx, arrayBuffer, timeoutMs, chunkInfo)
-  }
-}
-
-/**
- * Fallback: main-thread decode with setTimeout race.
- */
-async function mainThreadDecodeFallback(
-  ctx: AudioContext,
-  arrayBuffer: ArrayBuffer,
-  timeoutMs: number,
-  chunkInfo?: string,
 ): Promise<AudioBuffer> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      ctx.close().catch(() => {})
       reject(new DecodeTimeoutError(chunkInfo))
     }, timeoutMs)
   })
 
   try {
-    const audioBuffer = await Promise.race([
+    return await Promise.race([
       ctx.decodeAudioData(arrayBuffer),
       timeoutPromise,
     ])
-    return audioBuffer
   } finally {
     if (timeoutId !== null) {
       clearTimeout(timeoutId)

@@ -56,7 +56,10 @@
       "Bash(ls -la console-full.log .playwright-mcp/console-full.log)",
       "Bash(find . -name \"console-full.log\")",
       "Bash(ffmpeg -y -f lavfi -i \"sine=frequency=440:sample_rate=44100:duration=12000\" -c:a libmp3lame -b:a 64k longtest.mp3)",
-      "Bash(grep -oE \"\\\\[WARNING\\\\].*?\\(@|$\\)\" console-v1.log)"
+      "Bash(grep -oE \"\\\\[WARNING\\\\].*?\\(@|$\\)\" console-v1.log)",
+      "Bash(git config *)",
+      "Bash(git rm *)",
+      "Bash(npx eslint *)"
     ],
     "deny": [
       "Bash(rm:*)",
