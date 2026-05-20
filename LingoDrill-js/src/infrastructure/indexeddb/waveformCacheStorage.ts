@@ -5,7 +5,8 @@ import { dbPromise } from "./db"
 // Bump this when the waveform-building code changes in a way that invalidates
 // previously-cached arrays. v1 entries (raw number[] without an envelope) and
 // any v < CURRENT_VERSION envelopes are treated as missing and rebuilt.
-const CURRENT_VERSION = 2
+// v3: stored analysis envelope density raised 1000 → 4000 points.
+const CURRENT_VERSION = 3
 
 interface WaveformCacheEntry {
   v: number

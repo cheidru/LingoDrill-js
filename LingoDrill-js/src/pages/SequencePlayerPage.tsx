@@ -390,8 +390,8 @@ function SequencePlayerPageInner() {
 
   const {
     files,
-    loadById, ensureFragmentsDecoded, playFragment, pause, play, stop,
-    isFragmentsReady, isPlaying, isPaused, setOnEnded,
+    loadById, playFragment, pause, play, stop,
+    isPlaying, isPaused, setOnEnded,
     volume, setVolume,
   } = useSharedAudioEngine()
 
@@ -485,14 +485,14 @@ function SequencePlayerPageInner() {
     return indices
   }, [sequence, playingFragIdx])
 
-  // Load audio. The player exists to play fragments, so decode eagerly here
-  // (fragment decoding is otherwise lazy — see ensureFragmentsDecoded).
+  // Load audio. Fragments play straight from the streamed file via start/end
+  // time bounds — no AudioBuffer decode is needed, so just load.
   useEffect(() => {
     if (audioId) {
       console.log("[SequencePlayerPage] Loading audio:", audioId)
-      loadById(audioId).then(() => ensureFragmentsDecoded()).catch(() => {})
+      loadById(audioId).catch(() => {})
     }
-  }, [audioId, loadById, ensureFragmentsDecoded])
+  }, [audioId, loadById])
 
   // Stop playback on unmount
   const stopRef = useRef(stop)
@@ -795,8 +795,8 @@ function SequencePlayerPageInner() {
           <button
             className="sp-playall-btn"
             onClick={handlePlayAll}
-            disabled={!isFragmentsReady || sequence.fragments.length === 0}
-            title={!isFragmentsReady ? "Audio still decoding..." : "Play all fragments consecutively"}
+            disabled={sequence.fragments.length === 0}
+            title="Play all fragments consecutively"
           >
             <PlayAllIcon size={20} />
             <span>Play all</span>
@@ -817,12 +817,6 @@ function SequencePlayerPageInner() {
         </label>
         <VolumeControl volume={volume} onVolumeChange={setVolume} />
       </div>
-
-      {!isFragmentsReady && (
-        <div className="sp-decode-indicator">
-          <div className="spinner spinner--decode" /> Decoding audio for playback...
-        </div>
-      )}
 
       {/* Fragment list */}
       <div className="sp-fragment-list">

@@ -189,21 +189,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sp-volume {
-}
-
-.sp-decode-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  margin-bottom: 16px;
-  padding: 10px 16px;
-  background: var(--color-bg-subtle);
-  border-radius: var(--radius-sm);
-}
-
 /* --- Fragment list --- */
 .sp-fragment-list {
   display: flex;
@@ -613,15 +598,6 @@ html.mobile .sp-subtitle-display {
 .sp-speed-slider__value {
   color: var(--color-primary);
   font-family: var(--font-mono);
-}
-
-/* --- Decode indicator banner --- */
-.sp-decode-indicator {
-  background: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  color: var(--color-text-muted);
 }
 
 /* --- Fragment cards: sharp, hairline, left accent on play --- */

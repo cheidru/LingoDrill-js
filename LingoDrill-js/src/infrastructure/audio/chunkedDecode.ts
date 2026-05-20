@@ -93,6 +93,13 @@ export interface ChunkedDecodeOptions {
   chunkDurationSec?: number
   /** Called after each chunk is decoded: progress 0..1 */
   onProgress?: (progress: number) => void
+  /**
+   * Called as decoded PCM becomes available, with the (possibly still
+   * partially-filled) output buffer and how many samples of it are valid.
+   * On the chunked path this fires after every chunk — enabling a progressive
+   * waveform. On the atomic full/WAV path it fires once on completion.
+   */
+  onPartialBuffer?: (buffer: AudioBuffer, validSamples: number) => void
   /** AbortSignal — allows cancellation when the user navigates away */
   signal?: AbortSignal
 }
@@ -116,6 +123,7 @@ export async function decodeAudioChunked(
   const {
     chunkDurationSec = 30,
     onProgress,
+    onPartialBuffer,
     signal,
   } = options
 
@@ -140,13 +148,13 @@ export async function decodeAudioChunked(
   // and WAV cannot be byte-sliced for chunked decode anyway.
   if (await looksLikeWav(blob)) {
     console.log("[chunkedDecode] WAV file → manual RIFF decode")
-    return decodeWavBlob(blob, forcedRate, onProgress, signal)
+    return decodeWavBlob(blob, forcedRate, onProgress, onPartialBuffer, signal)
   }
 
   // If file is small (< 5 seconds or < 1MB), just decode in one shot
   if (totalDuration <= 5 || blob.size < 1_000_000) {
     console.log("[chunkedDecode] small file → decodeFull")
-    return decodeFull(blob, forcedRate, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, onPartialBuffer, signal)
   }
 
   // Desktop: byte-range chunking is unsound for compressed audio. Arbitrary
@@ -159,7 +167,7 @@ export async function decodeAudioChunked(
   // already handled by resolveDecodeSampleRate), so always take that path.
   if (!isMobile()) {
     console.log("[chunkedDecode] desktop → decodeFull (skip byte-range chunking)")
-    return decodeFull(blob, forcedRate, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, onPartialBuffer, signal)
   }
 
   const numChunks = Math.max(1, Math.ceil(totalDuration / chunkDurationSec))
@@ -167,7 +175,7 @@ export async function decodeAudioChunked(
 
   // Try chunked approach first
   try {
-    return await decodeInChunks(blob, totalDuration, numChunks, forcedRate, onProgress, signal)
+    return await decodeInChunks(blob, totalDuration, numChunks, forcedRate, onProgress, onPartialBuffer, signal)
   } catch (err) {
     // If abort — don't fallback, just rethrow
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -178,7 +186,7 @@ export async function decodeAudioChunked(
       throw err
     }
     console.warn("[chunkedDecode] Chunked approach failed, falling back to full decode:", err)
-    return decodeFull(blob, forcedRate, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, onPartialBuffer, signal)
   }
 }
 
@@ -258,6 +266,7 @@ async function decodeFull(
   blob: Blob,
   forcedRate: number | null,
   onProgress?: (p: number) => void,
+  onPartialBuffer?: (buffer: AudioBuffer, validSamples: number) => void,
   signal?: AbortSignal,
 ): Promise<AudioBuffer> {
   console.log(`[decodeFull] start, blob=${(blob.size / 1e6).toFixed(1)}MB${forcedRate ? `, rate=${forcedRate}Hz` : ""}`)
@@ -290,6 +299,7 @@ async function decodeFull(
     const audioBuffer = await watchdogDecode(ctx, arrayBuffer, decodeTimeout, "full file decode")
     console.log(`[decodeFull] success! ${audioBuffer.duration.toFixed(1)}s, ${audioBuffer.sampleRate}Hz`)
     onProgress?.(1)
+    onPartialBuffer?.(audioBuffer, audioBuffer.length)
     return audioBuffer
   } finally {
     try {
@@ -327,6 +337,7 @@ async function decodeWavBlob(
   blob: Blob,
   forcedRate: number | null,
   onProgress?: (p: number) => void,
+  onPartialBuffer?: (buffer: AudioBuffer, validSamples: number) => void,
   signal?: AbortSignal,
 ): Promise<AudioBuffer> {
   if (signal?.aborted) throw new DOMException("Decode aborted", "AbortError")
@@ -347,7 +358,7 @@ async function decodeWavBlob(
     info = parseWavHeader(arrayBuffer)
   } catch (err) {
     console.warn("[chunkedDecode] manual WAV parse failed, using browser decoder:", err)
-    return decodeFull(blob, forcedRate, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, onPartialBuffer, signal)
   }
 
   // Downsample only when the file is long enough that a full-rate buffer would
@@ -373,10 +384,11 @@ async function decodeWavBlob(
     readWavSamples(arrayBuffer, info, targets, decimation)
   } catch (err) {
     console.warn("[chunkedDecode] manual WAV sample read failed, using browser decoder:", err)
-    return decodeFull(blob, forcedRate, onProgress, signal)
+    return decodeFull(blob, forcedRate, onProgress, onPartialBuffer, signal)
   }
 
   onProgress?.(1)
+  onPartialBuffer?.(buffer, buffer.length)
   console.log(`[chunkedDecode] WAV decoded: ${buffer.duration.toFixed(1)}s`)
   return buffer
 }
@@ -391,6 +403,7 @@ async function decodeInChunks(
   numChunks: number,
   forcedRate: number | null,
   onProgress?: (p: number) => void,
+  onPartialBuffer?: (buffer: AudioBuffer, validSamples: number) => void,
   signal?: AbortSignal,
 ): Promise<AudioBuffer> {
   onProgress?.(0)
@@ -418,6 +431,7 @@ async function decodeInChunks(
   // Step 3: Copy probe data into output
   let samplesWritten = copyBufferData(probeBuffer, outputBuffer, 0)
   onProgress?.(0.05)
+  onPartialBuffer?.(outputBuffer, samplesWritten)
 
   // Step 4: Decode remaining chunks
   const bytesPerSecond = blob.size / totalDuration
@@ -512,6 +526,7 @@ async function decodeInChunks(
     byteOffset += chunkBytes
     chunkIndex++
     onProgress?.(progressFrac)
+    onPartialBuffer?.(outputBuffer, samplesWritten)
   }
 
   return outputBuffer

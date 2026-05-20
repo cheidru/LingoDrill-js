@@ -15,27 +15,38 @@
  * @param validSamples - how many samples in channelData are actually filled
  *                       (rest may be zeros from pre-allocation)
  * @param outputSamples - number of waveform points to generate
+ * @param totalSamples - total expected sample count of the finished file.
+ *                       When given, each waveform point maps to a fixed slot
+ *                       on the *full* timeline, so a partially-decoded buffer
+ *                       fills the waveform left-to-right (points past
+ *                       validSamples stay 0). When omitted, points span only
+ *                       the valid data.
  * @returns normalized waveform values 0..1
  */
 export function buildWaveformFromRaw(
   channelData: Float32Array,
   validSamples: number,
   outputSamples = 1000,
+  totalSamples?: number,
 ): number[] {
   if (validSamples <= 0 || outputSamples <= 0) {
     return new Array(outputSamples).fill(0)
   }
 
-  const blockSize = Math.floor(validSamples / outputSamples)
+  // Map blocks to the full timeline when totalSamples is known, otherwise to
+  // just the valid data.
+  const span = totalSamples && totalSamples > 0 ? totalSamples : validSamples
+  const blockSize = Math.floor(span / outputSamples)
   if (blockSize === 0) {
     return new Array(outputSamples).fill(0)
   }
 
-  const waveform: number[] = new Array(outputSamples)
+  const waveform: number[] = new Array(outputSamples).fill(0)
   let max = 0
 
   for (let i = 0; i < outputSamples; i++) {
     const start = i * blockSize
+    if (start >= validSamples) break // remaining points stay 0 (not decoded yet)
     const end = Math.min(start + blockSize, validSamples)
 
     let sum = 0

@@ -28,7 +28,7 @@ import { ExportBundleButton } from "../app/components/ExportBundleButton"
 import { MobileInstructionModal } from "../app/components/MobileInstructionModal"
 import { HeavyOperationErrorBoundary } from "../app/components/HeavyOperationErrorBoundary"
 import type { WaveformFragment } from "../app/components/Waveform"
-import { buildWaveform } from "../utils/buildWaveform"
+import { streamWaveform } from "../utils/streamWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
 import { trimSilence } from "../utils/trimSilence"
 import { normalizeFragments } from "../utils/normalizeFragments"
@@ -61,10 +61,9 @@ function FragmentEditorPageInner() {
 
   const {
     getBlob, addFile, files,
-    loadById, ensureFragmentsDecoded, playFragment, pause, play, stop, seekTo,
-    isReady, isFragmentsReady, isPlaying, isPaused, duration, currentTime,
-    volume, setVolume, getAudioBuffer,
-    decodeError,
+    loadById, playFragment, pause, play, stop, seekTo,
+    isReady, isPlaying, isPaused, duration, currentTime,
+    volume, setVolume,
   } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
@@ -74,21 +73,16 @@ function FragmentEditorPageInner() {
   // --- Heavy operation error handling ---
   const { heavyError, showMobileHelp, wrapHeavyOp, clearError, closeHelp } = useHeavyOperation()
 
-  // Decode error from background chunked decode (in useAudioEngine)
+  // Error from building the waveform (streaming decode).
+  const [waveformError, setWaveformError] = useState<Error | null>(null)
   const [dismissDecodeHelp, setDismissDecodeHelp] = useState(false)
-  const showDecodeHelp = !!decodeError && !dismissDecodeHelp
+  const showDecodeHelp = !!waveformError && !dismissDecodeHelp
 
   const [waveformData, setWaveformData] = useState<number[]>([])
   const [waveformLoading, setWaveformLoading] = useState(true)
   const [playingFragment, setPlayingFragment] =
     useState<{ start: number; end: number } | null>(null)
 
-  // Id of the fragment whose audio is currently being decoded on demand
-  // (lazy decode triggered by pressing its play button the first time).
-  const [decodingFragmentId, setDecodingFragmentId] = useState<string | null>(null)
-  // Monotonic id of the latest play request — lets a slow decode bail out
-  // if the user has since asked to play a different fragment.
-  const playRequestRef = useRef(0)
 
   const [fragments, setFragments] = useState<SequenceFragment[]>([])
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
@@ -127,11 +121,16 @@ function FragmentEditorPageInner() {
     loadById(audioId)
   }, [audioId, loadById])
 
-  // Build waveform: from cache, or from AudioBuffer when ready
-  // ОБЁРНУТО в wrapHeavyOp для перехвата ошибок на мобильных
+  // Build the waveform:
+  //  1. a cached 4000-point envelope → use directly;
+  //  2. otherwise stream-decode the file in frame-aligned chunks, folding RMS
+  //     into the 4000-point envelope and rendering it progressively (fills in
+  //     left-to-right), then store the finished envelope for future loads.
+  // Streaming keeps memory constant, so multi-hour files no longer fail.
   useEffect(() => {
     if (!audioId) return
     let cancelled = false
+    const abort = new AbortController()
 
     const load = async () => {
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
@@ -144,44 +143,34 @@ function FragmentEditorPageInner() {
         return
       }
 
-      // No cached waveform — building one needs the decoded audio buffer,
-      // so trigger the (otherwise lazy) decode here.
+      const blob = await getBlob(audioId)
+      if (!blob || cancelled) return
+      setWaveformError(null)
+
       try {
-        await ensureFragmentsDecoded()
-      } catch {
-        return // decode failed — decodeError banner is shown separately
-      }
-      if (cancelled) return
-
-      const audioBuffer = getAudioBuffer(audioId)
-      if (!audioBuffer || cancelled) return
-
-      // Waveform build обёрнут в wrapHeavyOp
-      const coarseResult = await wrapHeavyOp("Building waveform", async () => {
-        return buildWaveform(audioBuffer, 100)
-      })
-
-      if (coarseResult && !cancelled) {
-        setWaveformData(coarseResult)
-        setWaveformLoading(false)
-      }
-
-      // Detailed waveform in background
-      setTimeout(async () => {
-        if (cancelled) return
-        const detailedResult = await wrapHeavyOp("Building detailed waveform", async () => {
-          return buildWaveform(audioBuffer, 1000)
+        const envelope = await streamWaveform(blob, 4000, {
+          signal: abort.signal,
+          onProgress: (partial) => {
+            if (cancelled) return
+            setWaveformData(partial)
+            setWaveformLoading(false)
+          },
         })
-        if (detailedResult && !cancelled) {
-          setWaveformData(detailedResult)
-          cache.save(audioId, detailedResult)
-        }
-      }, 0)
+        if (cancelled) return
+        setWaveformData(envelope)
+        setWaveformLoading(false)
+        cache.save(audioId, envelope)
+      } catch (err) {
+        if (cancelled) return
+        if (err instanceof DOMException && err.name === "AbortError") return
+        console.error("Waveform build failed:", err)
+        setWaveformError(err instanceof Error ? err : new Error(String(err)))
+      }
     }
     load()
 
-    return () => { cancelled = true }
-  }, [audioId, getAudioBuffer, getBlob, wrapHeavyOp, ensureFragmentsDecoded])
+    return () => { cancelled = true; abort.abort() }
+  }, [audioId, getBlob])
 
   // Load sequence fragments
   useEffect(() => {
@@ -475,7 +464,7 @@ function FragmentEditorPageInner() {
 
       // --- Build and cache waveform for the trimmed file ---
       const { buildWaveformFromRaw } = await import("../utils/buildWaveformProgressive")
-      const trimmedWaveform = buildWaveformFromRaw(channelData, channelData.length, 1000)
+      const trimmedWaveform = buildWaveformFromRaw(channelData, channelData.length, 4000)
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const waveformCache = new WaveformCacheStorage()
       await waveformCache.save(newAudioId, trimmedWaveform)
@@ -587,10 +576,11 @@ function FragmentEditorPageInner() {
     setNormalizeMode(false)
 
     const result = await wrapHeavyOp("Normalize volume", async () => {
-      const audioBuffer = getAudioBuffer(audioId)
-      if (!audioBuffer) {
-        throw new Error("Audio buffer not available. Wait for decoding to complete.")
+      const srcBlob = await getBlob(audioId)
+      if (!srcBlob) {
+        throw new Error("Audio file not found.")
       }
+      const audioBuffer = await safeDecodeAudioBuffer(srcBlob)
 
       const selectedFragments = fragments.filter(f => !normalizeExcluded.has(f.id))
       if (selectedFragments.length === 0) {
@@ -609,7 +599,7 @@ function FragmentEditorPageInner() {
 
       // Build and cache waveform
       const { buildWaveformFromRaw } = await import("../utils/buildWaveformProgressive")
-      const waveform = buildWaveformFromRaw(channelData, channelData.length, 1000)
+      const waveform = buildWaveformFromRaw(channelData, channelData.length, 4000)
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const waveformCache = new WaveformCacheStorage()
       await waveformCache.save(newAudioId, waveform)
@@ -670,7 +660,7 @@ function FragmentEditorPageInner() {
     }
 
     setNormalizing(false)
-  }, [audioId, normalizing, vadDetecting, trimming, getAudioBuffer, fragments, normalizeExcluded, files, addFile, subtitleFiles, wrapHeavyOp])
+  }, [audioId, normalizing, vadDetecting, trimming, getBlob, fragments, normalizeExcluded, files, addFile, subtitleFiles, wrapHeavyOp])
 
   // --- File playback ---
     // --- File playback ---
@@ -785,34 +775,15 @@ function FragmentEditorPageInner() {
   }, [capturePositions, fragments, playingFragment, stop])
 
   // --- Fragment playback ---
-  // Fragment audio is decoded lazily: the first time any fragment is played we
-  // decode the whole file, showing a spinner on that fragment's play button.
-  const handlePlayFragment = useCallback(async (f: SequenceFragment) => {
-    const reqId = ++playRequestRef.current
+  // Fragments play straight from the streamed file via start/end time bounds —
+  // no decode, so playback starts immediately.
+  const handlePlayFragment = useCallback((f: SequenceFragment) => {
     stop()
     setIsFilePlayback(false)
     const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat, speed: f.speed }
     setPlayingFragment({ start: f.start, end: f.end })
-
-    if (!isFragmentsReady) {
-      setDecodingFragmentId(f.id)
-      try {
-        await ensureFragmentsDecoded()
-      } catch {
-        // Decode failed — the decodeError banner is rendered separately.
-        if (playRequestRef.current === reqId) {
-          setDecodingFragmentId(null)
-          setPlayingFragment(null)
-        }
-        return
-      }
-      // User pressed play on a different fragment while decoding — abandon this.
-      if (playRequestRef.current !== reqId) return
-      setDecodingFragmentId(null)
-    }
-
     playFragment(pf)
-  }, [stop, playFragment, ensureFragmentsDecoded, isFragmentsReady])
+  }, [stop, playFragment])
 
   const handlePauseFragment = useCallback(() => {
     pause()
@@ -1107,7 +1078,7 @@ function FragmentEditorPageInner() {
       {isReady && (
         <>
           {/* Waveform */}
-          {decodeError ? (
+          {waveformError ? (
             <div style={{
               padding: "16px",
               backgroundColor: "#fff3e0",
@@ -1119,7 +1090,7 @@ function FragmentEditorPageInner() {
                 ⚠ Audio decoding failed
               </p>
               <p style={{ fontSize: "0.85rem", color: "#666", margin: "0 0 12px" }}>
-                {decodeError.message}
+                {waveformError.message}
               </p>
               <p style={{ fontSize: "0.85rem", color: "#555", margin: "0 0 12px" }}>
                 This file is too large to decode on this device.
@@ -1179,20 +1150,6 @@ function FragmentEditorPageInner() {
               <span className="file-player__time">{formatTime(currentTime)} / {formatTime(duration)}</span>
             )}
           </div>
-
-          {decodeError && !isFragmentsReady && (
-            <div style={{
-              marginTop: 8, marginBottom: 8,
-              padding: "8px 12px",
-              fontSize: "0.85rem",
-              color: "#c62828",
-              backgroundColor: "#ffebee",
-              border: "1px solid #ef9a9a",
-              borderRadius: 4,
-            }}>
-              ⚠ Fragment decoding failed: {decodeError.message}
-            </div>
-          )}
 
           {/* Heavy operation error banner */}
           {heavyError && (
@@ -1360,17 +1317,14 @@ function FragmentEditorPageInner() {
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
                     <div className="fragment-row__actions">
-                      <button className="btn-sub" disabled={decodingFragmentId === f.id} onClick={e => {
+                      <button className="btn-sub" onClick={e => {
                         e.stopPropagation()
-                        if (decodingFragmentId === f.id) return
                         if (!isEditing) startEditingWithAnim(f.id)
                         if (isThisFragPlaying) { handlePauseFragment() }
                         else if (isThisFragPaused) { handleResumeFragment() }
-                        else { void handlePlayFragment(f) }
+                        else { handlePlayFragment(f) }
                       }}>
-                        {decodingFragmentId === f.id
-                          ? <span className="spinner spinner--btn" />
-                          : isThisFragPlaying ? "⏸" : "▶"}
+                        {isThisFragPlaying ? "⏸" : "▶"}
                       </button>
                       {isEditing && (
                         <>
@@ -1663,11 +1617,11 @@ function FragmentEditorPageInner() {
         />
       )}
 
-      {/* Mobile instruction modal (triggered by background decode error) */}
-      {showDecodeHelp && decodeError && (
+      {/* Mobile instruction modal (triggered by waveform build error) */}
+      {showDecodeHelp && waveformError && (
         <MobileInstructionModal
           operationName="Audio decoding"
-          errorMessage={decodeError.message}
+          errorMessage={waveformError.message}
           onClose={() => setDismissDecodeHelp(true)}
         />
       )}

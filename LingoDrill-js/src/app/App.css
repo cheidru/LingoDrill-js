@@ -221,8 +221,6 @@ html.mobile .header__overlay {
 /* === Spinners === */
 .spinner { border: 3px solid var(--color-border); border-radius: 50%; animation: spin 0.8s linear infinite; }
 .spinner--wf { width: 24px; height: 24px; border-top-color: var(--color-primary); }
-.spinner--decode { width: 14px; height: 14px; border-width: 2px; border-top-color: var(--color-warning); }
-.spinner--btn { width: 12px; height: 12px; border-width: 2px; border-color: rgba(0, 0, 0, 0.15); border-top-color: currentColor; display: inline-block; vertical-align: middle; }
 .spinner--vad { width: 20px; height: 20px; }
 .spinner--vad-detect { border-top-color: var(--color-success); }
 .spinner--vad-trim { border-top-color: var(--color-warning); }
@@ -1182,9 +1180,6 @@ html.mobile .vad-indicator {
 /* --- Spinners pick up theme colors --- */
 .spinner--wf {
   border-top-color: var(--color-primary);
-}
-.spinner--decode {
-  border-top-color: var(--color-accent);
 }
 
 /* --- Equaliser loader --- */

@@ -59,7 +59,10 @@
       "Bash(grep -oE \"\\\\[WARNING\\\\].*?\\(@|$\\)\" console-v1.log)",
       "Bash(git config *)",
       "Bash(git rm *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(xargs grep -l \"SequencePlayer\")",
+      "Bash(xargs grep -l \"mediaSession\\\\|navigator.mediaSession\")",
+      "Bash(Remove-Item *)"
     ],
     "deny": [
       "Bash(rm:*)",
