@@ -2,7 +2,7 @@
 
 import { openDB } from "idb"
 
-export const dbPromise = openDB("language-trainer", 5, {
+export const dbPromise = openDB("language-trainer", 6, {
   upgrade(db, oldVersion) {
     if (oldVersion < 1) {
       db.createObjectStore("audioMeta", { keyPath: "id" })
@@ -25,6 +25,11 @@ export const dbPromise = openDB("language-trainer", 5, {
     if (oldVersion < 5) {
       if (!db.objectStoreNames.contains("vocabularyFiles")) {
         db.createObjectStore("vocabularyFiles", { keyPath: "id" })
+      }
+    }
+    if (oldVersion < 6) {
+      if (!db.objectStoreNames.contains("renderedSequenceCache")) {
+        db.createObjectStore("renderedSequenceCache")
       }
     }
   },

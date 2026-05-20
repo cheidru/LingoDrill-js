@@ -786,3 +786,49 @@ html.mobile .sp-subtitle-display {
   font-family: var(--font-mono);
   text-shadow: 0 0 12px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
+
+/* --- Background-listening mode (mobile-only) --- */
+.sp-bg-btn {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.sp-bg-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-primary-light);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-bg);
+  flex-wrap: wrap;
+}
+.sp-bg-render {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+}
+.sp-bg-render__label {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+.sp-bg-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: sp-bg-spin 0.9s linear infinite;
+}
+@keyframes sp-bg-spin {
+  to { transform: rotate(360deg); }
+}
+.sp-bg-error {
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--color-danger);
+  padding-top: 4px;
+}

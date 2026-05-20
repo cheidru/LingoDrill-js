@@ -14,10 +14,17 @@ import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useVocabularies } from "../app/hooks/useVocabularies"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
+import { useBackgroundPlayback } from "../app/hooks/useBackgroundPlayback"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
 import { setLastSequence, getFragmentGap } from "../utils/settings"
+
+const HeadphonesIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h3v-8H5v-1a7 7 0 1 1 14 0v1h-3v8h3a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/>
+  </svg>
+)
 
 // --- Utility ---
 function formatTime(sec: number): string {
@@ -393,7 +400,19 @@ function SequencePlayerPageInner() {
     loadById, playFragment, pause, play, stop,
     isPlaying, isPaused, setOnEnded,
     volume, setVolume,
+    getBlob,
   } = useSharedAudioEngine()
+
+  const fileNameById = useCallback(
+    (id: string) => files.find(f => f.id === id)?.name,
+    [files],
+  )
+  const bg = useBackgroundPlayback(getBlob, fileNameById)
+
+  // Background mode is mobile-only. Desktop never sees the entry button or the
+  // background-mode bar — the live engine is fine on a foregrounded desktop tab.
+  const isMobile = typeof document !== "undefined"
+    && document.documentElement.classList.contains("mobile")
 
   const { sequences, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles } = useSubtitles(audioId ?? null)
@@ -719,6 +738,16 @@ function SequencePlayerPageInner() {
     })
   }, [])
 
+  // --- Background-listening (mobile only) ---
+  // Click handler must invoke bg.start() synchronously (no await before the
+  // call) so the iOS gesture-activation audio.play() inside it lands on the
+  // user-gesture call stack.
+  const handleEnterBackground = useCallback(() => {
+    if (!sequence) return
+    handleStopAll()
+    void bg.start(sequence, disabledFragments)
+  }, [sequence, disabledFragments, handleStopAll, bg])
+
   const handleEditFragment = useCallback((fragIdx: number) => {
     if (!sequence) return
     const frag = sequence.fragments[fragIdx]
@@ -773,7 +802,7 @@ function SequencePlayerPageInner() {
         <button className="sp-playall-btn" onClick={() => navigate(-1)}>
           <span>← Back</span>
         </button>
-        {isPlayAllActive ? (
+        {bg.isActive ? null : isPlayAllActive ? (
           <>
             {isPlaying ? (
               <button className="sp-playall-btn sp-playall-btn--playing" onClick={() => pause()}>
@@ -802,28 +831,107 @@ function SequencePlayerPageInner() {
             <span>Play all</span>
           </button>
         )}
-        <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
-          <span className="sp-global-speed__icon"><SpeedIcon /></span>
-          <input
-            type="range"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={sequenceSpeed}
-            onChange={e => handleSequenceSpeedChange(parseFloat(e.target.value))}
-            className="sp-global-speed__input"
-          />
-          <span className="sp-global-speed__value">{sequenceSpeed.toFixed(2)}×</span>
-        </label>
+        {/* Mobile-only entry into background-listening mode. */}
+        {isMobile && !bg.isActive && (
+          <button
+            className="sp-playall-btn sp-bg-btn"
+            onClick={handleEnterBackground}
+            disabled={sequence.fragments.length === 0}
+            title="Play with screen off (renders the sequence once, then loops)"
+          >
+            <HeadphonesIcon />
+            <span>Background</span>
+          </button>
+        )}
+        {!bg.isActive && (
+          <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
+            <span className="sp-global-speed__icon"><SpeedIcon /></span>
+            <input
+              type="range"
+              min={0.5}
+              max={1.5}
+              step={0.05}
+              value={sequenceSpeed}
+              onChange={e => handleSequenceSpeedChange(parseFloat(e.target.value))}
+              className="sp-global-speed__input"
+            />
+            <span className="sp-global-speed__value">{sequenceSpeed.toFixed(2)}×</span>
+          </label>
+        )}
         <VolumeControl volume={volume} onVolumeChange={setVolume} />
       </div>
+
+      {/* Background-mode bar. Mobile-only — bg.isActive can only become true
+          through the mobile-only entry button. */}
+      {isMobile && bg.isActive && (
+        <div className="sp-bg-bar">
+          {bg.isRendering ? (
+            <div className="sp-bg-render">
+              <div className="sp-bg-spinner" aria-hidden="true" />
+              <span className="sp-bg-render__label">
+                Rendering… {Math.round(bg.renderProgress * 100)}%
+              </span>
+              <button className="sp-playall-btn sp-playall-btn--stop" onClick={bg.exit}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                className="sp-playall-btn"
+                onClick={bg.prev}
+                title="Previous fragment"
+              >
+                <PrevIcon />
+              </button>
+              {bg.isPlaying ? (
+                <button
+                  className="sp-playall-btn sp-playall-btn--playing"
+                  onClick={bg.pause}
+                  title="Pause"
+                >
+                  <PauseIcon />
+                  <span>Pause</span>
+                </button>
+              ) : (
+                <button
+                  className="sp-playall-btn sp-playall-btn--playing"
+                  onClick={bg.play}
+                  title="Play"
+                >
+                  <PlayIcon />
+                  <span>Play</span>
+                </button>
+              )}
+              <button
+                className="sp-playall-btn"
+                onClick={bg.next}
+                title="Next fragment"
+              >
+                <NextIcon />
+              </button>
+              <button
+                className="sp-playall-btn sp-playall-btn--stop"
+                onClick={bg.exit}
+                title="Exit background mode"
+              >
+                <StopIcon />
+                <span>Exit</span>
+              </button>
+            </>
+          )}
+          {bg.error && <div className="sp-bg-error">{bg.error}</div>}
+        </div>
+      )}
 
       {/* Fragment list */}
       <div className="sp-fragment-list">
         {displayOrder.map(idx => {
           const frag = sequence.fragments[idx]
           const isSelected = selectedFragIdx === idx
-          const isCurrentlyPlaying = playingFragIdx === idx
+          const isCurrentlyPlaying = bg.isActive
+            ? bg.currentFragmentIndex === idx
+            : playingFragIdx === idx
           const repeat = localRepeats[idx] ?? frag.repeat
           const isFragDisabled = !!disabledFragments[idx]
 

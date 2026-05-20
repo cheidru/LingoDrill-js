@@ -1,10 +1,7 @@
 // infrastructure/audio/htmlAudioEngine.ts
 
 import type { PlayableFragment } from "../../core/audio/audioEngine"
-
-/** Пауза в секундах между повторами фрагмента (при repeat > 1) */
-// TODO: в дальнейшем сделать настраиваемой через UI настроек
-const FRAGMENT_TRAILING_PAUSE = 1
+import { FRAGMENT_TRAILING_PAUSE } from "../../core/audio/constants"
 
 /**
  * Движок воспроизведения на основе HTMLAudioElement.
