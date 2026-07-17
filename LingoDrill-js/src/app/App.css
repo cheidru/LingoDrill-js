@@ -587,12 +587,13 @@ html.mobile .onboarding__emoji { font-size: 2.4rem; }
 }
 .seq-label { flex: 1; min-width: 60px; font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
 .seq-label-input {
+  flex: 1;
+  min-width: 60px;
+  box-sizing: border-box;
   font-size: 0.9rem; font-weight: 600;
-  border: 2px solid var(--color-primary);
+  border: none;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  width: 100%;
-  max-width: 200px;
+  border-radius: 4px;
   outline: none;
 }
 .seq-subtitle {
@@ -886,53 +887,66 @@ html.mobile .vad-indicator {
    intact — only the form changes.
    =========================================================== */
 
-/* --- Header: thinner bar, mono nav links, primary underline on active --- */
+/* --- Header (Blend): transparent bar, humane headline logo, pill nav tabs.
+   Background is transparent per the direction; the existing backdrop blur is
+   kept so the sticky bar stays legible over scrolling content. --- */
 .header {
-  min-height: 48px;
-  background: var(--color-bg);
+  min-height: 58px;
+  background: transparent;
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
   box-shadow: none;
   padding: 0 24px;
 }
+.header__logo {
+  font-family: var(--font-headline);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+.header__nav {
+  gap: 4px;
+}
 .header__nav-btn {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-family: var(--font-headline);
+  font-size: 13px;
+  font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
   color: var(--color-text-muted);
-  padding: 6px 12px;
-  border-radius: 0;
+  padding: 7px 14px;
+  border-radius: var(--radius-nav);
   background: transparent;
-  border-bottom: 2px solid transparent;
+  border-bottom: none;
 }
 .header__nav-btn:hover {
-  background: transparent;
-  color: var(--color-primary-light);
-  border-bottom-color: transparent;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 .header__nav-btn--active {
+  background: var(--color-primary-bg);
   color: var(--color-primary);
-  background: transparent;
-  border-bottom-color: var(--color-primary);
 }
 
 .header__burger {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-icon);
 }
-.header__nav {
-  background: var(--color-bg);
-}
+/* No background here: Blend's header is transparent, and a solid nav strip
+   would show through it as a block behind the tabs. The mobile drawer sets
+   its own opaque background (see the html.mobile rules above), since there
+   it drops over page content. */
 .header__submenu {
   background: var(--color-bg-subtle);
 }
 
-/* --- Audio library list items — sharp, hairline, no shadow --- */
+/* --- Audio library list items — rounded, hairline, glowing accent when
+   selected (Blend applies the accent stripe to file rows too) --- */
 .audio-list__item {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-box);
+  padding: 11px 14px;
   box-shadow: none;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
@@ -944,8 +958,8 @@ html.mobile .vad-indicator {
 .audio-list__item--selected {
   background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-card));
   border-color: var(--color-primary);
-  border-left: 3px solid var(--color-primary);
-  box-shadow: none;
+  border-left: 4px solid var(--color-primary);
+  box-shadow: var(--glow-primary);
 }
 .audio-list__item span {
   font-family: var(--font-mono);
@@ -967,7 +981,7 @@ html.mobile .vad-indicator {
   letter-spacing: 0.08em;
   font-weight: 700;
   font-size: 0.75rem;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
   padding: 8px 16px;
   box-shadow: var(--glow-primary);
 }
@@ -987,7 +1001,7 @@ html.mobile .vad-indicator {
   letter-spacing: 0.08em;
   font-weight: 700;
   font-size: 0.7rem;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
 }
 .btn-danger:hover,
 .btn-delete:hover {
@@ -1000,7 +1014,7 @@ html.mobile .vad-indicator {
 .action-bar__btn {
   font-size: 0.7rem;
   letter-spacing: 0.1em;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
 }
 .action-bar__btn--danger {
   color: var(--color-danger);
@@ -1011,9 +1025,10 @@ html.mobile .vad-indicator {
   color: var(--color-bg-page);
 }
 
-/* --- Fragment row (Editor) — sharp, hairline, accent stripe when editing --- */
+/* --- Fragment row (Editor) — rounded, hairline, glowing accent stripe
+   on the row being edited --- */
 .fragment-row {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-box);
   border-color: var(--color-border);
   background: var(--color-bg-card);
 }
@@ -1023,7 +1038,7 @@ html.mobile .vad-indicator {
 }
 .fragment-row--editing {
   border-color: var(--color-primary);
-  border-left: 3px solid var(--color-primary);
+  border-left: 4px solid var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-card));
   box-shadow: var(--glow-primary);
 }
@@ -1043,18 +1058,19 @@ html.mobile .vad-indicator {
 .subtitle-display {
   border-color: var(--color-border);
   background: var(--color-bg-subtle);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  border-radius: 0 0 var(--radius-box) var(--radius-box);
 }
 
 /* --- Sequence cards (FragmentLibrary) --- */
 .seq-card {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-box);
   box-shadow: none;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.seq-card:hover {
+.seq-card:hover,
+.seq-card--editing {
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-card));
   box-shadow: none;
@@ -1071,7 +1087,7 @@ html.mobile .vad-indicator {
   border: 1px solid transparent;
   color: var(--color-text-muted);
   padding: 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-icon);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1154,7 +1170,7 @@ html.mobile .vad-indicator {
 /* --- Waveform canvas --- */
 .waveform-canvas {
   border-color: var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-box);
   background: var(--color-bg-page);
 }
 .waveform-zoom__btn {
@@ -1162,6 +1178,7 @@ html.mobile .vad-indicator {
   width: 28px;
   height: 28px;
   padding: 0;
+  border-radius: var(--radius-icon);
 }
 
 /* --- Volume control --- */

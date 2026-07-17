@@ -204,9 +204,9 @@ html[data-color-theme="neon"][data-theme="dark"] h3 {
   font-family: var(--font-body);
   letter-spacing: -0.025em;
 }
+/* Logo keeps the theme's primary colour, but Blend drops the uppercase
+   mono treatment in favour of the humane headline face (see App.css). */
 html[data-color-theme="neon"][data-theme="dark"] .header__logo {
-  text-transform: uppercase;
-  letter-spacing: -0.04em;
   color: var(--color-primary);
 }
 
@@ -222,6 +222,15 @@ html[data-color-theme="neon"][data-theme="dark"] .header__logo {
   --radius-md: 4px;
   --radius-lg: 8px;
   --radius-pill: 4px;
+
+  /* Blend radii — rounder than the Studio Dark base, borrowed from the
+     "Console" direction. Kept as separate tokens (rather than bumping the
+     sharp scale above) so chips, badges and inputs stay crisp while
+     buttons, icon buttons and boxes round off. */
+  --radius-btn: 8px;
+  --radius-icon: 7px;
+  --radius-box: 10px;
+  --radius-nav: 999px;
 }
 
 /* Global headings: uppercase, font-black, tracking-tight */
@@ -242,9 +251,9 @@ h3 {
   font-size: 0.85rem;
 }
 
-/* Global buttons: ghost-by-default, sharp, uppercase, mono accent */
+/* Global buttons: ghost-by-default, rounded, uppercase, mono accent */
 button {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text-secondary);
@@ -316,7 +325,7 @@ h3 { font-size: 1.1rem; font-weight: 600; color: var(--color-text); }
 
 /* === Global button === */
 button {
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   border: 1px solid var(--color-border);
   padding: 10px 22px;
   font-size: 0.95rem;

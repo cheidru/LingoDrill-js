@@ -216,7 +216,7 @@ function FragmentLibraryPageInner() {
 
       {sequences.map(seq => {
         return (
-          <div key={seq.id} className="seq-card">
+          <div key={seq.id} className={`seq-card${editingLabelId === seq.id ? " seq-card--editing" : ""}`}>
             <div className="seq-bar-wrap">
               {/* Label */}
               {editingLabelId === seq.id ? (

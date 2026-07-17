@@ -1,0 +1,42 @@
+- generic [ref=f9e2]:
+  - banner [ref=f9e3]:
+    - generic [ref=f9e4]: LingoDrill
+    - navigation [ref=f9e5]:
+      - button "Audio Library" [ref=f9e6] [cursor=pointer]
+      - button "Fragment Library" [ref=f9e7] [cursor=pointer]
+      - button "Favourites" [ref=f9e8] [cursor=pointer]
+      - button "Settings" [ref=f9e9] [cursor=pointer]
+      - button "About" [ref=f9e10] [cursor=pointer]
+  - generic [ref=f9e11]:
+    - heading "Sequence Player" [level=2] [ref=f9e12]
+    - paragraph [ref=f9e13]:
+      - strong [ref=f9e14]: "#1"
+      - text: ·sample.wav·5 fragments
+    - generic [ref=f9e15]:
+      - button "← Back" [ref=f9e16] [cursor=pointer]
+      - button "Play all" [ref=f9e18] [cursor=pointer]
+      - generic "Global playback speed (multiplied with each fragment's saved speed)" [ref=f9e22]:
+        - slider "1.00×" [ref=f9e27] [cursor=pointer]: "1"
+        - generic [ref=f9e28]: 1.00×
+      - slider [ref=f9e34]: "0.8"
+    - generic [ref=f9e35]:
+      - generic [ref=f9e37] [cursor=pointer]:
+        - generic [ref=f9e38]: "1"
+        - generic [ref=f9e39]: 0:00.1 – 0:00.9
+        - generic [ref=f9e40]: 0.8s
+      - generic [ref=f9e42] [cursor=pointer]:
+        - generic [ref=f9e43]: "2"
+        - generic [ref=f9e44]: 0:01.3 – 0:02.3
+        - generic [ref=f9e45]: 1.0s
+      - generic [ref=f9e47] [cursor=pointer]:
+        - generic [ref=f9e48]: "3"
+        - generic [ref=f9e49]: 0:02.6 – 0:03.6
+        - generic [ref=f9e50]: 1.0s
+      - generic [ref=f9e52] [cursor=pointer]:
+        - generic [ref=f9e53]: "4"
+        - generic [ref=f9e54]: 0:04.0 – 0:04.9
+        - generic [ref=f9e55]: 1.0s
+      - generic [ref=f9e57] [cursor=pointer]:
+        - generic [ref=f9e58]: "5"
+        - generic [ref=f9e59]: 0:05.2 – 0:05.9
+        - generic [ref=f9e60]: 0.7s
