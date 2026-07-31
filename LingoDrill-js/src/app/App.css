@@ -314,11 +314,19 @@ html.mobile .header__overlay {
   align-items: center;
   gap: 12px;
 }
+/* A range input keeps its intrinsic width as its automatic minimum size, so
+   without this it refuses to shrink and pushes the value label out of the row. */
+.settings-row__control--inline input[type="range"] {
+  flex: 1 1 0;
+  min-width: 0;
+}
 .settings-row__value {
+  flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
   min-width: 48px;
   text-align: right;
+  white-space: nowrap;
 }
 .settings-preview {
   margin-top: 24px;
@@ -821,6 +829,20 @@ html.mobile .modal-box--wide {
 }
 html.mobile .modal-actions {
   gap: 10px;
+}
+
+/* --- Settings rows — narrower label column so the slider + value fit --- */
+html.mobile .settings-row {
+  gap: 12px;
+}
+html.mobile .settings-row__label {
+  flex: 0 0 120px;
+}
+html.mobile .settings-row__control--inline {
+  gap: 10px;
+}
+html.mobile .settings-row__value {
+  min-width: 44px;
 }
 html.mobile .subtitle-content {
   font-size: 1rem;
