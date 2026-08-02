@@ -8,22 +8,7 @@ import { useNavigate } from "react-router-dom"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { IndexedDBSequenceStorage } from "../infrastructure/indexeddb/IndexedDBSequenceStorage"
 import type { Sequence } from "../core/domain/types"
-
-// --- Icons ---
-const PlayIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-)
-const EditIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-  </svg>
-)
-const FavouriteIcon = ({ filled }: { filled: boolean }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "#1a56db" : "none"} stroke={filled ? "#1a56db" : "currentColor"} strokeWidth="2">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-  </svg>
-)
+import { PlayIcon, EditIcon, FavouriteIcon } from "../app/components/SequenceIcons"
 
 export function FavouritesPage() {
   const navigate = useNavigate()

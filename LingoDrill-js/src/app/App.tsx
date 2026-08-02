@@ -13,6 +13,7 @@ import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColor
 import "./App.css"
 import "./bundle.css"
 import "./sequencePlayer.css"
+import "./onboarding.css"
 
 applySubFontSize()
 applyTheme()

@@ -1,9 +1,9 @@
 // app/components/Header.tsx
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useSharedAudioEngine } from "../hooks/useSharedAudioEngine"
-import { OnboardingModal } from "./OnboardingModal"
+import { OnboardingScreen } from "./OnboardingScreen"
 import {
   hasSeenOnboarding,
   setOnboardingSeen,
@@ -35,7 +35,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
-  const [aboutOpen, setAboutOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(() => !hasSeenOnboarding())
   const [startPage, setStartPageState] = useState<StartPage>(getStartPage())
   const [subFontSize, setSubFontSizeState] = useState<number>(getSubFontSize())
   const [fragmentGap, setFragmentGapState] = useState<number>(getFragmentGap())
@@ -44,10 +44,6 @@ export function Header() {
 
   const audioIdMatch = location.pathname.match(/\/file\/([^/]+)/)
   const audioId = audioIdMatch ? audioIdMatch[1] : selectedFile?.id ?? null
-
-  useEffect(() => {
-    if (!hasSeenOnboarding()) setAboutOpen(true)
-  }, [])
 
   const openAbout = () => {
     setAboutOpen(true)
@@ -283,7 +279,7 @@ export function Header() {
         </div>
       )}
 
-      {aboutOpen && <OnboardingModal onClose={closeAbout} />}
+      {aboutOpen && <OnboardingScreen onClose={closeAbout} />}
     </>
   )
 }
