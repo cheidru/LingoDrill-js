@@ -34,6 +34,7 @@ import { trimSilence } from "../utils/trimSilence"
 import { normalizeFragments } from "../utils/normalizeFragments"
 import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
+import { getFragmentGap } from "../utils/settings"
 import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, Sequence } from "../core/domain/types"
 import { nanoid } from "nanoid"
 
@@ -92,8 +93,9 @@ function FragmentEditorPageInner() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const savedBoundsRef = useRef<{ start: number; end: number } | null>(null)
 
-  // Ref to read the current visible start time from the Waveform component
+  // Refs to read the currently visible waveform window from the Waveform component
   const waveformVisibleStartRef = useRef(0)
+  const waveformVisibleEndRef = useRef(Infinity)
 
   // --- Subtitle selection modal ---
   const [subModalFragId, setSubModalFragId] = useState<string | null>(null)
@@ -667,8 +669,16 @@ function FragmentEditorPageInner() {
   const [isFilePlayback, setIsFilePlayback] = useState(false)
  
   const handleFilePlay = useCallback(() => {
+    // Start playback from the beginning of the visible waveform area
+    const visStart = waveformVisibleStartRef.current
     // If already in file playback mode and paused — just resume
     if (isFilePlayback && isPaused) {
+      /* Unless the waveform has since been scrolled away from the cursor:
+         resuming from a point off either edge plays audio the user cannot see
+         and leaves the view looking untouched, so pick up at the first sample
+         that is actually on screen instead. */
+      const offScreen = currentTime < visStart || currentTime > waveformVisibleEndRef.current
+      if (offScreen) seekTo(visStart)
       play()
       return
     }
@@ -676,14 +686,12 @@ function FragmentEditorPageInner() {
     stop()
     setIsFilePlayback(true)
     setPlayingFragment(null)
-    // Start playback from the beginning of the visible waveform area
-    const visStart = waveformVisibleStartRef.current
     if (visStart > 0.05) {
       console.log("[FragmentEditor] Starting playback from visible waveform start:", visStart.toFixed(2), "s")
       seekTo(visStart)
     }
     play()
-  }, [stop, play, seekTo, isFilePlayback, isPaused])
+  }, [stop, play, seekTo, isFilePlayback, isPaused, currentTime])
  
   const handleFilePause = useCallback(() => {
     pause()
@@ -780,7 +788,7 @@ function FragmentEditorPageInner() {
   const handlePlayFragment = useCallback((f: SequenceFragment) => {
     stop()
     setIsFilePlayback(false)
-    const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat, speed: f.speed }
+    const pf: PlayableFragment = { start: f.start, end: f.end, repeat: f.repeat, speed: f.speed, gap: getFragmentGap() }
     setPlayingFragment({ start: f.start, end: f.end })
     playFragment(pf)
   }, [stop, playFragment])
@@ -1136,6 +1144,7 @@ function FragmentEditorPageInner() {
               isFilePlaying={isFilePlayback && isPlaying}
               onSeek={handleFileSeek}
               visibleStartRef={waveformVisibleStartRef}
+              visibleEndRef={waveformVisibleEndRef}
             />
           )}
 
@@ -1328,19 +1337,6 @@ function FragmentEditorPageInner() {
                       </button>
                       {isEditing && (
                         <>
-                          <label style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: 4 }}>
-                            ×
-                            <input type="number" min={1} max={20} value={f.repeat}
-                              style={{ width: 40 }}
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => {
-                                const val = Math.max(1, Math.min(20, Number(e.target.value) || 1))
-                                const updated = { ...f, repeat: val }
-                                updateLocalFragment(updated)
-                                persistSequence(fragments.map(fr => fr.id === f.id ? updated : fr))
-                              }}
-                            />
-                          </label>
                           {/* CHANGE 3: Sub button always shown for selected (editing) fragment */}
                           <button className="btn-sub" onClick={e => {
                             e.stopPropagation()

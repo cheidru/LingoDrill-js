@@ -1,9 +1,11 @@
 // infrastructure/audio/mediaSession.ts
 //
-// Thin wrapper around navigator.mediaSession for the background-listening mode.
-// Lets the OS lock-screen / notification show what's playing and route media
-// keys (play, pause, prev/next track) back into our HTMLAudioElement even when
-// the page is backgrounded — that's the path JS timers can't reach.
+// Thin wrapper around navigator.mediaSession.
+//
+// Lets the OS lock-screen / notification show what is playing and route the
+// media keys (play, pause, prev/next track) back into the page. The handlers
+// are dispatched by the browser itself rather than by our own timers, so they
+// keep working with the screen off — which is the whole point of having them.
 //
 // Safe to call on browsers without Media Session: every method no-ops when
 // navigator.mediaSession is undefined.

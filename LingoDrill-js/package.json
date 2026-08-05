@@ -13,7 +13,6 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
-    "@breezystack/lamejs": "^1.2.7",
     "idb": "^8.0.2",
     "nanoid": "^5.1.5",
     "react": "^19.2.0",

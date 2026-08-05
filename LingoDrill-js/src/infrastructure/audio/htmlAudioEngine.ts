@@ -1,7 +1,6 @@
 // infrastructure/audio/htmlAudioEngine.ts
 
 import type { PlayableFragment } from "../../core/audio/audioEngine"
-import { FRAGMENT_TRAILING_PAUSE } from "../../core/audio/constants"
 
 /**
  * Движок воспроизведения на основе HTMLAudioElement.
@@ -9,8 +8,9 @@ import { FRAGMENT_TRAILING_PAUSE } from "../../core/audio/constants"
  * Воспроизводит и весь файл (мгновенный старт, браузер стримит сам), и
  * отдельные фрагменты — по start/end времени, БЕЗ декодирования файла в
  * AudioBuffer. Границы фрагмента отслеживаются через requestAnimationFrame
- * (~16 мс точность), повторы — через setTimeout. Скорость задаётся
- * playbackRate с preservesPitch=true (замедление звучит естественно).
+ * (~16 мс точность), повторы — через setTimeout с паузой fragment.gap между
+ * ними. Скорость задаётся playbackRate с preservesPitch=true (замедление
+ * звучит естественно).
  */
 export class HtmlAudioEngine {
   private audio: HTMLAudioElement = new Audio()
@@ -23,6 +23,7 @@ export class HtmlAudioEngine {
   private fragmentEnd: number | null = null
   private repeatsLeft = 0
   private rafId: number | null = null
+  private timeUpdateListener: (() => void) | null = null
   private pauseTimer: ReturnType<typeof setTimeout> | null = null
 
   // Монотонно растущий ID сессии воспроизведения. Инкрементируется при старте
@@ -133,28 +134,54 @@ export class HtmlAudioEngine {
     this.startBoundaryMonitor()
   }
 
-  /** Запускает rAF-цикл, отслеживающий достижение границы фрагмента. */
+  /**
+   * Следит за достижением границы фрагмента из двух источников сразу.
+   *
+   * rAF даёт точность ~16 мс, но привязан к отрисовке: при выключенном экране
+   * (или в фоновой вкладке) он не вызывается вообще, тогда как <audio>
+   * продолжает играть — без второго источника тиков фрагмент доигрывал бы файл
+   * до конца, теряя и повторы, и скорость. Событие timeupdate от отрисовки не
+   * зависит и продолжает приходить (~4 раза в секунду), поэтому граница всё
+   * равно сработает, просто менее точно.
+   *
+   * Оба источника вызывают одну и ту же проверку с общим expectedId, а
+   * handleFragmentBoundary идемпотентна — сработавший первым выигрывает,
+   * второй отсекается по playbackId.
+   */
   private startBoundaryMonitor(): void {
     this.stopBoundaryMonitor()
     const expectedId = this.playbackId
-    const tick = () => {
-      if (this.playbackId !== expectedId) return
+    /** Возвращает true, когда следить больше не нужно. */
+    const check = (): boolean => {
+      if (this.playbackId !== expectedId) return true
       if (
         this.fragmentEnd !== null &&
         this.audio.currentTime >= this.fragmentEnd
       ) {
         this.handleFragmentBoundary(expectedId)
-        return
+        return true
       }
+      return false
+    }
+
+    const tick = () => {
+      if (check()) return
       this.rafId = requestAnimationFrame(tick)
     }
     this.rafId = requestAnimationFrame(tick)
+
+    this.timeUpdateListener = () => { check() }
+    this.audio.addEventListener("timeupdate", this.timeUpdateListener)
   }
 
   private stopBoundaryMonitor(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
+    }
+    if (this.timeUpdateListener !== null) {
+      this.audio.removeEventListener("timeupdate", this.timeUpdateListener)
+      this.timeUpdateListener = null
     }
   }
 
@@ -183,7 +210,7 @@ export class HtmlAudioEngine {
         this.audio.currentTime = fragment.start
         this.audio.play()
         this.startBoundaryMonitor()
-      }, FRAGMENT_TRAILING_PAUSE * 1000)
+      }, Math.max(0, fragment.gap) * 1000)
     } else {
       this.clearFragmentState()
       this.onEndedCallback?.()

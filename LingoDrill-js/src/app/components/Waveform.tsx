@@ -36,18 +36,31 @@ type Props = {
   onSeek?: (time: number) => void
   /** Ref that the parent can read to get the current visible start time (in seconds) */
   visibleStartRef?: MutableRefObject<number>
+  /** Ref that the parent can read to get the current visible end time (in seconds) */
+  visibleEndRef?: MutableRefObject<number>
 }
 
 const HANDLE_RADIUS = 6
 const HANDLE_HIT_AREA = 10
-const HANDLE_RADIUS_MOBILE = 12
-const HANDLE_HIT_AREA_MOBILE = 24
+/* Sized for a thumb rather than a cursor: the drawn handle and the distance at
+   which it can be grabbed scale together, so the whole of what the user can see
+   is also what they can hit. */
+const HANDLE_RADIUS_MOBILE = 24
+const HANDLE_HIT_AREA_MOBILE = 48
 const CURSOR_HANDLE_RADIUS = 6
-const CURSOR_HANDLE_RADIUS_MOBILE = 12
+/* The playback cursor is dragged the same way and by the same thumb as a
+   fragment edge, so on mobile it matches the fragment handle rather than
+   carrying a size of its own. */
+const CURSOR_HANDLE_RADIUS_MOBILE = HANDLE_RADIUS_MOBILE
 const CURSOR_HIT_AREA = 15
-const CURSOR_HIT_AREA_MOBILE = 40
+const CURSOR_HIT_AREA_MOBILE = HANDLE_HIT_AREA_MOBILE
 const MIN_ZOOM = 1
 const MAX_ZOOM = 50
+/* A phone shows the same waveform across roughly a third of the width, so the
+   desktop ceiling bottoms out while a fragment edge is still only a few pixels
+   wide. Doubling it buys back the resolution needed to place handles by
+   thumb. */
+const MAX_ZOOM_MOBILE = 150
 
 // Pinch zoom speed multiplier for touch devices (1 = default OS speed, 2.5 = 2.5× faster)
 // TODO: make configurable via settings menu
@@ -73,6 +86,7 @@ export function Waveform({
   isFilePlaying = false,
   onSeek,
   visibleStartRef,
+  visibleEndRef,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -83,6 +97,7 @@ export function Waveform({
   const handleHitArea = isMobile ? HANDLE_HIT_AREA_MOBILE : HANDLE_HIT_AREA
   const cursorHandleRadius = isMobile ? CURSOR_HANDLE_RADIUS_MOBILE : CURSOR_HANDLE_RADIUS
   const cursorHitArea = isMobile ? CURSOR_HIT_AREA_MOBILE : CURSOR_HIT_AREA
+  const maxZoom = isMobile ? MAX_ZOOM_MOBILE : MAX_ZOOM
 
   // Zoom & scroll state
   const [zoom, setZoom] = useState(1)          // 1 = full view
@@ -142,10 +157,11 @@ export function Waveform({
   const visibleStart = scrollOffset * duration
   const visibleEnd = Math.min((scrollOffset + 1 / zoom) * duration, duration)
   const visibleDuration = visibleEnd - visibleStart
-  // Sync visibleStart to parent ref so editor can read it for play-all
+  // Sync the visible window to parent refs so the editor can read it for play-all
   useEffect(() => {
     if (visibleStartRef) visibleStartRef.current = visibleStart
-  }, [visibleStart, visibleStartRef])
+    if (visibleEndRef) visibleEndRef.current = visibleEnd
+  }, [visibleStart, visibleEnd, visibleStartRef, visibleEndRef])
 
   const getCanvasWidth = () => canvasRef.current?.width ?? 1000
 
@@ -494,7 +510,7 @@ export function Waveform({
 
   const applyZoom = useCallback((zoomFactor: number, anchorFrac: number = 0.5) => {
     const currentZoom = zoomRef.current
-    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * zoomFactor))
+    const newZoom = Math.max(MIN_ZOOM, Math.min(maxZoom, currentZoom * zoomFactor))
     const currentOffset = scrollOffsetRef.current
     const visDur = duration / currentZoom
     const visStart = currentOffset * duration
@@ -504,7 +520,7 @@ export function Waveform({
     newScrollOffset = Math.max(0, Math.min(newScrollOffset, 1 - 1 / newZoom))
     setZoom(newZoom)
     setScrollOffset(newScrollOffset)
-  }, [duration])
+  }, [duration, maxZoom])
 
   const handleScrollbarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
@@ -633,7 +649,7 @@ export function Waveform({
 
         const ratio = dist / pinchInitialDistRef.current
         const amplifiedRatio = Math.pow(ratio, PINCH_ZOOM_SPEED)
-        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchInitialZoomRef.current * amplifiedRatio))
+        const newZoom = Math.max(MIN_ZOOM, Math.min(maxZoom, pinchInitialZoomRef.current * amplifiedRatio))
 
         const rect = canvas.getBoundingClientRect()
         const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width
@@ -850,7 +866,7 @@ export function Waveform({
         <span className="waveform-zoom__label">Zoom</span>
         <button onClick={() => applyZoom(1 / 1.3)} disabled={zoom <= MIN_ZOOM} className="waveform-zoom__btn">−</button>
         <span className="waveform-zoom__value">{zoom.toFixed(1)}×</span>
-        <button onClick={() => applyZoom(1.3)} disabled={zoom >= MAX_ZOOM} className="waveform-zoom__btn">+</button>
+        <button onClick={() => applyZoom(1.3)} disabled={zoom >= maxZoom} className="waveform-zoom__btn">+</button>
         <span className="waveform-zoom__hint">(scroll to zoom, pinch on touch)</span>
       </div>
 

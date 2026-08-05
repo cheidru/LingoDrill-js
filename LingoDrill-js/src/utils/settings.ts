@@ -20,6 +20,11 @@ export const DEFAULT_FRAGMENT_GAP = 2
 export const FRAGMENT_GAP_MIN = 0
 export const FRAGMENT_GAP_MAX = 10
 export const DEFAULT_LANGUAGE: Language = "en"
+/* Languages offered in Settings. The `ru` dictionary in utils/i18n.ts is kept
+   and maintained, but its coverage is not finished yet, so it stays out of this
+   list — which is also what stops a previously stored "ru" from taking effect.
+   Shipping it is a matter of adding it back here. */
+export const AVAILABLE_LANGUAGES: Language[] = ["en"]
 export const DEFAULT_THEME: Theme = "light"
 export const DEFAULT_COLOR_THEME: ColorTheme = "normal"
 
@@ -84,7 +89,10 @@ export function setFragmentGap(n: number): void {
 
 export function getLanguage(): Language {
   const v = localStorage.getItem(KEY_LANGUAGE)
-  if (v === "en" || v === "ru") return v
+  // Checked against what is actually offered, not against the type: anyone who
+  // selected a language that has since been withdrawn falls back to the default
+  // rather than being stranded in a half-translated interface.
+  if (AVAILABLE_LANGUAGES.includes(v as Language)) return v as Language
   return DEFAULT_LANGUAGE
 }
 

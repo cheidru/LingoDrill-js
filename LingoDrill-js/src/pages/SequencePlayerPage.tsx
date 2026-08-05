@@ -14,17 +14,16 @@ import { useSequences } from "../app/hooks/useSequences"
 import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useVocabularies } from "../app/hooks/useVocabularies"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
-import { useBackgroundPlayback } from "../app/hooks/useBackgroundPlayback"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
 import { setLastSequence, getFragmentGap } from "../utils/settings"
-
-const HeadphonesIcon = () => (
-  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h3v-8H5v-1a7 7 0 1 1 14 0v1h-3v8h3a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/>
-  </svg>
-)
+import {
+  setMediaMetadata,
+  setActionHandlers,
+  setPlaybackState,
+  clearMediaSession,
+} from "../infrastructure/audio/mediaSession"
 
 // --- Utility ---
 function formatTime(sec: number): string {
@@ -90,6 +89,14 @@ const RewindCountIcon = () => (
     <path d="M10.5 10v5L15 12.5z" />
   </svg>
 )
+
+/** First fragment that is not switched off, or null when every one is. */
+function findFirstEnabled(seq: Sequence, disabled: Record<number, boolean>): number | null {
+  for (let i = 0; i < seq.fragments.length; i++) {
+    if (!disabled[i]) return i
+  }
+  return null
+}
 
 // --- Subtitle display for a fragment ---
 function SubtitleDisplay({
@@ -400,19 +407,7 @@ function SequencePlayerPageInner() {
     loadById, playFragment, pause, play, stop,
     isPlaying, isPaused, setOnEnded,
     volume, setVolume,
-    getBlob,
   } = useSharedAudioEngine()
-
-  const fileNameById = useCallback(
-    (id: string) => files.find(f => f.id === id)?.name,
-    [files],
-  )
-  const bg = useBackgroundPlayback(getBlob, fileNameById)
-
-  // Background mode is mobile-only. Desktop never sees the entry button or the
-  // background-mode bar — the live engine is fine on a foregrounded desktop tab.
-  const isMobile = typeof document !== "undefined"
-    && document.documentElement.classList.contains("mobile")
 
   const { sequences, updateSequence } = useSequences(audioId ?? null)
   const { subtitleFiles } = useSubtitles(audioId ?? null)
@@ -431,6 +426,8 @@ function SequencePlayerPageInner() {
   const [playingFragIdx, setPlayingFragIdx] = useState<number | null>(null)
   const [selectedFragIdx, setSelectedFragIdx] = useState<number | null>(null)
   const [infiniteRewind, setInfiniteRewind] = useState(false)
+  // Loop the whole sequence: on reaching the end, play-all starts over.
+  const [infiniteSequence, setInfiniteSequence] = useState(false)
   const [sequenceSpeed, setSequenceSpeed] = useState(1)
 
   // Sync sequenceSpeed from the loaded sequence (persisted as sequence.playbackSpeed)
@@ -449,6 +446,7 @@ function SequencePlayerPageInner() {
   const playAllModeRef = useRef(false)
   const playingFragIdxRef = useRef<number | null>(null)
   const infiniteRewindRef = useRef(false)
+  const infiniteSequenceRef = useRef(false)
   const sequenceRef = useRef<Sequence | null>(null)
   const sequenceSpeedRef = useRef(1)
   const localRepeatsRef = useRef<Record<number, number>>({})
@@ -479,6 +477,7 @@ function SequencePlayerPageInner() {
   useEffect(() => { playAllModeRef.current = playAllMode }, [playAllMode])
   useEffect(() => { playingFragIdxRef.current = playingFragIdx }, [playingFragIdx])
   useEffect(() => { infiniteRewindRef.current = infiniteRewind }, [infiniteRewind])
+  useEffect(() => { infiniteSequenceRef.current = infiniteSequence }, [infiniteSequence])
   useEffect(() => { sequenceSpeedRef.current = sequenceSpeed }, [sequenceSpeed])
   useEffect(() => { sequenceRef.current = sequence }, [sequence])
   useEffect(() => { localRepeatsRef.current = localRepeats }, [localRepeats])
@@ -538,7 +537,7 @@ function SequencePlayerPageInner() {
     const f = seq.fragments[fragIdx]
     const repeat = localRepeatsRef.current[fragIdx] ?? f.repeat
     const speed = getEffectiveSpeed(f)
-    const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
+    const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed, gap: getFragmentGap() }
     console.log("[SequencePlayerPage] Playing fragment", fragIdx, "start:", f.start.toFixed(2), "end:", f.end.toFixed(2), "repeat:", repeat, "speed:", speed)
     playFragment(fragment)
     setPlayingFragIdx(fragIdx)
@@ -547,12 +546,8 @@ function SequencePlayerPageInner() {
   // --- Play all (skips disabled fragments) ---
   const handlePlayAll = useCallback(() => {
     if (!sequence || sequence.fragments.length === 0) return
-    // Find first enabled fragment
-    let firstIdx = 0
-    while (firstIdx < sequence.fragments.length && disabledFragments[firstIdx]) {
-      firstIdx++
-    }
-    if (firstIdx >= sequence.fragments.length) return // all disabled
+    const firstIdx = findFirstEnabled(sequence, disabledFragments)
+    if (firstIdx === null) return // all disabled
     console.log("[SequencePlayerPage] Starting play-all mode from fragment", firstIdx)
     setPlayAllMode(true)
     playAllModeRef.current = true
@@ -596,7 +591,7 @@ function SequencePlayerPageInner() {
         const f = seq.fragments[currentIdx]
         const repeat = localRepeatsRef.current[currentIdx] ?? f.repeat
         const speed = f.speed
-        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
+        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed, gap: getFragmentGap() }
         scheduleAfterGap(() => {
           if (playingFragIdxRef.current !== currentIdx) return
           if (!infiniteRewindRef.current) return
@@ -613,19 +608,29 @@ function SequencePlayerPageInner() {
           nextIdx++
         }
         if (nextIdx >= seq.fragments.length) {
-          console.log("[SequencePlayerPage] Play-all finished")
-          setPlayAllMode(false)
-          playAllModeRef.current = false
-          setPlayingFragIdx(null)
-          playingFragIdxRef.current = null
-          setSelectedFragIdx(null)
-          return
+          /* End of the sequence. Looping restarts from the top rather than
+             stopping — but only if there is still something enabled to play,
+             otherwise the wrap would spin on an empty sequence forever. */
+          const firstIdx = infiniteSequenceRef.current
+            ? findFirstEnabled(seq, disabledFragmentsRef.current)
+            : null
+          if (firstIdx === null) {
+            console.log("[SequencePlayerPage] Play-all finished")
+            setPlayAllMode(false)
+            playAllModeRef.current = false
+            setPlayingFragIdx(null)
+            playingFragIdxRef.current = null
+            setSelectedFragIdx(null)
+            return
+          }
+          console.log("[SequencePlayerPage] Play-all looping back to fragment", firstIdx)
+          nextIdx = firstIdx
         }
         console.log("[SequencePlayerPage] Play-all advancing to fragment", nextIdx)
         const f = seq.fragments[nextIdx]
         const repeat = localRepeatsRef.current[nextIdx] ?? f.repeat
         const speed = f.speed
-        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed }
+        const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed, gap: getFragmentGap() }
         scheduleAfterGap(() => {
           if (!playAllModeRef.current) return
           playFragment(fragment)
@@ -670,6 +675,24 @@ function SequencePlayerPageInner() {
     setPlayAllMode(false)
     playAllModeRef.current = false
   }, [stop, clearGapTimer])
+
+  /* Step to the neighbouring enabled fragment. Shared by the lock-screen
+     prev/next keys; reads through refs because the Media Session handlers are
+     registered once and would otherwise close over a stale sequence. */
+  const stepFragment = useCallback((delta: 1 | -1) => {
+    const seq = sequenceRef.current
+    if (!seq || seq.fragments.length === 0) return
+    const from = playingFragIdxRef.current
+    // Nothing playing yet: prev/next start the sequence from its first fragment.
+    let idx = from === null ? (delta === 1 ? -1 : seq.fragments.length) : from
+    do {
+      idx += delta
+    } while (idx >= 0 && idx < seq.fragments.length && disabledFragmentsRef.current[idx])
+    if (idx < 0 || idx >= seq.fragments.length) return
+    clearGapTimer()
+    playFragmentWithOverrides(seq, idx)
+    playingFragIdxRef.current = idx
+  }, [playFragmentWithOverrides, clearGapTimer])
 
   const handleInfiniteRewind = useCallback(() => {
     setInfiniteRewind(prev => {
@@ -738,16 +761,6 @@ function SequencePlayerPageInner() {
     })
   }, [])
 
-  // --- Background-listening (mobile only) ---
-  // Click handler must invoke bg.start() synchronously (no await before the
-  // call) so the iOS gesture-activation audio.play() inside it lands on the
-  // user-gesture call stack.
-  const handleEnterBackground = useCallback(() => {
-    if (!sequence) return
-    handleStopAll()
-    void bg.start(sequence, disabledFragments)
-  }, [sequence, disabledFragments, handleStopAll, bg])
-
   const handleEditFragment = useCallback((fragIdx: number) => {
     if (!sequence) return
     const frag = sequence.fragments[fragIdx]
@@ -762,6 +775,27 @@ function SequencePlayerPageInner() {
 
   // --- Derived ---
   const fileName = files.find(f => f.id === audioId)?.name ?? "Unknown"
+
+  /* Lock-screen transport. The browser dispatches these itself, so unlike our
+     own timers they survive the screen going off — which is exactly when the
+     user has no other way to reach the controls. Registered for the whole life
+     of the page rather than only while playing: the OS keeps the notification
+     around briefly after a pause, and play must still work from it. */
+  useEffect(() => {
+    if (!sequence) return
+    setMediaMetadata(sequence.label, fileName)
+    setActionHandlers({
+      play: () => play(),
+      pause: () => pause(),
+      previoustrack: () => stepFragment(-1),
+      nexttrack: () => stepFragment(1),
+    })
+    return () => clearMediaSession()
+  }, [sequence, fileName, play, pause, stepFragment])
+
+  useEffect(() => {
+    setPlaybackState(isPlaying ? "playing" : isPaused ? "paused" : "none")
+  }, [isPlaying, isPaused])
 
   if (!audioId || !seqId) {
     return (
@@ -802,20 +836,24 @@ function SequencePlayerPageInner() {
         <button className="sp-playall-btn" onClick={() => navigate(-1)}>
           <span>← Back</span>
         </button>
-        {bg.isActive ? null : isPlayAllActive ? (
+        {isPlayAllActive ? (
           <>
-            {isPlaying ? (
-              <button className="sp-playall-btn sp-playall-btn--playing" onClick={() => pause()}>
-                <PauseIcon />
-                <span>Pause all</span>
-              </button>
-            ) : isPaused ? (
-              <button className="sp-playall-btn sp-playall-btn--playing" onClick={() => play()}>
+            {isPaused ? (
+              <button className="sp-playall-btn" onClick={() => play()}>
                 <PlayIcon />
                 <span>Resume all</span>
               </button>
-            ) : null}
-            <button className="sp-playall-btn sp-playall-btn--stop" onClick={handleStopAll}>
+            ) : (
+              /* In the gap between two fragments the engine is momentarily
+                 neither playing nor paused. Rendering nothing there made the
+                 button vanish and the row jump on every fragment change, so the
+                 control keeps its place and goes disabled for the handover. */
+              <button className="sp-playall-btn" onClick={() => pause()} disabled={!isPlaying}>
+                <PauseIcon />
+                <span>Pause all</span>
+              </button>
+            )}
+            <button className="sp-playall-btn" onClick={handleStopAll}>
               <StopIcon />
               <span>Stop</span>
             </button>
@@ -831,107 +869,41 @@ function SequencePlayerPageInner() {
             <span>Play all</span>
           </button>
         )}
-        {/* Mobile-only entry into background-listening mode. */}
-        {isMobile && !bg.isActive && (
-          <button
-            className="sp-playall-btn sp-bg-btn"
-            onClick={handleEnterBackground}
-            disabled={sequence.fragments.length === 0}
-            title="Play with screen off (renders the sequence once, then loops)"
-          >
-            <HeadphonesIcon />
-            <span>Background</span>
-          </button>
-        )}
-        {!bg.isActive && (
-          <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
-            <span className="sp-global-speed__icon"><SpeedIcon /></span>
-            <input
-              type="range"
-              min={0.5}
-              max={1.5}
-              step={0.05}
-              value={sequenceSpeed}
-              onChange={e => handleSequenceSpeedChange(parseFloat(e.target.value))}
-              className="sp-global-speed__input"
-            />
-            <span className="sp-global-speed__value">{sequenceSpeed.toFixed(2)}×</span>
-          </label>
-        )}
+        {/* Same infinity glyph as the fragment control panel: one symbol means
+            "loop forever" everywhere, and what it loops is given by where it
+            sits — this row for the sequence, a fragment's panel for that
+            fragment. Stays put whether or not playback is running, so the loop
+            can be armed mid-sequence and not only before starting. */}
+        <button
+          className={`sp-playall-btn sp-loop-btn${infiniteSequence ? " sp-loop-btn--active" : ""}`}
+          onClick={() => setInfiniteSequence(v => !v)}
+          aria-pressed={infiniteSequence}
+          title={infiniteSequence ? "Repeat sequence: on" : "Repeat sequence: off"}
+        >
+          <InfiniteRewindIcon />
+        </button>
+        <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
+          <span className="sp-global-speed__icon"><SpeedIcon /></span>
+          <input
+            type="range"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={sequenceSpeed}
+            onChange={e => handleSequenceSpeedChange(parseFloat(e.target.value))}
+            className="sp-global-speed__input"
+          />
+          <span className="sp-global-speed__value">{sequenceSpeed.toFixed(2)}×</span>
+        </label>
         <VolumeControl volume={volume} onVolumeChange={setVolume} />
       </div>
-
-      {/* Background-mode bar. Mobile-only — bg.isActive can only become true
-          through the mobile-only entry button. */}
-      {isMobile && bg.isActive && (
-        <div className="sp-bg-bar">
-          {bg.isRendering ? (
-            <div className="sp-bg-render">
-              <div className="sp-bg-spinner" aria-hidden="true" />
-              <span className="sp-bg-render__label">
-                Rendering… {Math.round(bg.renderProgress * 100)}%
-              </span>
-              <button className="sp-playall-btn sp-playall-btn--stop" onClick={bg.exit}>
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                className="sp-playall-btn"
-                onClick={bg.prev}
-                title="Previous fragment"
-              >
-                <PrevIcon />
-              </button>
-              {bg.isPlaying ? (
-                <button
-                  className="sp-playall-btn sp-playall-btn--playing"
-                  onClick={bg.pause}
-                  title="Pause"
-                >
-                  <PauseIcon />
-                  <span>Pause</span>
-                </button>
-              ) : (
-                <button
-                  className="sp-playall-btn sp-playall-btn--playing"
-                  onClick={bg.play}
-                  title="Play"
-                >
-                  <PlayIcon />
-                  <span>Play</span>
-                </button>
-              )}
-              <button
-                className="sp-playall-btn"
-                onClick={bg.next}
-                title="Next fragment"
-              >
-                <NextIcon />
-              </button>
-              <button
-                className="sp-playall-btn sp-playall-btn--stop"
-                onClick={bg.exit}
-                title="Exit background mode"
-              >
-                <StopIcon />
-                <span>Exit</span>
-              </button>
-            </>
-          )}
-          {bg.error && <div className="sp-bg-error">{bg.error}</div>}
-        </div>
-      )}
 
       {/* Fragment list */}
       <div className="sp-fragment-list">
         {displayOrder.map(idx => {
           const frag = sequence.fragments[idx]
           const isSelected = selectedFragIdx === idx
-          const isCurrentlyPlaying = bg.isActive
-            ? bg.currentFragmentIndex === idx
-            : playingFragIdx === idx
+          const isCurrentlyPlaying = playingFragIdx === idx
           const repeat = localRepeats[idx] ?? frag.repeat
           const isFragDisabled = !!disabledFragments[idx]
 

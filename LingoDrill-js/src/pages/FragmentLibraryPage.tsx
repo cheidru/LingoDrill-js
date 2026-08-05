@@ -168,9 +168,6 @@ function FragmentLibraryPageInner() {
       </p>
 
       <div className="toolbar">
-        <button onClick={() => navigate(-1)}>
-          ← Back
-        </button>
         <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
           + New sequence
         </button>

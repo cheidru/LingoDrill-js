@@ -9,6 +9,7 @@ import { FragmentEditorPage } from "../pages/FragmentEditorPage"
 import { SequencePlayerPage } from "../pages/SequencePlayerPage"
 import { FavouritesPage } from "../pages/FavouritesPage"
 import { SettingsPage } from "../pages/SettingsPage"
+import { ContactsPage } from "../pages/ContactsPage"
 import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColorTheme, applyLanguage } from "../utils/settings"
 import "./App.css"
 import "./bundle.css"
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/file/:id/player/:seqId" element={<SequencePlayerPage />} />
           <Route path="/favourites" element={<FavouritesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/contacts" element={<ContactsPage />} />
         </Routes>
       </AudioEngineProvider>
     </BrowserRouter>

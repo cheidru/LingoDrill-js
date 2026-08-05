@@ -123,10 +123,10 @@
 .ob__title {
   margin: 0 0 16px;
   font-family: var(--font-headline);
-  font-size: clamp(1.65rem, 3vw, 2.45rem);
-  font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.3rem, 2.1vw, 1.75rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
   color: var(--color-text);
   /* Russian compounds like ПОСЛЕДОВАТЕЛЬНОСТИ are wider than the column;
@@ -142,6 +142,68 @@
   line-height: 1.65;
   color: var(--color-text-secondary);
   overflow-wrap: break-word;
+}
+
+/* Collapsed by default — the tips are extras, the body copy is the message. */
+.ob__tips {
+  margin-top: 18px;
+  max-width: 44ch;
+}
+
+.ob__tips-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 4px 0;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-text-muted);
+}
+.ob__tips-summary::-webkit-details-marker { display: none; }
+.ob__tips-summary:hover { color: var(--color-text); }
+.ob__tips-summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 160ms ease;
+}
+.ob__tips[open] > .ob__tips-summary { color: var(--color-primary); }
+.ob__tips[open] > .ob__tips-summary::before { transform: rotate(90deg); }
+
+.ob__tips-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  animation: ob-copy-in 200ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.ob__tips-list li {
+  position: relative;
+  padding-left: 18px;
+  margin-top: 8px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  overflow-wrap: break-word;
+}
+.ob__tips-list li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--color-primary);
+  transform: rotate(45deg);
 }
 
 .ob__note {
@@ -305,11 +367,11 @@
   margin-bottom: 6px;
 }
 
-/* The editor and player pages are taller, so they scale down further. */
-.ob-demo--editor,
-.ob-demo--player {
-  --demo-scale: 0.66;
-}
+/* The editor and player pages are taller, so they scale down further. The
+   player's toolbar carries the speed and volume controls too, so it also needs
+   a wider frame — otherwise the row wraps the moment Stop appears. */
+.ob-demo--editor { --demo-scale: 0.66; }
+.ob-demo--player { --demo-w: 690px; --demo-scale: 0.6; }
 
 .ob-demo__reveal {
   animation: ob-demo-reveal 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
@@ -329,8 +391,20 @@
   color: var(--color-primary);
 }
 
+.ob-demo__badge {
+  padding: 2px 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+}
+
 /* Editor waveform stand-in */
 .ob-demo__wave {
+  position: relative;
   height: 84px;
   margin-bottom: 10px;
   border: 1px solid var(--color-border);
@@ -340,28 +414,79 @@
 }
 .ob-demo__wave svg { display: block; width: 100%; height: 100%; }
 .ob-demo__wavebar { fill: color-mix(in srgb, var(--color-primary) 55%, transparent); }
-.ob-demo__region { fill: color-mix(in srgb, var(--color-primary) 14%, transparent); }
-.ob-demo__region--new {
-  fill: color-mix(in srgb, var(--color-primary) 26%, transparent);
-  animation: ob-demo-region-in 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+
+/* The region is an overlay div rather than an SVG rect so left/width can be
+   transitioned on the same curve and duration as the cursor — that is what
+   makes the drag read as one gesture. */
+.ob-demo__region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  transition:
+    left 620ms cubic-bezier(0.3, 0.8, 0.25, 1),
+    width 620ms cubic-bezier(0.3, 0.8, 0.25, 1);
+}
+.ob-demo__region--active {
+  background: color-mix(in srgb, var(--color-primary) 28%, transparent);
 }
 
-.ob-demo__repeat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
+.ob-demo__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--color-primary);
 }
-.ob-demo__repeat-value {
-  min-width: 34px;
-  padding: 2px 6px;
+.ob-demo__handle--right { left: auto; right: 0; }
+.ob-demo__handle--held {
+  width: 4px;
+  box-shadow: var(--glow-primary);
+}
+
+/* Zero-width anchors the synthetic cursor aims at; never painted. */
+.ob-demo__mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+}
+.ob-demo__mark--a { left: 22%; }
+.ob-demo__mark--b { left: 46%; }
+.ob-demo__mark--c { left: 58%; }
+
+/* A real desktop page is far wider than the 690px mock frame, so the two
+   sliders are shortened to keep the toolbar on one line the way it is in the
+   app — wrapping it here would also make the list jump when Stop appears. */
+.ob-demo--player .sp-global-speed__input { width: 64px; }
+.ob-demo--player .volume-control__slider { width: 70px; }
+
+/* Player fragment list. The real page reorders its rows so the playing one is
+   first; here each row is absolutely placed and animates its `top`, so the
+   jump to the front is something you can actually watch happen. */
+.ob-demo__sp-list { position: relative; }
+.ob-demo__sp-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 48px;
+  transition: top 460ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.ob-demo__sp-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 54px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  text-align: center;
-  color: var(--color-text);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-card);
+  animation: ob-demo-reveal 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
+/* The strip already carries the frame, so its first child must not draw a
+   second line across the top of it. */
+.ob-demo__sp-strip > .sp-subtitle-display { border-top: none; }
 
 .ob-demo__sub-name { font-size: 11px; color: var(--color-text-muted); }
 .ob-demo__sub-text {
@@ -388,6 +513,22 @@
   stroke: var(--color-bg-card);
   stroke-width: 1.5;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+  transform-origin: 4px 3px;
+  transition: transform 120ms ease;
+}
+/* Button held down — the drags would otherwise look like the cursor just
+   drifting over the waveform. */
+.ob-demo__cursor--down svg { transform: scale(0.82); }
+.ob-demo__cursor--down::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 .ob-demo__ripple {
   position: absolute;
@@ -419,10 +560,6 @@
 @keyframes ob-demo-reveal {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: none; }
-}
-@keyframes ob-demo-region-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 @keyframes ob-demo-ripple {
   from { opacity: 0.9; transform: scale(0.3); }
@@ -470,11 +607,12 @@
   }
   .ob-stage { max-height: 26vh; }
   .ob-demo { --demo-scale: 0.55; }
-  .ob-demo--editor,
-  .ob-demo--player { --demo-scale: 0.5; }
+  .ob-demo--editor { --demo-scale: 0.5; }
+  .ob-demo--player { --demo-scale: 0.44; }
   .ob-demo__viewport { height: clamp(190px, 28vh, 250px); }
-  .ob__title { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .ob__title { font-size: clamp(1.2rem, 5vw, 1.5rem); }
   .ob__body { font-size: 0.98rem; max-width: none; }
+  .ob__tips { max-width: none; }
   .ob__rail { flex-wrap: wrap; }
 }
 
@@ -495,15 +633,20 @@ html.mobile .ob__cta { min-height: 44px; }
   .ob__copy,
   .ob__rail,
   .ob__text,
+  .ob__tips-list,
   .ob-stage__bar,
   .ob-stage__bars,
   .ob-demo__reveal,
-  .ob-demo__region--new,
+  .ob-demo__sp-strip,
   .ob-demo__replay {
     animation: none;
   }
+  .ob-demo__sp-item { transition: none; }
   /* The cursor still needs to move, or the demo makes no sense — but it
-     jumps rather than glides, and the click ripple is dropped. */
-  .ob-demo__cursor { transition: none; }
+     jumps rather than glides, and the click ripple is dropped. The region it
+     drags out has to jump with it. */
+  .ob-demo__cursor,
+  .ob-demo__cursor svg,
+  .ob-demo__region { transition: none; }
   .ob-demo__ripple { display: none; }
 }

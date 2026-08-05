@@ -13,13 +13,15 @@ type Props = {
 
 /* The welcome screen is not part of the pipeline, so it carries no number and
    shows the waveform hero. 01–04 map one-to-one onto the app's routes and each
-   plays a scripted demo of that page. */
-const SCREENS: { key: string; demo: DemoStage | null; num: string | null }[] = [
+   plays a scripted demo of that page.
+   `tips` is how many `onboarding.<key>.tipN` strings the screen has; they are
+   folded into a collapsed dropdown so the main copy stays short. */
+const SCREENS: { key: string; demo: DemoStage | null; num: string | null; tips?: number }[] = [
   { key: "welcome", demo: null, num: null },
   { key: "library", demo: "library", num: "01" },
-  { key: "sequences", demo: "sequences", num: "02" },
-  { key: "editor", demo: "editor", num: "03" },
-  { key: "player", demo: "player", num: "04" },
+  { key: "sequences", demo: "sequences", num: "02", tips: 3 },
+  { key: "editor", demo: "editor", num: "03", tips: 4 },
+  { key: "player", demo: "player", num: "04", tips: 7 },
 ]
 
 const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -129,6 +131,17 @@ export function OnboardingScreen({ onClose }: Props) {
             </h2>
 
             <p className="ob__body">{t(`onboarding.${screen.key}.body`)}</p>
+
+            {screen.tips && (
+              <details className="ob__tips">
+                <summary className="ob__tips-summary">{t("onboarding.tips")}</summary>
+                <ul className="ob__tips-list">
+                  {Array.from({ length: screen.tips }, (_, i) => (
+                    <li key={i}>{t(`onboarding.${screen.key}.tip${i + 1}`)}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
 
             {isLast && <p className="ob__note">{t("onboarding.reopenHint")}</p>}
           </div>

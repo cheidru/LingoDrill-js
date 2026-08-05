@@ -6,6 +6,11 @@ export type PlayableFragment = {
   end: number     // seconds
   repeat: number  // number of repetitions
   speed: number   // playback rate (1 = normal)
+  /* Pause in seconds after each repeat except the last — the caller's job to
+     supply, since it comes from a user setting the engine has no business
+     reading. Nothing follows the final repeat: whatever plays next owns the
+     pause before it, so putting one here too would double the silence. */
+  gap: number
 }
 
 export interface AudioEngine {  

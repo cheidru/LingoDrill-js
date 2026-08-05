@@ -13,15 +13,18 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { CSSProperties } from "react"
 import { useT } from "../../utils/i18n"
 import { PlayIcon, EditIcon, DeleteIcon, CopyIcon, FavouriteIcon } from "./SequenceIcons"
+import { VolumeControl } from "./VolumeControl"
 
 export type DemoStage = "library" | "sequences" | "editor" | "player"
 
 /* A beat fires at `t` ms after the run starts. `move` names a [data-demo]
-   target for the cursor; `click` fires the ripple; `phase` advances the mock. */
+   target for the cursor; `click` fires the ripple; `press` holds the button
+   down (or lets it up) for drags; `phase` advances the mock. */
 type Beat = {
   t: number
   move?: string
   click?: boolean
+  press?: boolean
   phase?: number
 }
 
@@ -43,28 +46,35 @@ const SCRIPTS: Record<DemoStage, Beat[]> = {
     { t: 1350, phase: 1 },
     { t: 2100, click: true },
     { t: 2250, phase: 2 },
-    { t: 3000, move: "fav" },
+    { t: 3000, move: "edit" },
     { t: 3700, click: true },
     { t: 3850, phase: 3 },
   ],
+  /* Two drags, so the beats come in press → move → release triplets. The
+     region grows under the cursor because it shares its transition timing. */
   editor: [
-    { t: 500, move: "wave" },
-    { t: 1300, click: true },
-    { t: 1450, phase: 1 },
-    { t: 2200, move: "repeat" },
-    { t: 2900, click: true },
-    { t: 3050, phase: 2 },
-    { t: 3350, phase: 3 },
+    { t: 400, move: "mark-a" },
+    { t: 1000, press: true },
+    { t: 1120, phase: 1 },
+    { t: 1250, move: "mark-b", phase: 2 },
+    { t: 1950, press: false, phase: 3 },
+    { t: 2750, press: true },
+    { t: 2900, move: "mark-c", phase: 4 },
+    { t: 3600, press: false, phase: 5 },
   ],
+  /* Starts a page early, on the sequence list, because the player is somewhere
+     you arrive at rather than open. Phases 2–5 are the four fragments taking
+     their turn at the top of the list. */
   player: [
-    { t: 500, move: "row2" },
-    { t: 1250, click: true },
-    { t: 1400, phase: 1 },
-    { t: 2100, move: "play" },
-    { t: 2800, click: true },
-    { t: 2950, phase: 2 },
-    { t: 3700, phase: 3 },
-    { t: 4450, phase: 4 },
+    { t: 400, move: "seqplay" },
+    { t: 1100, click: true },
+    { t: 1250, phase: 1 },
+    { t: 1950, move: "playall" },
+    { t: 2650, click: true },
+    { t: 2800, phase: 2 },
+    { t: 3600, phase: 3 },
+    { t: 4400, phase: 4 },
+    { t: 5200, phase: 5 },
   ],
 }
 
@@ -75,6 +85,7 @@ function useDemoRunner(stage: DemoStage) {
   const [phase, setPhase] = useState(0)
   const [target, setTarget] = useState<string | null>(null)
   const [clickSeq, setClickSeq] = useState(0)
+  const [pressed, setPressed] = useState(false)
   const [finished, setFinished] = useState(false)
   const [runId, setRunId] = useState(0)
 
@@ -86,6 +97,7 @@ function useDemoRunner(stage: DemoStage) {
       setTimeout(() => {
         if (beat.move) setTarget(beat.move)
         if (beat.click) setClickSeq(n => n + 1)
+        if (beat.press !== undefined) setPressed(beat.press)
         if (beat.phase !== undefined) setPhase(beat.phase)
       }, beat.t)
     )
@@ -98,15 +110,16 @@ function useDemoRunner(stage: DemoStage) {
   const replay = useCallback(() => {
     setPhase(0)
     setTarget(null)
+    setPressed(false)
     setFinished(false)
     setRunId(n => n + 1)
   }, [])
-  return { phase, target, clickSeq, finished, replay }
+  return { phase, target, clickSeq, pressed, finished, replay }
 }
 
 export function OnboardingDemo({ stage }: { stage: DemoStage }) {
   const t = useT()
-  const { phase, target, clickSeq, finished, replay } = useDemoRunner(stage)
+  const { phase, target, clickSeq, pressed, finished, replay } = useDemoRunner(stage)
   const viewportRef = useRef<HTMLDivElement>(null)
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
 
@@ -140,7 +153,7 @@ export function OnboardingDemo({ stage }: { stage: DemoStage }) {
 
         {cursor && (
           <div
-            className="ob-demo__cursor"
+            className={`ob-demo__cursor${pressed ? " ob-demo__cursor--down" : ""}`}
             aria-hidden="true"
             style={{ "--x": `${cursor.x}px`, "--y": `${cursor.y}px` } as CSSProperties}
           >
@@ -229,7 +242,22 @@ const SEQ_BARS = [
   [{ x: 10, w: 44 }, { x: 66, w: 30 }, { x: 108, w: 52 }],
 ]
 
-function SequenceCard({ n, fragments, favourite }: { n: number; fragments: number; favourite: boolean }) {
+/* `edit` / `play` mark one of the card's buttons as a cursor target: step 02
+   ends on Edit (the route into step 03) and step 04 opens on Play (the route
+   into the player). "pressed" is the held-down look after the click lands. */
+type Mark = "target" | "pressed"
+
+function SequenceCard({
+  n,
+  fragments,
+  edit,
+  play,
+}: {
+  n: number
+  fragments: number
+  edit?: Mark
+  play?: Mark
+}) {
   return (
     <div className="seq-card ob-demo__reveal">
       <div className="seq-bar-wrap">
@@ -242,13 +270,21 @@ function SequenceCard({ n, fragments, favourite }: { n: number; fragments: numbe
           ))}
         </svg>
         <div className="seq-controls">
-          <button className="seq-controls__btn"><PlayIcon /></button>
-          <button className="seq-controls__btn"><EditIcon /></button>
+          <button
+            className={`seq-controls__btn${play === "pressed" ? " ob-demo__pressed" : ""}`}
+            data-demo={play ? "seqplay" : undefined}
+          >
+            <PlayIcon />
+          </button>
+          <button
+            className={`seq-controls__btn${edit === "pressed" ? " ob-demo__pressed" : ""}`}
+            data-demo={edit ? "edit" : undefined}
+          >
+            <EditIcon />
+          </button>
           <button className="seq-controls__btn"><CopyIcon /></button>
           <button className="seq-controls__btn ob-demo__danger"><DeleteIcon /></button>
-          <button className="seq-controls__btn" data-demo={n === 1 ? "fav" : undefined}>
-            <FavouriteIcon filled={favourite} />
-          </button>
+          <button className="seq-controls__btn"><FavouriteIcon filled={false} /></button>
         </div>
       </div>
     </div>
@@ -271,8 +307,8 @@ function SequencesMock({ phase }: { phase: number }) {
       {phase === 0 && (
         <p className="empty-state">No sequences yet. Create one in the editor.</p>
       )}
-      {phase >= 1 && <SequenceCard n={1} fragments={6} favourite={phase >= 3} />}
-      {phase >= 2 && <SequenceCard n={2} fragments={3} favourite={false} />}
+      {phase >= 1 && <SequenceCard n={1} fragments={6} edit={phase >= 3 ? "pressed" : "target"} />}
+      {phase >= 2 && <SequenceCard n={2} fragments={3} />}
     </div>
   )
 }
@@ -290,32 +326,44 @@ const WAVE_W = 560
 const WAVE_H = 84
 const WAVE_PITCH = WAVE_W / WAVE.length
 
-const EDITOR_REGIONS = [
-  { x: 18, w: 118 },
-  { x: 168, w: 96 },
-]
-const NEW_REGION = { x: 300, w: 132 }
+/* The page starts empty and the demo marks its first fragment by hand. All
+   geometry is in percent of the waveform width so the region overlay and the
+   cursor's [data-demo] marks stay in step at any scale.
+   MARK_A → MARK_B is the create drag; MARK_B → MARK_C drags the right edge. */
+const MARK_A = 22
+const MARK_B = 46
+const MARK_C = 58
+
+/* Positions read off the same percentages against a ~55s file. */
+const DRAG_TIME = "0:12 – 0:25"
+const RESIZED_TIME = "0:12 – 0:32"
 
 function EditorMock({ phase }: { phase: number }) {
-  const regions = phase >= 1 ? [...EDITOR_REGIONS, NEW_REGION] : EDITOR_REGIONS
+  // phase 0 none · 1 drag started · 2 dragging · 3 created · 4 edge dragged
+  // · 5 released
+  const hasRegion = phase >= 1
+  const dragging = phase === 1 || phase === 2 || phase === 4
+  const right = phase >= 4 ? MARK_C : phase >= 2 ? MARK_B : MARK_A
 
   return (
     <div className="page ob-demo__page">
       <h2>Fragment Editor</h2>
       <p className="sp-file-info">lesson-01.mp3</p>
 
-      <div className="ob-demo__wave" data-demo="wave">
+      <div className="toolbar">
+        <button>← Back</button>
+        <button>Export for mobile</button>
+        <label className="export-bundle__checkbox">
+          <input type="checkbox" defaultChecked />
+          <span className="ob-demo__meta">Include audio</span>
+        </label>
+        {/* The real page hides the export controls on phones — the mock says so
+            rather than pretending they are there. */}
+        <span className="ob-demo__badge">desktop only</span>
+      </div>
+
+      <div className="ob-demo__wave">
         <svg viewBox={`0 0 ${WAVE_W} ${WAVE_H}`} preserveAspectRatio="none">
-          {regions.map((r, i) => (
-            <rect
-              key={r.x}
-              className={`ob-demo__region${i === regions.length - 1 && phase >= 1 ? " ob-demo__region--new" : ""}`}
-              x={r.x}
-              y="0"
-              width={r.w}
-              height={WAVE_H}
-            />
-          ))}
           {WAVE.map((a, i) => {
             const h = Math.max(2, a * (WAVE_H - 10))
             return (
@@ -330,6 +378,20 @@ function EditorMock({ phase }: { phase: number }) {
             )
           })}
         </svg>
+
+        {hasRegion && (
+          <div
+            className={`ob-demo__region${dragging ? " ob-demo__region--active" : ""}`}
+            style={{ left: `${MARK_A}%`, width: `${right - MARK_A}%` }}
+          >
+            <span className="ob-demo__handle" />
+            <span className={`ob-demo__handle ob-demo__handle--right${phase === 4 ? " ob-demo__handle--held" : ""}`} />
+          </div>
+        )}
+
+        <i className="ob-demo__mark ob-demo__mark--a" data-demo="mark-a" />
+        <i className="ob-demo__mark ob-demo__mark--b" data-demo="mark-b" />
+        <i className="ob-demo__mark ob-demo__mark--c" data-demo="mark-c" />
       </div>
 
       <div className="file-player">
@@ -344,30 +406,13 @@ function EditorMock({ phase }: { phase: number }) {
         <button className="action-bar__btn action-bar__btn--danger">Delete all fragments</button>
       </div>
 
-      <div className="fragment-row">
-        <span className="fragment-row__time">0:01 – 0:08</span>
-        <div className="fragment-row__actions">
-          <button className="btn-sub">▶</button>
-          <button className="btn-sub ob-demo__danger">✕</button>
-        </div>
-      </div>
-      <div className="fragment-row">
-        <span className="fragment-row__time">0:10 – 0:16</span>
-        <div className="fragment-row__actions">
-          <button className="btn-sub">▶</button>
-          <button className="btn-sub ob-demo__danger">✕</button>
-        </div>
-      </div>
-
-      {phase >= 1 && (
+      {phase < 3 ? (
+        <p className="empty-state">No fragments yet. Drag across the waveform to mark one.</p>
+      ) : (
         <div className="fragment-row fragment-row--editing ob-demo__reveal">
-          <span className="fragment-row__time">0:19 – 0:27</span>
+          <span className="fragment-row__time">{phase >= 4 ? RESIZED_TIME : DRAG_TIME}</span>
           <div className="fragment-row__actions">
             <button className="btn-sub">▶</button>
-            <label className="ob-demo__repeat" data-demo="repeat">
-              ×
-              <span className="ob-demo__repeat-value">{phase >= 3 ? 3 : 1}</span>
-            </label>
             <button className="btn-sub">Sub</button>
             <button className="btn-sub">Vocab</button>
             <button className="btn-sub ob-demo__danger">✕</button>
@@ -381,77 +426,212 @@ function EditorMock({ phase }: { phase: number }) {
 /* ── 04 · Sequence Player ───────────────────────────────────────────────── */
 
 const PLAYER_ROWS = [
-  { idx: 1, time: "0:01 – 0:08", dur: "7.0s" },
-  { idx: 2, time: "0:10 – 0:16", dur: "6.0s" },
-  { idx: 3, time: "0:19 – 0:27", dur: "8.0s" },
-  { idx: 4, time: "0:31 – 0:36", dur: "5.0s" },
+  { idx: 1, time: "0:01 – 0:08", dur: "7.0s", sub: "Right, so where were we — you said you'd been there before?" },
+  { idx: 2, time: "0:10 – 0:16", dur: "6.0s", sub: "So what you want to do is listen for the linking — it all runs together." },
+  { idx: 3, time: "0:19 – 0:27", dur: "8.0s", sub: "Once more, slower this time, and mind the vowel in the second word." },
+  { idx: 4, time: "0:31 – 0:36", dur: "5.0s", sub: "That's it — you've got it. Same again from the top." },
 ]
 
-function PlayerMock({ phase }: { phase: number }) {
-  const playing = phase >= 2
-  const take = phase >= 4 ? 3 : phase >= 3 ? 2 : 1
+/* The list is laid out by hand so the reorder can be animated: every item is
+   absolutely placed and only its `top` changes, which the eye reads as the
+   playing fragment travelling to the front. Heights are fixed because the mock
+   renders at a fixed --demo-w and is scaled as a whole. */
+const ITEM_H = 48
+const GAP = 6
+const PITCH = ITEM_H + GAP
+/* Subtitle display + control panel, revealed under whichever fragment plays. */
+const STRIP_H = 116
+const LIST_H = ITEM_H + GAP + STRIP_H + GAP + 3 * PITCH
 
+const PlayAllGlyph = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M4 4v16l8.5-8L4 4zm9 0v16l8.5-8L13 4z" />
+  </svg>
+)
+/* Pause and Stop appear twice at different sizes: fixed px in the play-all
+   row, and 1em inside the control panel, where .sp-ctrl-btn's font-size sets
+   the icon size the way it does on the real page. */
+const PauseGlyph = ({ size = 16 }: { size?: number | string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+  </svg>
+)
+const StopGlyph = ({ size = 16 }: { size?: number | string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M6 6h12v12H6z" />
+  </svg>
+)
+const SpeedGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 4C6.48 4 2 8.48 2 14h3a7 7 0 0 1 14 0h3c0-5.52-4.48-10-10-10z" />
+    <path d="M14.5 15c0 1.38-1.12 2.5-2.5 2.5S9.5 16.38 9.5 15c0-1.16.79-2.13 1.86-2.41l5.92-5.18-3.92 6.65c.69.41 1.14 1.17 1.14 2.04z" />
+  </svg>
+)
+
+/* The rest of the fragment control panel, copied from SequencePlayerPage's
+   own icon set so the mock shows the buttons the tips talk about. */
+const SkipGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" /><line x1="5.7" y1="5.7" x2="18.3" y2="18.3" />
+  </svg>
+)
+const RewindCountGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+    <path d="M10.5 10v5L15 12.5z" />
+  </svg>
+)
+const InfiniteRewindGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9.828 9.172a4 4 0 1 0 0 5.656a10 10 0 0 0 2.172 -2.828a10 10 0 0 1 2.172 -2.828a4 4 0 1 1 0 5.656a10 10 0 0 1 -2.172 -2.828a10 10 0 0 0 -2.172 -2.828" />
+  </svg>
+)
+const PrevGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+  </svg>
+)
+const NextGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+  </svg>
+)
+const EditPencilGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+  </svg>
+)
+const CloseGlyph = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+)
+
+/* Where the player is reached from: the sequence list, one click earlier. */
+function SequencePickMock({ phase }: { phase: number }) {
   return (
     <div className="page ob-demo__page">
+      <h2>Fragment Library</h2>
+      <p className="sp-file-info">lesson-01.mp3</p>
+
+      <div className="toolbar">
+        <button>← Back</button>
+        <button>+ New sequence</button>
+        <button>Sub (1)</button>
+        <button>Vocab (0)</button>
+      </div>
+
+      <SequenceCard n={1} fragments={6} play={phase >= 1 ? "pressed" : "target"} />
+      <SequenceCard n={2} fragments={3} />
+    </div>
+  )
+}
+
+function PlayerMock({ phase }: { phase: number }) {
+  // phase 0 sequence list · 1 player page idle · 2–5 fragments 1–4 playing
+  if (phase === 0) return <SequencePickMock phase={phase} />
+
+  const playing = phase >= 2 ? phase - 2 : -1
+  // Matches SequencePlayerPage's displayOrder: the playing fragment jumps to
+  // the front, everything else keeps its own order.
+  const order = playing >= 0
+    ? [playing, ...PLAYER_ROWS.map((_, i) => i).filter(i => i !== playing)]
+    : PLAYER_ROWS.map((_, i) => i)
+  const firstPitch = playing >= 0 ? ITEM_H + GAP + STRIP_H + GAP : PITCH
+
+  return (
+    <div className="page ob-demo__page ob-demo__reveal">
       <h2>Sequence Player</h2>
       <p className="sp-file-info">
-        lesson-01.mp3
+        <strong>#1</strong>
         <span className="sp-file-info-separator">·</span>
-        #1
+        lesson-01.mp3
         <span className="sp-file-info-separator">·</span>
         4 fragments
       </p>
 
       <div className="sp-playall-row">
         <button className="sp-playall-btn">← Back</button>
-        <button className="sp-playall-btn">▶ Play all</button>
-        <button className="sp-playall-btn">Shuffle</button>
+        {playing >= 0 ? (
+          <>
+            <button className="sp-playall-btn" data-demo="playall">
+              <PauseGlyph />
+              <span>Pause all</span>
+            </button>
+            <button className="sp-playall-btn">
+              <StopGlyph />
+              <span>Stop</span>
+            </button>
+          </>
+        ) : (
+          <button className="sp-playall-btn" data-demo="playall">
+            <PlayAllGlyph />
+            <span>Play all</span>
+          </button>
+        )}
+        <label className="sp-global-speed">
+          <span className="sp-global-speed__icon"><SpeedGlyph /></span>
+          <input type="range" min={0.5} max={1.5} step={0.05} defaultValue={1} className="sp-global-speed__input" />
+          <span className="sp-global-speed__value">1.00×</span>
+        </label>
+        <VolumeControl volume={0.8} onVolumeChange={() => {}} />
       </div>
 
-      <div className="sp-fragment-list">
-        {PLAYER_ROWS.map(r => {
-          const selected = phase >= 1 && r.idx === 2
-          const isPlaying = playing && r.idx === 2
+      <div className="ob-demo__sp-list" style={{ height: `${LIST_H}px` }}>
+        {PLAYER_ROWS.map((r, i) => {
+          const slot = order.indexOf(i)
+          const isPlaying = i === playing
           return (
             <div
               key={r.idx}
-              className={`sp-frag-item${isPlaying ? " sp-frag-item--playing" : ""}${selected ? " sp-frag-item--selected" : ""}`}
+              className={`sp-frag-item ob-demo__sp-item${isPlaying ? " sp-frag-item--playing sp-frag-item--selected" : ""}`}
+              style={{ top: `${slot === 0 ? 0 : firstPitch + (slot - 1) * PITCH}px` }}
             >
-              <div className="sp-frag-row" data-demo={r.idx === 2 ? "row2" : undefined}>
+              <div className="sp-frag-row">
                 <span className="sp-frag-idx">{r.idx}</span>
                 <span className="sp-frag-time">{r.time}</span>
                 <span className="sp-frag-duration">{r.dur}</span>
-                <span className="sp-frag-repeat">×{isPlaying ? take : 3}</span>
+                <span className="sp-frag-repeat">×3</span>
                 <span className="sp-frag-sub-indicator">📝</span>
                 {isPlaying && <span className="sp-frag-playing-indicator">▶</span>}
               </div>
-
-              {selected && (
-                <div className="ob-demo__reveal">
-                  <div className="sp-subtitle-display">
-                    <div className="ob-demo__sub-name">lesson-01.srt</div>
-                    <div className="ob-demo__sub-text">
-                      So what you want to do is listen for the linking — it all runs together.
-                    </div>
-                  </div>
-                  <div className="sp-control-panel">
-                    <div className="sp-control-row">
-                      <button className="sp-ctrl-btn" data-demo="play">{isPlaying ? "⏸" : "▶"}</button>
-                      <button className="sp-ctrl-btn">⏹</button>
-                      <div className="sp-ctrl-separator" />
-                      <button className="sp-ctrl-btn">×3</button>
-                      <button className="sp-ctrl-btn">1.0×</button>
-                      <div className="sp-ctrl-separator" />
-                      <button className="sp-ctrl-btn">↑</button>
-                      <button className="sp-ctrl-btn">↓</button>
-                      <button className="sp-ctrl-btn">✎</button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )
         })}
+
+        {playing >= 0 && (
+          <div className="ob-demo__sp-strip">
+            <div className="sp-subtitle-display">
+              <div className="ob-demo__sub-name">lesson-01.srt</div>
+              <div className="ob-demo__sub-text">{PLAYER_ROWS[playing].sub}</div>
+            </div>
+            {/* Mirrors FragmentControlPanel in SequencePlayerPage, button for
+                button, so the tips on this step point at something real. */}
+            <div className="sp-control-panel">
+              <div className="sp-control-row">
+                <button className="sp-ctrl-btn"><PauseGlyph size="1em" /></button>
+                <button className="sp-ctrl-btn"><StopGlyph size="1em" /></button>
+                <button className="sp-ctrl-btn"><SkipGlyph /></button>
+                <div className="sp-ctrl-separator" />
+                <button className="sp-ctrl-btn sp-speed-btn sp-rewind-btn">
+                  <RewindCountGlyph />
+                  <span className="sp-speed-btn__value">×3</span>
+                </button>
+                <button className="sp-ctrl-btn"><InfiniteRewindGlyph /></button>
+                <label className="sp-speed-slider">
+                  <span className="sp-speed-slider__icon"><SpeedGlyph /></span>
+                  <input type="range" min={0.5} max={1.5} step={0.05} defaultValue={1} className="sp-speed-slider__input" />
+                  <span className="sp-speed-slider__value">1.00×</span>
+                </label>
+                <div className="sp-ctrl-separator" />
+                <button className="sp-ctrl-btn"><PrevGlyph /></button>
+                <button className="sp-ctrl-btn"><NextGlyph /></button>
+                <button className="sp-ctrl-btn"><EditPencilGlyph /></button>
+                <button className="sp-ctrl-btn sp-ctrl-btn--close"><CloseGlyph /></button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

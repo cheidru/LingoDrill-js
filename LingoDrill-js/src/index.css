@@ -90,6 +90,11 @@ html[data-theme="dark"] {
   --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 24px -6px rgba(0, 0, 0, 0.55);
 }
+
+html {
+    user-select: none;
+}
+
 html[data-theme="dark"] body {
   color: var(--color-text);
   background-color: var(--color-bg-page);
@@ -313,10 +318,18 @@ body {
   overflow-x: hidden;
 }
 
+/* clip, not hidden. #root is only as tall as the page content, and the mobile
+   drawer is absolutely positioned inside the sticky header, so it hangs below
+   that box. `overflow-x: hidden` forces overflow-y to `auto`, which clipped
+   the drawer at the bottom of the page — on short pages the submenu was still
+   painted but had no hit region, so taps fell through to the drawer overlay
+   and closed the whole menu. `clip` leaves overflow-y genuinely `visible`, so
+   the clip rectangle stays infinite vertically while wide content is still
+   kept from scrolling the page sideways. */
 #root {
   width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 h1 { font-size: 1.75rem; line-height: 1.1; font-weight: 700; color: var(--color-text); }
