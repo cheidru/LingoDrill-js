@@ -63,18 +63,22 @@ const SCRIPTS: Record<DemoStage, Beat[]> = {
     { t: 3600, press: false, phase: 5 },
   ],
   /* Starts a page early, on the sequence list, because the player is somewhere
-     you arrive at rather than open. Phases 2–5 are the four fragments taking
-     their turn at the top of the list. */
+     you arrive at rather than open. Phase 2 arms the sequence loop before
+     starting, and phases 3–6 are the four fragments taking their turn at the
+     top of the list. */
   player: [
     { t: 400, move: "seqplay" },
     { t: 1100, click: true },
     { t: 1250, phase: 1 },
-    { t: 1950, move: "playall" },
-    { t: 2650, click: true },
-    { t: 2800, phase: 2 },
-    { t: 3600, phase: 3 },
-    { t: 4400, phase: 4 },
-    { t: 5200, phase: 5 },
+    { t: 1900, move: "loop" },
+    { t: 2500, click: true },
+    { t: 2650, phase: 2 },
+    { t: 3250, move: "playall" },
+    { t: 3950, click: true },
+    { t: 4100, phase: 3 },
+    { t: 4900, phase: 4 },
+    { t: 5700, phase: 5 },
+    { t: 6500, phase: 6 },
   ],
 }
 
@@ -528,10 +532,12 @@ function SequencePickMock({ phase }: { phase: number }) {
 }
 
 function PlayerMock({ phase }: { phase: number }) {
-  // phase 0 sequence list · 1 player page idle · 2–5 fragments 1–4 playing
+  // phase 0 sequence list · 1 player page idle · 2 sequence loop armed ·
+  // 3–6 fragments 1–4 playing
   if (phase === 0) return <SequencePickMock phase={phase} />
 
-  const playing = phase >= 2 ? phase - 2 : -1
+  const looping = phase >= 2
+  const playing = phase >= 3 ? phase - 3 : -1
   // Matches SequencePlayerPage's displayOrder: the playing fragment jumps to
   // the front, everything else keeps its own order.
   const order = playing >= 0
@@ -569,6 +575,15 @@ function PlayerMock({ phase }: { phase: number }) {
             <span>Play all</span>
           </button>
         )}
+        {/* The sequence-level loop, same infinity glyph the fragment control
+            panel uses. Armed by the script before Play all, so the step shows
+            both the button and what "on" looks like. */}
+        <button
+          className={`sp-playall-btn sp-loop-btn${looping ? " sp-loop-btn--active" : ""}`}
+          data-demo="loop"
+        >
+          <InfiniteRewindGlyph />
+        </button>
         <label className="sp-global-speed">
           <span className="sp-global-speed__icon"><SpeedGlyph /></span>
           <input type="range" min={0.5} max={1.5} step={0.05} defaultValue={1} className="sp-global-speed__input" />

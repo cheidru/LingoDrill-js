@@ -82,7 +82,9 @@
       "Bash(perl -0pi -e 's/const fragment: PlayableFragment = \\\\{ start: f\\\\.start, end: f\\\\.end, repeat, speed \\\\}/const fragment: PlayableFragment = { start: f.start, end: f.end, repeat, speed, gap: getFragmentGap\\(\\) }/g' src/pages/SequencePlayerPage.tsx)",
       "Bash(git worktree *)",
       "Bash(npx vite *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5299/favicon-source.png)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5299/favicon-source.png)",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 5173 -State Listen | ForEach-Object { Stop-Process -Id \\\\$_.OwningProcess -Force }; 'done'\")",
+      "Bash(/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe *)"
     ],
     "deny": [
       "Bash(rm:*)",
