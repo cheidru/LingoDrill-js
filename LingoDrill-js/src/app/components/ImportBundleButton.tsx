@@ -95,7 +95,7 @@ export function ImportBundleButton({ onImportComplete }: Props) {
         >
           {importing ? t("bundle.importing") : t("bundle.import")}
         </button>
-        <span style={{ fontSize: "0.8rem", color: "#888" }}>
+        <span className="import-bundle__hint">
           {t("bundle.importHint")}
         </span>
       </div>
