@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { exportBundle } from "../../core/bundle/exportBundle"
 import type { Sequence, SubtitleFile } from "../../core/domain/types"
+import { useT } from "../../utils/i18n"
 
 interface Props {
   audioId: string | null
@@ -23,6 +24,7 @@ export function ExportBundleButton({
   subtitleFiles,
   disabled,
 }: Props) {
+  const t = useT()
   const [exporting, setExporting] = useState(false)
   const [includeAudio, setIncludeAudio] = useState(true)
 
@@ -34,7 +36,7 @@ export function ExportBundleButton({
     try {
       const blob = await getBlob(audioId)
       if (!blob) {
-        alert("Audio file not found in storage.")
+        alert(t("bundle.audioNotFound"))
         return
       }
 
@@ -61,11 +63,11 @@ export function ExportBundleButton({
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error("Export failed:", err)
-      alert("Export failed. See console for details.")
+      alert(t("bundle.exportFailed"))
     } finally {
       setExporting(false)
     }
-  }, [audioId, exporting, getBlob, audioName, waveformData, sequences, subtitleFiles, includeAudio])
+  }, [audioId, exporting, getBlob, audioName, waveformData, sequences, subtitleFiles, includeAudio, t])
 
   return (
     <>
@@ -73,7 +75,7 @@ export function ExportBundleButton({
         onClick={handleExport}
         disabled={disabled || exporting || !audioId}
       >
-        {exporting ? "Exporting..." : "Export for mobile"}
+        {exporting ? t("bundle.exporting") : t("bundle.export")}
       </button>
       <label className="export-bundle__checkbox">
         <input
@@ -81,7 +83,7 @@ export function ExportBundleButton({
           checked={includeAudio}
           onChange={e => setIncludeAudio(e.target.checked)}
         />
-        <span style={{ fontSize: "0.85rem" }}>Include audio</span>
+        <span style={{ fontSize: "0.85rem" }}>{t("bundle.includeAudio")}</span>
       </label>
     </>
   )

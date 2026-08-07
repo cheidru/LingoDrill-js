@@ -3,6 +3,8 @@
 // Compact progress bar shown while audio is being decoded in chunks.
 // Replaces the simple "Decoding audio for fragments..." text with a visual indicator.
 
+import { useT } from "../../utils/i18n"
+
 interface Props {
   /** 0..1 */
   progress: number
@@ -11,6 +13,7 @@ interface Props {
 }
 
 export function DecodeProgressBar({ progress, isReady }: Props) {
+  const t = useT()
   if (isReady) return null
 
   const pct = Math.round(progress * 100)
@@ -22,7 +25,7 @@ export function DecodeProgressBar({ progress, isReady }: Props) {
       color: "#666",
     }}>
       <div style={{ marginBottom: 4 }}>
-        Decoding audio for fragments… {pct}%
+        {t("decode.progress", { pct })}
       </div>
       <div style={{
         height: 4,

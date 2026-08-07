@@ -1,6 +1,7 @@
 // app/components/AudioLibrary.tsx
 import React from "react"
 import type { AudioFile } from "../hooks/useAudioLibrary"
+import { useT } from "../../utils/i18n"
 
 interface AudioLibraryProps {
   files: AudioFile[]
@@ -10,10 +11,11 @@ interface AudioLibraryProps {
 }
 
 export const AudioLibrary: React.FC<AudioLibraryProps> = ({ files, selectedFile, selectFile, onDelete }) => {
-  if (files.length === 0) return <p>No audio files uploaded yet.</p>
+  const t = useT()
+  if (files.length === 0) return <p>{t("library.empty")}</p>
   return (
     <div>
-      <h3>Audio Library</h3>
+      <h3>{t("library.title")}</h3>
       {/* <div className="test-text1">Это текст 1rem</div>
       <div className="test-text2">Это window.innerWidth {window.innerWidth}</div> */}
       <ul className="audio-list">
@@ -22,7 +24,7 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({ files, selectedFile,
           return (
             <li key={file.id} className={cls} onClick={() => selectFile(file.id)}>
               <span>{file.name}</span>
-              <button className="btn-delete" onClick={e => { e.stopPropagation(); onDelete(file.id) }}>Delete</button>
+              <button className="btn-delete" onClick={e => { e.stopPropagation(); onDelete(file.id) }}>{t("common.delete")}</button>
             </li>
           )
         })}

@@ -1,0 +1,355 @@
+/* ===========================================================================
+   Help — the numbered walkthrough window.
+
+   Shares the onboarding's takeover shell (.ob, .ob__close, .ob__title …) but
+   not its two-column grid: Help is a single readable column that scrolls,
+   because a numbered figure and its key have to sit one above the other.
+   =========================================================================== */
+
+.hl {
+  align-items: flex-start;
+  padding: clamp(48px, 6vh, 72px) clamp(16px, 4vw, 48px) clamp(32px, 6vh, 64px);
+}
+
+.hl__panel {
+  position: relative;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  outline: none;
+  animation: ob-rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* The onboarding's 44ch measure is set for its narrow copy column; here the
+   panel is the full window, so the intro would break far too early. */
+.hl .ob__body {
+  max-width: 62ch;
+  font-size: 0.98rem;
+}
+
+.hl__version {
+  margin: 32px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+
+.hl__back {
+  margin-bottom: 18px;
+  padding: 6px 12px 6px 10px;
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+.hl__back:hover {
+  background: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* === Index === */
+
+.hl-index {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hl-index__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-box);
+  color: var(--color-text);
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+.hl-index__item:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  transform: translateX(2px);
+}
+
+.hl-index__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.hl-index__name {
+  font-family: var(--font-headline);
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.hl-index__desc {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.hl-index__chevron {
+  flex-shrink: 0;
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.hl-index__item:hover .hl-index__chevron {
+  color: var(--color-primary);
+  transform: translateX(3px);
+}
+
+/* === The numbered shot === */
+
+.hl-shot-frame {
+  margin: 24px 0 0;
+  padding: clamp(10px, 2vw, 18px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-box);
+  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  box-shadow: var(--shadow-md), var(--glow-primary);
+}
+
+.hl-shot {
+  position: relative;
+  width: 100%;
+  /* Badges hang off the left edge of what they mark, so the frame must not
+     clip them. */
+  overflow: visible;
+}
+
+.hl-shot__frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--shot-w, 600px);
+  transform: scale(var(--shot-scale, 1));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.hl-shot__badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(calc(var(--bx) - 11px), calc(var(--by) - 11px));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--color-bg-page), var(--shadow-sm);
+}
+
+/* === The key === */
+
+.hl-notes {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hl-notes__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.hl-notes__num {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hl-notes__text {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  overflow-wrap: break-word;
+}
+
+/* ===========================================================================
+   Mocks — the app's own markup, frozen in its finished state.
+   =========================================================================== */
+
+.hl-mock__page {
+  padding: 0;
+}
+.hl-mock__page > h2 {
+  margin-top: 0;
+}
+.hl-mock__row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.hl-mock__block {
+  margin-top: 18px;
+}
+.hl-mock__block > h3 {
+  margin-bottom: 6px;
+}
+.hl-mock__meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.hl-mock__danger { color: var(--color-danger); }
+.hl-mock__seqbar { display: block; flex-shrink: 0; }
+.hl-mock__progress-fill { width: 19%; }
+.hl-mock__progress-handle { left: calc(19% - 7px); }
+.hl-mock__group-title { margin-top: 18px; }
+
+/* A real <select> would draw the platform's own focus and hover chrome inside
+   a picture, so the mock uses a span wearing the same class. */
+.hl-mock__select {
+  display: inline-block;
+}
+
+/* Editor waveform stand-in */
+.hl-mock__wave {
+  position: relative;
+  height: 84px;
+  margin-bottom: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  overflow: hidden;
+}
+.hl-mock__wave svg { display: block; width: 100%; height: 100%; }
+.hl-mock__wavebar { fill: color-mix(in srgb, var(--color-primary) 55%, transparent); }
+.hl-mock__region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 22%;
+  width: 36%;
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+.hl-mock__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--color-primary);
+}
+.hl-mock__handle--right { left: auto; right: 0; }
+
+/* Player */
+.hl-mock__sp-item { margin-bottom: 6px; }
+.hl-mock__sp-strip {
+  margin-bottom: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+.hl-mock__sp-strip > .sp-subtitle-display { border-top: none; }
+.hl-mock__sub-name { font-size: 11px; color: var(--color-text-muted); }
+.hl-mock__sub-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+/* The real page is far wider than the mock frame, so the two sliders are
+   shortened to keep the toolbar on one line the way it is in the app. */
+.hl-mock__page .sp-global-speed__input { width: 64px; }
+.hl-mock__page .volume-control__slider { width: 70px; }
+
+/* About — a slice of the header with its dropdown open */
+.hl-mock__about {
+  padding-bottom: 8px;
+}
+.hl-mock__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-box);
+}
+.hl-mock__header .header__logo {
+  margin-right: 12px;
+  padding: 0;
+}
+.hl-mock__header .header__nav-btn {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+}
+.hl-mock__about-anchor {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 12px;
+}
+.hl-mock__about-menu {
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.hl-mock__about-menu .header__about-item {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+
+/* ===========================================================================
+   Narrow viewports
+   =========================================================================== */
+
+@media (max-width: 760px) {
+  .hl { padding: 56px 14px 32px; }
+  .hl-index__item { padding: 12px 14px; }
+  .hl-notes__text { font-size: 0.9rem; }
+}
+
+html.mobile .hl-index__item { min-height: 56px; }
+html.mobile .hl__back { min-height: 40px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hl__panel { animation: none; }
+  .hl-index__item,
+  .hl-index__chevron { transition: none; }
+}

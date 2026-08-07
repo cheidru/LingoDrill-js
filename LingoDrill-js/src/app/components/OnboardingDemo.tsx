@@ -183,16 +183,17 @@ export function OnboardingDemo({ stage }: { stage: DemoStage }) {
 /* ── 01 · Audio Library ─────────────────────────────────────────────────── */
 
 function LibraryMock({ phase }: { phase: number }) {
+  const t = useT()
   return (
     <div className="page ob-demo__page">
-      <h2>Audio Library</h2>
+      <h2>{t("library.title")}</h2>
 
       <div>
-        <button data-demo="upload">+ Upload audio</button>
+        <button data-demo="upload">{t("library.upload")}</button>
       </div>
 
       {phase === 0 ? (
-        <p>No audio files uploaded yet.</p>
+        <p>{t("library.empty")}</p>
       ) : (
         /* The real page repeats its "Audio Library" heading here (the h2 on
            LibraryPage plus the h3 inside AudioLibrary). Dropped in the demo —
@@ -203,14 +204,14 @@ function LibraryMock({ phase }: { phase: number }) {
             data-demo="row"
           >
             <span>lesson-01.mp3</span>
-            <button className="btn-delete">Delete</button>
+            <button className="btn-delete">{t("common.delete")}</button>
           </li>
         </ul>
       )}
 
       {phase >= 2 && (
         <div className="ob-demo__reveal">
-          <h3>Player</h3>
+          <h3>{t("library.player")}</h3>
           <div className="progress-wrap">
             <div className="progress-bar">
               <div className="progress-track">
@@ -224,12 +225,12 @@ function LibraryMock({ phase }: { phase: number }) {
             </div>
           </div>
           <div className="player-controls">
-            <button>Play</button>
-            <button>Stop</button>
+            <button>{t("common.play")}</button>
+            <button>{t("common.stop")}</button>
           </div>
           <div className="player-nav">
             <button className={phase >= 3 ? "ob-demo__pressed" : ""} data-demo="fragments">
-              Fragments
+              {t("library.fragments")}
             </button>
           </div>
         </div>
@@ -262,11 +263,12 @@ function SequenceCard({
   edit?: Mark
   play?: Mark
 }) {
+  const t = useT()
   return (
     <div className="seq-card ob-demo__reveal">
       <div className="seq-bar-wrap">
         <span className="seq-label">#{n}</span>
-        <span className="ob-demo__meta">{fragments} fragments</span>
+        <span className="ob-demo__meta">{t.n("fragmentLibrary.fragments", fragments)}</span>
         <svg width="200" height="16" className="ob-demo__seqbar">
           <rect x="0" y="2" width="200" height="12" fill="#fef3c7" />
           {SEQ_BARS[n - 1].map(f => (
@@ -296,20 +298,21 @@ function SequenceCard({
 }
 
 function SequencesMock({ phase }: { phase: number }) {
+  const t = useT()
   return (
     <div className="page ob-demo__page">
-      <h2>Fragment Library</h2>
+      <h2>{t("fragmentLibrary.title")}</h2>
       <p className="sp-file-info">lesson-01.mp3</p>
 
       <div className="toolbar">
-        <button>← Back</button>
-        <button data-demo="new">+ New sequence</button>
-        <button>Sub (1)</button>
-        <button>Vocab (0)</button>
+        <button>{t("common.back")}</button>
+        <button data-demo="new">{t("fragmentLibrary.newSequence")}</button>
+        <button>{t("fragmentLibrary.sub")} (1)</button>
+        <button>{t("fragmentLibrary.vocab")} (0)</button>
       </div>
 
       {phase === 0 && (
-        <p className="empty-state">No sequences yet. Create one in the editor.</p>
+        <p className="empty-state">{t("fragmentLibrary.empty")}</p>
       )}
       {phase >= 1 && <SequenceCard n={1} fragments={6} edit={phase >= 3 ? "pressed" : "target"} />}
       {phase >= 2 && <SequenceCard n={2} fragments={3} />}
@@ -343,6 +346,7 @@ const DRAG_TIME = "0:12 – 0:25"
 const RESIZED_TIME = "0:12 – 0:32"
 
 function EditorMock({ phase }: { phase: number }) {
+  const t = useT()
   // phase 0 none · 1 drag started · 2 dragging · 3 created · 4 edge dragged
   // · 5 released
   const hasRegion = phase >= 1
@@ -351,19 +355,16 @@ function EditorMock({ phase }: { phase: number }) {
 
   return (
     <div className="page ob-demo__page">
-      <h2>Fragment Editor</h2>
+      <h2>{t("editor.title")}</h2>
       <p className="sp-file-info">lesson-01.mp3</p>
 
       <div className="toolbar">
-        <button>← Back</button>
-        <button>Export for mobile</button>
+        <button>{t("common.back")}</button>
+        <button>{t("bundle.export")}</button>
         <label className="export-bundle__checkbox">
           <input type="checkbox" defaultChecked />
-          <span className="ob-demo__meta">Include audio</span>
+          <span className="ob-demo__meta">{t("bundle.includeAudio")}</span>
         </label>
-        {/* The real page hides the export controls on phones — the mock says so
-            rather than pretending they are there. */}
-        <span className="ob-demo__badge">desktop only</span>
       </div>
 
       <div className="ob-demo__wave">
@@ -399,26 +400,26 @@ function EditorMock({ phase }: { phase: number }) {
       </div>
 
       <div className="file-player">
-        <button>▶ Play all</button>
-        <button disabled>⏹ Stop</button>
+        <button>{"▶ " + t("editor.playAll")}</button>
+        <button disabled>{"⏹ " + t("common.stop")}</button>
       </div>
 
       <div className="action-bar">
-        <button className="action-bar__btn">Auto-detect speech</button>
-        <button className="action-bar__btn">Trim silence</button>
-        <button className="action-bar__btn">Normalize volume</button>
-        <button className="action-bar__btn action-bar__btn--danger">Delete all fragments</button>
+        <button className="action-bar__btn">{t("editor.autoDetect")}</button>
+        <button className="action-bar__btn">{t("editor.trim")}</button>
+        <button className="action-bar__btn">{t("editor.normalize")}</button>
+        <button className="action-bar__btn action-bar__btn--danger">{t("editor.deleteAll")}</button>
       </div>
 
       {phase < 3 ? (
-        <p className="empty-state">No fragments yet. Drag across the waveform to mark one.</p>
+        <p className="empty-state">{t("onboarding.noFragmentsYet")}</p>
       ) : (
         <div className="fragment-row fragment-row--editing ob-demo__reveal">
           <span className="fragment-row__time">{phase >= 4 ? RESIZED_TIME : DRAG_TIME}</span>
           <div className="fragment-row__actions">
             <button className="btn-sub">▶</button>
-            <button className="btn-sub">Sub</button>
-            <button className="btn-sub">Vocab</button>
+            <button className="btn-sub">{t("fragmentLibrary.sub")}</button>
+            <button className="btn-sub">{t("fragmentLibrary.vocab")}</button>
             <button className="btn-sub ob-demo__danger">✕</button>
           </div>
         </div>
@@ -513,16 +514,17 @@ const CloseGlyph = () => (
 
 /* Where the player is reached from: the sequence list, one click earlier. */
 function SequencePickMock({ phase }: { phase: number }) {
+  const t = useT()
   return (
     <div className="page ob-demo__page">
-      <h2>Fragment Library</h2>
+      <h2>{t("fragmentLibrary.title")}</h2>
       <p className="sp-file-info">lesson-01.mp3</p>
 
       <div className="toolbar">
-        <button>← Back</button>
-        <button>+ New sequence</button>
-        <button>Sub (1)</button>
-        <button>Vocab (0)</button>
+        <button>{t("common.back")}</button>
+        <button>{t("fragmentLibrary.newSequence")}</button>
+        <button>{t("fragmentLibrary.sub")} (1)</button>
+        <button>{t("fragmentLibrary.vocab")} (0)</button>
       </div>
 
       <SequenceCard n={1} fragments={6} play={phase >= 1 ? "pressed" : "target"} />
@@ -532,6 +534,7 @@ function SequencePickMock({ phase }: { phase: number }) {
 }
 
 function PlayerMock({ phase }: { phase: number }) {
+  const t = useT()
   // phase 0 sequence list · 1 player page idle · 2 sequence loop armed ·
   // 3–6 fragments 1–4 playing
   if (phase === 0) return <SequencePickMock phase={phase} />
@@ -547,32 +550,32 @@ function PlayerMock({ phase }: { phase: number }) {
 
   return (
     <div className="page ob-demo__page ob-demo__reveal">
-      <h2>Sequence Player</h2>
+      <h2>{t("player.title")}</h2>
       <p className="sp-file-info">
         <strong>#1</strong>
         <span className="sp-file-info-separator">·</span>
         lesson-01.mp3
         <span className="sp-file-info-separator">·</span>
-        4 fragments
+        {t.n("player.fragments", 4)}
       </p>
 
       <div className="sp-playall-row">
-        <button className="sp-playall-btn">← Back</button>
+        <button className="sp-playall-btn">{t("common.back")}</button>
         {playing >= 0 ? (
           <>
             <button className="sp-playall-btn" data-demo="playall">
               <PauseGlyph />
-              <span>Pause all</span>
+              <span>{t("player.pauseAll")}</span>
             </button>
             <button className="sp-playall-btn">
               <StopGlyph />
-              <span>Stop</span>
+              <span>{t("common.stop")}</span>
             </button>
           </>
         ) : (
           <button className="sp-playall-btn" data-demo="playall">
             <PlayAllGlyph />
-            <span>Play all</span>
+            <span>{t("player.playAll")}</span>
           </button>
         )}
         {/* The sequence-level loop, same infinity glyph the fragment control

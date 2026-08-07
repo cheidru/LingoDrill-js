@@ -31,6 +31,7 @@ import type { WaveformFragment } from "../app/components/Waveform"
 import { streamWaveform } from "../utils/streamWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
 import { trimSilence } from "../utils/trimSilence"
+import { useT } from "../utils/i18n"
 import { normalizeFragments } from "../utils/normalizeFragments"
 import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
@@ -48,8 +49,9 @@ function formatTime(sec: number): string {
  * Обёртка с Error Boundary для рендер-ошибок.
  */
 export function FragmentEditorPage() {
+  const t = useT()
   return (
-    <HeavyOperationErrorBoundary operationName="Fragment Editor">
+    <HeavyOperationErrorBoundary operationName={t("editor.op.editor")}>
       <FragmentEditorPageInner />
     </HeavyOperationErrorBoundary>
   )
@@ -58,6 +60,7 @@ export function FragmentEditorPage() {
 function FragmentEditorPageInner() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId?: string }>()
   const navigate = useNavigate()
+  const t = useT()
   const location = useLocation()
 
   const {
@@ -349,7 +352,7 @@ function FragmentEditorPageInner() {
 
     // ОБЁРНУТО в wrapHeavyOp
     // ИСПРАВЛЕНО: используем safeDecodeAudioBuffer вместо raw ctx.decodeAudioData
-    const segments = await wrapHeavyOp("Auto-detect speech (audio decoding + VAD)", async () => {
+    const segments = await wrapHeavyOp(t("editor.op.autoDetect"), async () => {
       const audioBuffer = await safeDecodeAudioBuffer(blob)
 
       const segs = await detectSpeechSegments(audioBuffer, (p) => {
@@ -366,7 +369,7 @@ function FragmentEditorPageInner() {
     }
 
     if (segments.length === 0) {
-      alert("No speech segments detected.")
+      alert(t("editor.noSpeechDetected"))
       setVadDetecting(false)
       setVadProgress(0)
       return
@@ -386,7 +389,7 @@ function FragmentEditorPageInner() {
     setVadDone(true)
     setVadDetecting(false)
     setVadProgress(0)
-  }, [audioId, vadDetecting, getBlob, persistSequence, wrapHeavyOp])
+  }, [audioId, vadDetecting, getBlob, persistSequence, wrapHeavyOp, t])
 
   const handleAutoDetectClick = useCallback(() => {
     if (fragments.length > 0) {
@@ -430,7 +433,7 @@ function FragmentEditorPageInner() {
     setTrimming(true)
 
     // ОБЁРНУТО в wrapHeavyOp
-    const result = await wrapHeavyOp("Trim silence (audio decoding + processing)", async () => {
+    const result = await wrapHeavyOp(t("editor.op.trim"), async () => {
       const audioBuffer = await safeDecodeAudioBuffer(blob)
 
       let segments: { start: number; end: number }[]
@@ -449,7 +452,7 @@ function FragmentEditorPageInner() {
         setVadProgress(0)
 
         if (segments.length === 0) {
-          throw new Error("No speech segments detected — nothing to trim.")
+          throw new Error(t("editor.noSpeechToTrim"))
         }
       }
 
@@ -562,7 +565,7 @@ function FragmentEditorPageInner() {
     setTrimming(false)
     setVadDetecting(false)
     setVadProgress(0)
-  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, subtitleFiles, files, wrapHeavyOp])
+  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, subtitleFiles, files, wrapHeavyOp, t])
 
   // --- Normalize volume ---
 
@@ -577,16 +580,16 @@ function FragmentEditorPageInner() {
     setNormalizing(true)
     setNormalizeMode(false)
 
-    const result = await wrapHeavyOp("Normalize volume", async () => {
+    const result = await wrapHeavyOp(t("editor.op.normalize"), async () => {
       const srcBlob = await getBlob(audioId)
       if (!srcBlob) {
-        throw new Error("Audio file not found.")
+        throw new Error(t("editor.audioNotFound"))
       }
       const audioBuffer = await safeDecodeAudioBuffer(srcBlob)
 
       const selectedFragments = fragments.filter(f => !normalizeExcluded.has(f.id))
       if (selectedFragments.length === 0) {
-        throw new Error("No fragments selected for normalization.")
+        throw new Error(t("editor.noFragmentsNormalize"))
       }
 
       const { blob, channelData } = normalizeFragments(audioBuffer, selectedFragments)
@@ -662,7 +665,7 @@ function FragmentEditorPageInner() {
     }
 
     setNormalizing(false)
-  }, [audioId, normalizing, vadDetecting, trimming, getBlob, fragments, normalizeExcluded, files, addFile, subtitleFiles, wrapHeavyOp])
+  }, [audioId, normalizing, vadDetecting, trimming, getBlob, fragments, normalizeExcluded, files, addFile, subtitleFiles, wrapHeavyOp, t])
 
   // --- File playback ---
     // --- File playback ---
@@ -1048,23 +1051,23 @@ function FragmentEditorPageInner() {
 
   // --- RENDER ---
 
-  if (!audioId) return <div className="page"><p>No audio file selected.</p></div>
-
-  const isMobile = typeof document !== "undefined" && document.documentElement.classList.contains("mobile")
+  if (!audioId) return <div className="page"><p>{t("editor.noAudio")}</p></div>
 
   return (
     <div className="page">
-      <h2>Fragment Editor</h2>
+      <h2>{t("editor.title")}</h2>
       <p style={{ fontSize: "0.9rem", color: "#666", marginTop: -8, marginBottom: 12 }}>
-        {audioFile?.name ?? "Unknown file"}
+        {audioFile?.name ?? t("common.unknownFile")}
       </p>
 
-      {/* Navigation and Export — at the top */}
+      {/* Navigation and Export — at the top. Export is offered on phones too:
+          bundling is cheap next to decoding, and it is how a drill cut on one
+          device gets to another, whichever way round that is. */}
       <div className="toolbar">
         <button onClick={() => navigate(-1)}>
-          ← Back
+          {t("common.back")}
         </button>
-        {isReady && !isMobile && (
+        {isReady && (
           <ExportBundleButton
             audioId={audioId}
             audioName={audioName}
@@ -1079,7 +1082,7 @@ function FragmentEditorPageInner() {
 
       {!isReady && (
         <div className="frag-editor__loading">
-          <div className="spinner spinner--wf" /> Loading audio...
+          <div className="spinner spinner--wf" /> {t("editor.loadingAudio")}
         </div>
       )}
 
@@ -1095,28 +1098,25 @@ function FragmentEditorPageInner() {
               marginBottom: 12,
             }}>
               <p style={{ color: "#e65100", fontWeight: 600, margin: "0 0 8px" }}>
-                ⚠ Audio decoding failed
+                ⚠ {t("editor.decodeFailed")}
               </p>
               <p style={{ fontSize: "0.85rem", color: "#666", margin: "0 0 12px" }}>
                 {waveformError.message}
               </p>
               <p style={{ fontSize: "0.85rem", color: "#555", margin: "0 0 12px" }}>
-                This file is too large to decode on this device.
-                Prepare the data on a desktop computer and transfer via a <code style={{
-                  background: "#f0f0f0", padding: "1px 4px", borderRadius: 3
-                }}>.lingodrill</code> bundle.
+                {t("editor.decodeTooLarge")}
               </p>
               <button
                 onClick={() => setDismissDecodeHelp(false)}
                 className="btn-primary"
                 style={{ backgroundColor: "#ff9800" }}
               >
-                How to prepare on desktop
+                {t("editor.howToPrepare")}
               </button>
             </div>
           ) : waveformLoading ? (
             <div className="frag-editor__loading">
-              <div className="spinner spinner--wf" /> Building waveform...
+              <div className="spinner spinner--wf" /> {t("editor.buildingWaveform")}
             </div>
           ) : (
             <Waveform
@@ -1151,9 +1151,9 @@ function FragmentEditorPageInner() {
           {/* File player */}
           <div className="file-player">
             <button onClick={isFilePlayback && isPlaying ? handleFilePause : handleFilePlay}>
-              {isFilePlayback && isPlaying ? "⏸ Pause" : isFilePlayback && isPaused ? "▶ Resume" : "▶ Play all"}
+              {isFilePlayback && isPlaying ? "⏸ " + t("common.pause") : isFilePlayback && isPaused ? "▶ " + t("common.resume") : "▶ " + t("editor.playAll")}
             </button>
-            <button onClick={handleFileStop} disabled={!isFilePlayback}>⏹ Stop</button>
+            <button onClick={handleFileStop} disabled={!isFilePlayback}>⏹ {t("common.stop")}</button>
             <VolumeControl volume={volume} onVolumeChange={setVolume} />
             {isFilePlayback && (
               <span className="file-player__time">{formatTime(currentTime)} / {formatTime(duration)}</span>
@@ -1171,7 +1171,7 @@ function FragmentEditorPageInner() {
               marginBottom: 8,
             }}>
               <p style={{ color: "#c62828", margin: 0, fontWeight: 500 }}>
-                ⚠ {heavyError.operationName} failed
+                ⚠ {t("editor.opFailed", { op: heavyError.operationName })}
               </p>
               <p style={{ color: "#666", fontSize: "0.85rem", margin: "4px 0 8px" }}>
                 {heavyError.error.message}
@@ -1180,14 +1180,14 @@ function FragmentEditorPageInner() {
                 onClick={clearError}
                 style={{ marginRight: 8, padding: "4px 12px" }}
               >
-                Dismiss
+                {t("editor.dismiss")}
               </button>
               <button
                 onClick={() => { /* openHelp is triggered automatically */ }}
                 className="btn-primary"
                 style={{ backgroundColor: "#ff9800", padding: "4px 12px" }}
               >
-                How to prepare on desktop
+                {t("editor.howToPrepare")}
               </button>
             </div>
           )}
@@ -1196,31 +1196,31 @@ function FragmentEditorPageInner() {
           <div className="action-bar">
             <button className="action-bar__btn" onClick={handleAutoDetectClick}
               disabled={vadDetecting || trimming || normalizing || vadDone}>
-              {vadDetecting && !trimming ? "Detecting..." : vadDone ? "Auto-detect speech ✓" : "Auto-detect speech"}
+              {vadDetecting && !trimming ? t("editor.detecting") : vadDone ? t("editor.autoDetectDone") : t("editor.autoDetect")}
             </button>
             <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming || normalizing}>
-              {trimming ? "Trimming..." : "Trim silence"}
+              {trimming ? t("editor.trimming") : t("editor.trim")}
             </button>
             <button className="action-bar__btn" onClick={normalizeMode ? () => setNormalizeMode(false) : handleNormalizeOpen}
               disabled={vadDetecting || trimming || normalizing || fragments.length === 0}
               style={normalizeMode ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
-              {normalizing ? "Normalizing..." : normalizeMode ? "Cancel normalize" : "Normalize volume"}
+              {normalizing ? t("editor.normalizing") : normalizeMode ? t("editor.cancelNormalize") : t("editor.normalize")}
             </button>
             <button className="action-bar__btn action-bar__btn--danger"
               onClick={() => fragments.length > 0 ? setShowDeleteAllConfirm(true) : undefined}
               disabled={vadDetecting || trimming || normalizing || fragments.length === 0}>
-              Delete all fragments
+              {t("editor.deleteAll")}
             </button>
             {vadDetecting && (
               <div className="vad-indicator">
                 <div className={`spinner spinner--vad ${trimming ? "spinner--vad-trim" : "spinner--vad-detect"}`} />
-                <span>{trimming ? "Detecting speech..." : "Detecting..."}</span>
+                <span>{trimming ? t("editor.detectingSpeech") : t("editor.detecting")}</span>
               </div>
             )}
             {normalizing && (
               <div className="vad-indicator">
                 <div className="spinner spinner--vad spinner--vad-trim" />
-                <span>Normalizing...</span>
+                <span>{t("editor.normalizing")}</span>
               </div>
             )}
           </div>
@@ -1237,14 +1237,14 @@ function FragmentEditorPageInner() {
               display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
             }}>
               <span style={{ fontSize: "0.85rem", color: "#1565c0", flex: 1 }}>
-                Use checkboxes to exclude fragments. Play them on the waveform to preview.
+                {t("editor.normalizeHint")}
               </span>
               <button className="btn-primary"
                 onClick={handleNormalizeRun}
                 disabled={fragments.length - normalizeExcluded.size === 0}>
-                Normalize {fragments.length - normalizeExcluded.size} fragment{fragments.length - normalizeExcluded.size !== 1 ? "s" : ""}
+                {t.n("editor.normalizeRun", fragments.length - normalizeExcluded.size)}
               </button>
-              <button onClick={() => setNormalizeMode(false)}>Cancel</button>
+              <button onClick={() => setNormalizeMode(false)}>{t("common.cancel")}</button>
             </div>
           )}
 
@@ -1342,14 +1342,14 @@ function FragmentEditorPageInner() {
                             e.stopPropagation()
                             openSubtitleModal(f.id)
                           }}>
-                            Sub
+                            {t("fragmentLibrary.sub")}
                           </button>
                           {showVocabBtn && (
                             <button className="btn-sub" onClick={e => {
                               e.stopPropagation()
                               openVocabularyModal(f.id)
                             }}>
-                              Vocab
+                              {t("fragmentLibrary.vocab")}
                             </button>
                           )}
                         </>
@@ -1362,7 +1362,7 @@ function FragmentEditorPageInner() {
                           startEditingWithAnim(f.id)
                           openSubtitleModal(f.id)
                         }}>
-                          Sub
+                          {t("fragmentLibrary.sub")}
                         </button>
                       )}
                       {!isEditing && showVocabOnUnselected && (
@@ -1371,7 +1371,7 @@ function FragmentEditorPageInner() {
                           startEditingWithAnim(f.id)
                           openVocabularyModal(f.id)
                         }}>
-                          Vocab
+                          {t("fragmentLibrary.vocab")}
                         </button>
                       )}
                       <button className="btn-sub" onClick={e => { e.stopPropagation(); deleteLocalFragment(f.id) }}
@@ -1393,8 +1393,8 @@ function FragmentEditorPageInner() {
                       fontSize: "0.8rem", color: "#e65100",
                       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
                     }}>
-                      <span>Tap another fragment to select the end of the range</span>
-                      <button className="btn-sub" onClick={e => { e.stopPropagation(); handleBlockDeleteCancel() }} style={{ flexShrink: 0, fontSize: "0.75rem" }}>Cancel</button>
+                      <span>{t("editor.blockHint")}</span>
+                      <button className="btn-sub" onClick={e => { e.stopPropagation(); handleBlockDeleteCancel() }} style={{ flexShrink: 0, fontSize: "0.75rem" }}>{t("common.cancel")}</button>
                     </div>
                   )}
                 </div>
@@ -1410,10 +1410,10 @@ function FragmentEditorPageInner() {
       {showAutoDetectConfirm && (
         <div className="modal-overlay" onClick={() => setShowAutoDetectConfirm(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <p>This will replace all existing fragments. Continue?</p>
+            <p>{t("editor.confirmAutoDetect")}</p>
             <div className="modal-actions">
-              <button onClick={handleAutoDetectRun} className="btn-danger">Replace all</button>
-              <button onClick={() => setShowAutoDetectConfirm(false)}>Cancel</button>
+              <button onClick={handleAutoDetectRun} className="btn-danger">{t("editor.replaceAll")}</button>
+              <button onClick={() => setShowAutoDetectConfirm(false)}>{t("common.cancel")}</button>
             </div>
           </div>
         </div>
@@ -1422,10 +1422,10 @@ function FragmentEditorPageInner() {
       {showDeleteAllConfirm && (
         <div className="modal-overlay" onClick={() => setShowDeleteAllConfirm(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <p>Delete all fragments? This cannot be undone.</p>
+            <p>{t("editor.confirmDeleteAll")}</p>
             <div className="modal-actions">
-              <button onClick={handleDeleteAllFragments} className="btn-danger">Delete all</button>
-              <button onClick={() => setShowDeleteAllConfirm(false)}>Cancel</button>
+              <button onClick={handleDeleteAllFragments} className="btn-danger">{t("editor.deleteAllBtn")}</button>
+              <button onClick={() => setShowDeleteAllConfirm(false)}>{t("common.cancel")}</button>
             </div>
           </div>
         </div>
@@ -1435,10 +1435,10 @@ function FragmentEditorPageInner() {
       {blockDeleteStartId && blockDeleteEndId && (
         <div className="modal-overlay" onClick={handleBlockDeleteCancel}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <p>Delete {blockDeleteCount} selected fragments?</p>
+            <p>{t.n("editor.confirmBlockDelete", blockDeleteCount)}</p>
             <div className="modal-actions">
-              <button onClick={handleBlockDeleteConfirm} className="btn-danger">Delete {blockDeleteCount} fragments</button>
-              <button onClick={handleBlockDeleteCancel}>Cancel</button>
+              <button onClick={handleBlockDeleteConfirm} className="btn-danger">{t.n("editor.blockDeleteBtn", blockDeleteCount)}</button>
+              <button onClick={handleBlockDeleteCancel}>{t("common.cancel")}</button>
             </div>
           </div>
         </div>
@@ -1450,9 +1450,9 @@ function FragmentEditorPageInner() {
           <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()}>
             {subModalStep === "choose-file" ? (
               <>
-                <h3 style={{ marginTop: 0 }}>Choose subtitle file</h3>
+                <h3 style={{ marginTop: 0 }}>{t("editor.chooseSubFile")}</h3>
                 {subtitleFiles.length === 0 ? (
-                  <p>No subtitle files uploaded. Upload a subtitle file first from the Sequences page.</p>
+                  <p>{t("editor.noSubFiles")}</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {subtitleFiles.map(sf => (
@@ -1464,22 +1464,22 @@ function FragmentEditorPageInner() {
                   </div>
                 )}
                 <div className="modal-actions">
-                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : subModalStep === "view-existing" ? (
               <>
-                <h3 style={{ marginTop: 0 }}>Attached subtitle</h3>
+                <h3 style={{ marginTop: 0 }}>{t("editor.attachedSub")}</h3>
                 {(() => {
                   const frag = fragments.find(f => f.id === subModalFragId)
                   const existingSub = frag?.subtitles.find(s => s.subtitleFileId === subModalFile?.id)
                   const text = existingSub && subModalFile
                     ? subModalFile.content.slice(existingSub.charStart, existingSub.charEnd)
-                    : "(not found)"
+                    : t("editor.notFound")
                   return (
                     <>
                       <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: 8 }}>
-                        File: {subModalFile?.name}
+                        {t("editor.file", { name: subModalFile?.name ?? "" })}
                       </p>
                       <div className="subtitle-content" style={{ minHeight: 60, maxHeight: "40vh" }}>
                         {text}
@@ -1488,35 +1488,35 @@ function FragmentEditorPageInner() {
                   )
                 })()}
                 <div className="modal-actions">
-                  <button onClick={() => setSubModalStep("select-text")} className="btn-primary">Edit</button>
+                  <button onClick={() => setSubModalStep("select-text")} className="btn-primary">{t("common.edit")}</button>
                   <button onClick={async () => {
                     if (subModalFile) {
                       await handleRemoveSubtitle(subModalFragId, subModalFile.id)
                     }
                     setSubModalFragId(null)
                     setSubModalFile(null)
-                  }} className="btn-danger">Unbind</button>
+                  }} className="btn-danger">{t("editor.unbind")}</button>
                   {subtitleFiles.length > 1 && (
-                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
+                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>{t("common.backPlain")}</button>
                   )}
-                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : (
               <>
-                <h3 style={{ marginTop: 0 }}>Select text for subtitle</h3>
+                <h3 style={{ marginTop: 0 }}>{t("editor.selectTextSub")}</h3>
                 <p style={{ fontSize: "0.85rem", color: "#666" }}>
-                  Select the text portion that corresponds to this fragment, then click "Bind selected text".
+                  {t("editor.selectHint")}
                 </p>
                 <div id="subtitle-text-container" className="subtitle-content">
                   {subModalFile?.content}
                 </div>
                 <div className="modal-actions">
-                  <button onClick={handleSubtitleSelect} className="btn-primary">Bind selected text</button>
+                  <button onClick={handleSubtitleSelect} className="btn-primary">{t("common.bind")}</button>
                   {subtitleFiles.length > 1 && (
-                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>Back</button>
+                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>{t("common.backPlain")}</button>
                   )}
-                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>Cancel</button>
+                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             )}
@@ -1530,9 +1530,9 @@ function FragmentEditorPageInner() {
           <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()}>
             {vocabModalStep === "choose-file" ? (
               <>
-                <h3 style={{ marginTop: 0 }}>Choose vocabulary file</h3>
+                <h3 style={{ marginTop: 0 }}>{t("editor.chooseVocabFile")}</h3>
                 {vocabularyFiles.length === 0 ? (
-                  <p>No vocabulary files uploaded. Upload a vocabulary file first from the Sequences page.</p>
+                  <p>{t("editor.noVocabFiles")}</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {vocabularyFiles.map(vf => (
@@ -1544,12 +1544,12 @@ function FragmentEditorPageInner() {
                   </div>
                 )}
                 <div className="modal-actions">
-                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>Cancel</button>
+                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : vocabModalStep === "view-existing" ? (
               <>
-                <h3 style={{ marginTop: 0 }}>Attached vocabulary</h3>
+                <h3 style={{ marginTop: 0 }}>{t("editor.attachedVocab")}</h3>
                 {(() => {
                   const frag = fragments.find(f => f.id === vocabModalFragId)
                   const existing = (frag?.vocabularies ?? []).find(v => v.vocabularyFileId === vocabModalFile?.id)
@@ -1568,35 +1568,35 @@ function FragmentEditorPageInner() {
                   )
                 })()}
                 <div className="modal-actions">
-                  <button onClick={() => setVocabModalStep("select-text")} className="btn-primary">Edit</button>
+                  <button onClick={() => setVocabModalStep("select-text")} className="btn-primary">{t("common.edit")}</button>
                   <button onClick={async () => {
                     if (vocabModalFile) {
                       await handleRemoveVocabulary(vocabModalFragId, vocabModalFile.id)
                     }
                     setVocabModalFragId(null)
                     setVocabModalFile(null)
-                  }} className="btn-danger">Unbind</button>
+                  }} className="btn-danger">{t("editor.unbind")}</button>
                   {vocabularyFiles.length > 1 && (
-                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>Back</button>
+                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>{t("common.backPlain")}</button>
                   )}
-                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>Cancel</button>
+                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : (
               <>
-                <h3 style={{ marginTop: 0 }}>Select text for vocabulary</h3>
+                <h3 style={{ marginTop: 0 }}>{t("editor.selectTextVocab")}</h3>
                 <p style={{ fontSize: "0.85rem", color: "#666" }}>
-                  Select the text portion that corresponds to this fragment, then click "Bind selected text".
+                  {t("editor.selectHint")}
                 </p>
                 <div id="vocab-text-container" className="subtitle-content">
                   {vocabModalFile?.content}
                 </div>
                 <div className="modal-actions">
-                  <button onClick={handleVocabularySelect} className="btn-primary">Bind selected text</button>
+                  <button onClick={handleVocabularySelect} className="btn-primary">{t("common.bind")}</button>
                   {vocabularyFiles.length > 1 && (
-                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>Back</button>
+                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>{t("common.backPlain")}</button>
                   )}
-                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>Cancel</button>
+                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             )}
@@ -1616,7 +1616,7 @@ function FragmentEditorPageInner() {
       {/* Mobile instruction modal (triggered by waveform build error) */}
       {showDecodeHelp && waveformError && (
         <MobileInstructionModal
-          operationName="Audio decoding"
+          operationName={t("editor.op.decode")}
           errorMessage={waveformError.message}
           onClose={() => setDismissDecodeHelp(true)}
         />
@@ -1626,21 +1626,21 @@ function FragmentEditorPageInner() {
       {trimResultInfo && (
         <div className="modal-overlay" onClick={() => setTrimResultInfo(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: "min(420px, 90vw)", overflowWrap: "break-word", wordBreak: "break-word" }}>
-            <h3 style={{ marginTop: 0 }}>Trim complete</h3>
+            <h3 style={{ marginTop: 0 }}>{t("editor.trimComplete")}</h3>
             <p style={{ fontSize: "0.9rem", marginBottom: 8 }}>
-              Created <strong style={{ wordBreak: "break-all" }}>"{trimResultInfo.trimmedName}"</strong>
+              {t("editor.created", { name: trimResultInfo.trimmedName })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
-              Original: {trimResultInfo.originalDuration.toFixed(1)}s → Trimmed: {trimResultInfo.newDuration.toFixed(1)}s
+              {t("editor.trimDurations", { orig: trimResultInfo.originalDuration.toFixed(1), trimmed: trimResultInfo.newDuration.toFixed(1) })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
-              Removed {trimResultInfo.removedDuration.toFixed(1)}s of silence ({trimResultInfo.pct}%)
+              {t("editor.trimRemoved", { sec: trimResultInfo.removedDuration.toFixed(1), pct: trimResultInfo.pct })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
-              {trimResultInfo.segmentCount} speech segments preserved.
+              {t.n("editor.trimSegments", trimResultInfo.segmentCount)}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
-              The new file with its sequence is available in your Audio Library.
+              {t("editor.newFileAvailable")}
             </p>
             <div className="modal-actions">
               {trimResultInfo.newAudioId && (
@@ -1651,10 +1651,10 @@ function FragmentEditorPageInner() {
                     navigate(`/file/${newId}/sequences`)
                   }
                 }}>
-                  Open trimmed file
+                  {t("editor.openTrimmed")}
                 </button>
               )}
-              <button onClick={() => setTrimResultInfo(null)}>Close</button>
+              <button onClick={() => setTrimResultInfo(null)}>{t("common.close")}</button>
             </div>
           </div>
         </div>
@@ -1664,15 +1664,15 @@ function FragmentEditorPageInner() {
       {normalizeResultInfo && (
         <div className="modal-overlay" onClick={() => setNormalizeResultInfo(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: "min(420px, 90vw)" }}>
-            <h3 style={{ marginTop: 0 }}>Normalization complete</h3>
+            <h3 style={{ marginTop: 0 }}>{t("editor.normalizeComplete")}</h3>
             <p style={{ fontSize: "0.9rem", marginBottom: 8 }}>
-              Created <strong style={{ wordBreak: "break-all" }}>"{normalizeResultInfo.normalizedName}"</strong>
+              {t("editor.created", { name: normalizeResultInfo.normalizedName })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
-              {normalizeResultInfo.selectedCount} of {normalizeResultInfo.totalCount} fragment{normalizeResultInfo.totalCount !== 1 ? "s" : ""} normalized.
+              {t("editor.normalizedCount", { n: normalizeResultInfo.selectedCount, total: normalizeResultInfo.totalCount })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
-              The new file with its sequence is available in your Audio Library.
+              {t("editor.newFileAvailable")}
             </p>
             <div className="modal-actions">
               {normalizeResultInfo.newAudioId && (
@@ -1681,10 +1681,10 @@ function FragmentEditorPageInner() {
                   setNormalizeResultInfo(null)
                   if (newId) navigate(`/file/${newId}/sequences`)
                 }}>
-                  Open normalized file
+                  {t("editor.openNormalized")}
                 </button>
               )}
-              <button onClick={() => setNormalizeResultInfo(null)}>Close</button>
+              <button onClick={() => setNormalizeResultInfo(null)}>{t("common.close")}</button>
             </div>
           </div>
         </div>

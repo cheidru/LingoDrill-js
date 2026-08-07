@@ -15,6 +15,7 @@ import "./App.css"
 import "./bundle.css"
 import "./sequencePlayer.css"
 import "./onboarding.css"
+import "./help.css"
 
 applySubFontSize()
 applyTheme()

@@ -1,6 +1,7 @@
 // app/components/AudioUploader.tsx
 
 import { useRef } from "react"
+import { useT } from "../../utils/i18n"
 
 type UploadHandler = (file: File) => Promise<void> | void
 
@@ -9,12 +10,13 @@ interface AudioUploaderProps {
 }
 
 export function AudioUploader({ onUpload }: AudioUploaderProps) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
 
   return (
     <div>
       <button onClick={() => inputRef.current?.click()}>
-        + Upload audio
+        {t("library.upload")}
       </button>
       <input
         ref={inputRef}

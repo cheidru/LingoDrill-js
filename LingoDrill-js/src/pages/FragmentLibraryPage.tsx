@@ -15,6 +15,7 @@ import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
 import { PlayIcon, EditIcon, DeleteIcon, CopyIcon, FavouriteIcon } from "../app/components/SequenceIcons"
 import { nanoid } from "nanoid"
+import { useT } from "../utils/i18n"
 
 // --- Sequence bar ---
 function SequenceBar({
@@ -49,6 +50,7 @@ export function FragmentLibraryPage() {
 function FragmentLibraryPageInner() {
   const { id: audioId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const t = useT()
 
   const {
     files,
@@ -158,31 +160,31 @@ function FragmentLibraryPageInner() {
     console.log("[FragmentLibrary] Deleted subtitle file and cleaned up bindings:", subFileId)
   }, [deleteSubtitleFile, sequences, updateSequence])
 
-  const fileName = files.find(f => f.id === audioId)?.name ?? "Unknown"
+  const fileName = files.find(f => f.id === audioId)?.name ?? t("common.unknown")
 
   return (
     <div className="page">
-      <h2>Fragment Library</h2>
+      <h2>{t("fragmentLibrary.title")}</h2>
       <p className="sp-file-info">
         {fileName}
       </p>
 
       <div className="toolbar">
         <button onClick={() => navigate(audioId ? `/file/${audioId}/editor` : "/")}>
-          + New sequence
+          {t("fragmentLibrary.newSequence")}
         </button>
         <button onClick={() => setSubModalOpen(true)}>
-          Sub ({subtitleFiles.length})
+          {t("fragmentLibrary.sub")} ({subtitleFiles.length})
         </button>
         <button onClick={() => setVocabModalOpen(true)}>
-          Vocab ({vocabularyFiles.length})
+          {t("fragmentLibrary.vocab")} ({vocabularyFiles.length})
         </button>
       </div>
 
-      {isLoading && <p>Loading sequences...</p>}
+      {isLoading && <p>{t("fragmentLibrary.loading")}</p>}
 
       {!isLoading && sequences.length === 0 && (
-        <p className="empty-state">No sequences yet. Create one in the editor.</p>
+        <p className="empty-state">{t("fragmentLibrary.empty")}</p>
       )}
 
       {sequences.map(seq => {
@@ -203,14 +205,14 @@ function FragmentLibraryPageInner() {
                 <span
                   className="seq-label"
                   onClick={() => { setEditingLabelId(seq.id); setEditingLabelValue(seq.label) }}
-                  title="Click to rename"
+                  title={t("fragmentLibrary.rename")}
                 >
                   #{seq.label}
                 </span>
               )}
 
               <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-                {seq.fragments.length} fragment{seq.fragments.length !== 1 ? "s" : ""}
+                {t.n("fragmentLibrary.fragments", seq.fragments.length)}
               </span>
 
               <SequenceBar sequence={seq} duration={duration} />
@@ -221,25 +223,25 @@ function FragmentLibraryPageInner() {
                   className="seq-controls__btn"
                   onClick={() => navigate(`/file/${audioId}/player/${seq.id}`)}
                   disabled={seq.fragments.length === 0}
-                  title={seq.fragments.length === 0 ? "No fragments to play" : "Open Sequence Player"}
+                  title={seq.fragments.length === 0 ? t("fragmentLibrary.noFragments") : t("fragmentLibrary.openPlayer")}
                 >
                   <PlayIcon />
                 </button>
 
                 {/* Edit / Copy / Delete */}
-                <button className="seq-controls__btn" onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title="Edit">
+                <button className="seq-controls__btn" onClick={() => navigate(`/file/${audioId}/editor/${seq.id}`)} title={t("common.edit")}>
                   <EditIcon />
                 </button>
-                <button className="seq-controls__btn" onClick={() => handleCopySequence(seq)} title="Copy">
+                <button className="seq-controls__btn" onClick={() => handleCopySequence(seq)} title={t("fragmentLibrary.copy")}>
                   <CopyIcon />
                 </button>
-                <button className="seq-controls__btn" onClick={() => setConfirmDeleteId(seq.id)} title="Delete" style={{ color: "var(--color-danger)" }}>
+                <button className="seq-controls__btn" onClick={() => setConfirmDeleteId(seq.id)} title={t("common.delete")} style={{ color: "var(--color-danger)" }}>
                   <DeleteIcon />
                 </button>
                 <button
                   className="seq-controls__btn"
                   onClick={() => updateSequence({ ...seq, favourite: !seq.favourite })}
-                  title={seq.favourite ? "Remove from favourites" : "Add to favourites"}
+                  title={seq.favourite ? t("fragmentLibrary.removeFav") : t("fragmentLibrary.addFav")}
                 >
                   <FavouriteIcon filled={!!seq.favourite} />
                 </button>
@@ -254,13 +256,13 @@ function FragmentLibraryPageInner() {
       {confirmDeleteId && (
         <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <p>Delete this sequence?</p>
+            <p>{t("fragmentLibrary.confirmDelete")}</p>
             <div className="modal-actions">
               <button onClick={async () => {
                 await deleteSequence(confirmDeleteId)
                 setConfirmDeleteId(null)
-              }} className="btn-danger">Delete</button>
-              <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+              }} className="btn-danger">{t("common.delete")}</button>
+              <button onClick={() => setConfirmDeleteId(null)}>{t("common.cancel")}</button>
             </div>
           </div>
         </div>
@@ -270,10 +272,10 @@ function FragmentLibraryPageInner() {
       {subModalOpen && (
         <div className="modal-overlay" onClick={() => setSubModalOpen(false)}>
           <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <h3 style={{ marginTop: 0 }}>Subtitle files</h3>
+            <h3 style={{ marginTop: 0 }}>{t("fragmentLibrary.subTitle")}</h3>
 
             {subtitleFiles.length === 0 ? (
-              <p className="empty-state" style={{ fontSize: "0.9rem" }}>No subtitle files uploaded yet.</p>
+              <p className="empty-state" style={{ fontSize: "0.9rem" }}>{t("fragmentLibrary.subEmpty")}</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                 {subtitleFiles.map(sf => (
@@ -289,7 +291,7 @@ function FragmentLibraryPageInner() {
                       className="btn-sub"
                       onClick={() => handleDeleteSubtitleFile(sf.id)}
                       style={{ color: "var(--color-danger)", flexShrink: 0, marginLeft: 8 }}
-                      title="Delete subtitle file"
+                      title={t("fragmentLibrary.deleteSubFile")}
                     >
                       ✕
                     </button>
@@ -301,7 +303,7 @@ function FragmentLibraryPageInner() {
             <div style={{ marginBottom: 8 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <button className="btn-primary" onClick={() => subFileInputRef.current?.click()}>
-                  + Add subtitle file
+                  {t("fragmentLibrary.addSub")}
                 </button>
                 <input
                   ref={subFileInputRef}
@@ -314,7 +316,7 @@ function FragmentLibraryPageInner() {
             </div>
 
             <div className="modal-actions">
-              <button onClick={() => setSubModalOpen(false)}>Close</button>
+              <button onClick={() => setSubModalOpen(false)}>{t("common.close")}</button>
             </div>
           </div>
         </div>
@@ -324,10 +326,10 @@ function FragmentLibraryPageInner() {
       {vocabModalOpen && (
         <div className="modal-overlay" onClick={() => setVocabModalOpen(false)}>
           <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <h3 style={{ marginTop: 0 }}>Vocabulary files</h3>
+            <h3 style={{ marginTop: 0 }}>{t("fragmentLibrary.vocabTitle")}</h3>
 
             {vocabularyFiles.length === 0 ? (
-              <p className="empty-state" style={{ fontSize: "0.9rem" }}>No vocabulary files uploaded yet.</p>
+              <p className="empty-state" style={{ fontSize: "0.9rem" }}>{t("fragmentLibrary.vocabEmpty")}</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                 {vocabularyFiles.map(vf => (
@@ -343,7 +345,7 @@ function FragmentLibraryPageInner() {
                       className="btn-sub"
                       onClick={() => handleDeleteVocabularyFile(vf.id)}
                       style={{ color: "var(--color-danger)", flexShrink: 0, marginLeft: 8 }}
-                      title="Delete vocabulary file"
+                      title={t("fragmentLibrary.deleteVocabFile")}
                     >
                       ✕
                     </button>
@@ -355,7 +357,7 @@ function FragmentLibraryPageInner() {
             <div style={{ marginBottom: 8 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <button className="btn-primary" onClick={() => vocabFileInputRef.current?.click()}>
-                  + Add vocabulary file
+                  {t("fragmentLibrary.addVocab")}
                 </button>
                 <input
                   ref={vocabFileInputRef}
@@ -368,7 +370,7 @@ function FragmentLibraryPageInner() {
             </div>
 
             <div className="modal-actions">
-              <button onClick={() => setVocabModalOpen(false)}>Close</button>
+              <button onClick={() => setVocabModalOpen(false)}>{t("common.close")}</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 // app/components/Waveform.tsx
 import { useRef, useEffect, useState, useCallback, type MutableRefObject } from "react"
 import type { MouseEvent } from "react"
+import { useT } from "../../utils/i18n"
 
 export type WaveformFragment = {
   id: string
@@ -88,6 +89,7 @@ export function Waveform({
   visibleStartRef,
   visibleEndRef,
 }: Props) {
+  const t = useT()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -863,11 +865,11 @@ export function Waveform({
     >
       {/* Zoom controls */}
       <div className="waveform-zoom">
-        <span className="waveform-zoom__label">Zoom</span>
+        <span className="waveform-zoom__label">{t("waveform.zoom")}</span>
         <button onClick={() => applyZoom(1 / 1.3)} disabled={zoom <= MIN_ZOOM} className="waveform-zoom__btn">−</button>
         <span className="waveform-zoom__value">{zoom.toFixed(1)}×</span>
         <button onClick={() => applyZoom(1.3)} disabled={zoom >= maxZoom} className="waveform-zoom__btn">+</button>
-        <span className="waveform-zoom__hint">(scroll to zoom, pinch on touch)</span>
+        <span className="waveform-zoom__hint">{t("waveform.zoomHint")}</span>
       </div>
 
       <canvas

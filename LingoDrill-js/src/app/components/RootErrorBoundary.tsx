@@ -18,6 +18,9 @@
 
 import { Component } from "react"
 import type { ReactNode, ErrorInfo } from "react"
+/* The plain `t`, not the hook: this is a class component, and it is the last
+   thing standing when the rest of the app has crashed. */
+import { t } from "../../utils/i18n"
 
 interface Props {
   children: ReactNode
@@ -55,7 +58,7 @@ export class RootErrorBoundary extends Component<Props, State> {
         const error =
           event.error instanceof Error
             ? event.error
-            : new Error(String(event.message || "Unknown fatal error"))
+            : new Error(String(event.message || t("error.fatal")))
         this.setState({ hasError: true, error })
       }
     }
@@ -66,7 +69,7 @@ export class RootErrorBoundary extends Component<Props, State> {
         const error =
           event.reason instanceof Error
             ? event.reason
-            : new Error(String(event.reason || "Unhandled async error"))
+            : new Error(String(event.reason || t("error.async")))
         this.setState({ hasError: true, error })
       }
     }
@@ -133,12 +136,11 @@ export class RootErrorBoundary extends Component<Props, State> {
           }}
         >
           <h2 style={{ color: "#d32f2f", marginTop: 0 }}>
-            ⚠ Application Error
+            ⚠ {t("error.appTitle")}
           </h2>
 
           <p style={{ lineHeight: 1.6, marginBottom: 16 }}>
-            Something went wrong. This usually happens on mobile devices when
-            processing large audio files that require too much memory.
+            {t("error.appBody")}
           </p>
 
           {this.state.error && (
@@ -171,12 +173,7 @@ export class RootErrorBoundary extends Component<Props, State> {
               lineHeight: 1.6,
             }}
           >
-            <strong>Tip:</strong> For large audio files, prepare the data on a
-            desktop computer using the Fragment Editor, then export a{" "}
-            <code style={{ background: "#f0f0f0", padding: "1px 4px", borderRadius: 3 }}>
-              .lingodrill
-            </code>{" "}
-            bundle and import it on your mobile device.
+            <strong>{t("error.tipLabel")}</strong> {t("error.tipBody")}
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -193,7 +190,7 @@ export class RootErrorBoundary extends Component<Props, State> {
                 minHeight: 44,
               }}
             >
-              Reload page
+              {t("error.reload")}
             </button>
             <button
               onClick={this.handleGoHome}
@@ -208,7 +205,7 @@ export class RootErrorBoundary extends Component<Props, State> {
                 minHeight: 44,
               }}
             >
-              Go to library
+              {t("error.goHome")}
             </button>
           </div>
         </div>

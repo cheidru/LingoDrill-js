@@ -26,6 +26,8 @@ import {
 } from "../infrastructure/audio/mediaSession"
 
 // --- Utility ---
+import { useT } from "../utils/i18n"
+
 function formatTime(sec: number): string {
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)
@@ -130,6 +132,7 @@ function VocabularyDisplay({
   fragment: SequenceFragment
   vocabularyFiles: { id: string; content: string; name: string }[]
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const vocabularies = fragment.vocabularies ?? []
   if (vocabularies.length === 0) return null
@@ -143,7 +146,7 @@ function VocabularyDisplay({
         aria-expanded={open}
       >
         <span className={`sp-vocab-toggle__chevron${open ? " sp-vocab-toggle__chevron--open" : ""}`}>▶</span>
-        <span>Vocab</span>
+        <span>{t("player.vocab")}</span>
         <span className="sp-vocab-toggle__count">{vocabularies.length}</span>
       </button>
       {open && (
@@ -206,6 +209,7 @@ function FragmentControlPanel({
   onRepeatChange: (value: number) => void
   onFragmentSpeedChange: (value: number) => void
 }) {
+  const t = useT()
   const [speedModalOpen, setSpeedModalOpen] = useState(false)
   const [rewindModalOpen, setRewindModalOpen] = useState(false)
   const isMobile = document.documentElement.classList.contains("mobile")
@@ -214,17 +218,17 @@ function FragmentControlPanel({
       <div className="sp-control-row">
         {/* Play / Pause */}
         {isPlaying ? (
-          <button className="sp-ctrl-btn" onClick={onPause} title="Pause">
+          <button className="sp-ctrl-btn" onClick={onPause} title={t("common.pause")}>
             <PauseIcon />
           </button>
         ) : (
-          <button className="sp-ctrl-btn" onClick={onPlay} title={isPaused ? "Resume" : "Play"}>
+          <button className="sp-ctrl-btn" onClick={onPlay} title={isPaused ? t("common.resume") : t("common.play")}>
             <PlayIcon />
           </button>
         )}
 
         {/* Stop */}
-        <button className="sp-ctrl-btn" onClick={onStop} title="Stop">
+        <button className="sp-ctrl-btn" onClick={onStop} title={t("common.stop")}>
           <StopIcon />
         </button>
 
@@ -232,7 +236,7 @@ function FragmentControlPanel({
         <button
           className={`sp-ctrl-btn ${isDisabled ? "sp-ctrl-btn--disabled" : ""}`}
           onClick={onToggleDisabled}
-          title={isDisabled ? "Include in Play-all" : "Exclude from Play-all"}
+          title={isDisabled ? t("player.ctrl.include") : t("player.ctrl.exclude")}
         >
           <SkipIcon />
         </button>
@@ -244,7 +248,7 @@ function FragmentControlPanel({
         <button
           className="sp-ctrl-btn sp-speed-btn sp-rewind-btn"
           onClick={() => setRewindModalOpen(true)}
-          title={`Rewind count: ×${localRepeat}`}
+          title={t("player.ctrl.rewindCount", { n: localRepeat })}
         >
           <RewindCountIcon />
           <span className="sp-speed-btn__value">×{localRepeat}</span>
@@ -254,7 +258,7 @@ function FragmentControlPanel({
         <button
           className={`sp-ctrl-btn ${isInfiniteRewind ? "sp-ctrl-btn--active" : ""}`}
           onClick={onInfiniteRewind}
-          title={isInfiniteRewind ? "Disable infinite rewind" : "Enable infinite rewind"}
+          title={isInfiniteRewind ? t("player.ctrl.infiniteOn") : t("player.ctrl.infiniteOff")}
         >
           <InfiniteRewindIcon />
         </button>
@@ -264,13 +268,13 @@ function FragmentControlPanel({
           <button
             className="sp-ctrl-btn sp-speed-btn"
             onClick={() => setSpeedModalOpen(true)}
-            title={`Fragment speed: ${fragmentSpeed.toFixed(2)}×`}
+            title={t("player.ctrl.fragmentSpeed", { v: fragmentSpeed.toFixed(2) })}
           >
             <SpeedIcon />
             <span className="sp-speed-btn__value">{fragmentSpeed.toFixed(2)}×</span>
           </button>
         ) : (
-          <label className="sp-speed-slider" title="Fragment playback speed (saved per fragment)">
+          <label className="sp-speed-slider" title={t("player.ctrl.speedSlider")}>
             <span className="sp-speed-slider__icon"><SpeedIcon /></span>
             <input
               type="range"
@@ -293,7 +297,7 @@ function FragmentControlPanel({
           className="sp-ctrl-btn"
           onClick={onPrev}
           disabled={fragmentIndex <= 0}
-          title="Previous fragment"
+          title={t("player.ctrl.prev")}
         >
           <PrevIcon />
         </button>
@@ -301,18 +305,18 @@ function FragmentControlPanel({
           className="sp-ctrl-btn"
           onClick={onNext}
           disabled={fragmentIndex >= totalFragments - 1}
-          title="Next fragment"
+          title={t("player.ctrl.next")}
         >
           <NextIcon />
         </button>
 
         {/* Edit in Fragment Editor */}
-        <button className="sp-ctrl-btn" onClick={onEdit} title="Edit in Fragment Editor">
+        <button className="sp-ctrl-btn" onClick={onEdit} title={t("player.ctrl.edit")}>
           <EditIcon />
         </button>
 
         {/* Close */}
-        <button className="sp-ctrl-btn sp-ctrl-btn--close" onClick={onClose} title="Close control panel">
+        <button className="sp-ctrl-btn sp-ctrl-btn--close" onClick={onClose} title={t("player.ctrl.close")}>
           <CloseIcon />
         </button>
       </div>
@@ -320,7 +324,7 @@ function FragmentControlPanel({
       {speedModalOpen && (
         <div className="modal-overlay" onClick={() => setSpeedModalOpen(false)}>
           <div className="modal-box sp-speed-modal" onClick={e => e.stopPropagation()}>
-            <h3 className="sp-speed-modal__title">Fragment speed</h3>
+            <h3 className="sp-speed-modal__title">{t("player.speedModal")}</h3>
             <div className="sp-speed-modal__value">{fragmentSpeed.toFixed(2)}×</div>
             <input
               type="range"
@@ -336,10 +340,10 @@ function FragmentControlPanel({
               <span>1.5×</span>
             </div>
             <div className="modal-actions">
-              <button className="sp-ctrl-btn" onClick={() => onFragmentSpeedChange(1)} title="Reset to 1.00×" style={{ width: "auto", padding: "0 16px" }}>
-                Reset
+              <button className="sp-ctrl-btn" onClick={() => onFragmentSpeedChange(1)} title={t("player.resetSpeed")} style={{ width: "auto", padding: "0 16px" }}>
+                {t("common.reset")}
               </button>
-              <button onClick={() => setSpeedModalOpen(false)}>Close</button>
+              <button onClick={() => setSpeedModalOpen(false)}>{t("common.close")}</button>
             </div>
           </div>
         </div>
@@ -348,14 +352,14 @@ function FragmentControlPanel({
       {rewindModalOpen && (
         <div className="modal-overlay" onClick={() => setRewindModalOpen(false)}>
           <div className="modal-box sp-speed-modal sp-rewind-modal" onClick={e => e.stopPropagation()}>
-            <h3 className="sp-speed-modal__title">Rewind count</h3>
+            <h3 className="sp-speed-modal__title">{t("player.rewindModal")}</h3>
             <div className="sp-speed-modal__value">×{localRepeat}</div>
             <div className="sp-rewind-stepper">
               <button
                 className="sp-ctrl-btn"
                 onClick={() => onRepeatChange(Math.max(1, localRepeat - 1))}
                 disabled={localRepeat <= 1}
-                title="Decrease"
+                title={t("player.decrease")}
               >
                 −
               </button>
@@ -375,16 +379,16 @@ function FragmentControlPanel({
                 className="sp-ctrl-btn"
                 onClick={() => onRepeatChange(Math.min(99, localRepeat + 1))}
                 disabled={localRepeat >= 99}
-                title="Increase"
+                title={t("player.increase")}
               >
                 +
               </button>
             </div>
             <div className="modal-actions">
-              <button className="sp-ctrl-btn" onClick={() => onRepeatChange(1)} title="Reset to ×1" style={{ width: "auto", padding: "0 16px" }}>
+              <button className="sp-ctrl-btn" onClick={() => onRepeatChange(1)} title={t("player.resetRewind")} style={{ width: "auto", padding: "0 16px" }}>
                 Reset
               </button>
-              <button onClick={() => setRewindModalOpen(false)}>Close</button>
+              <button onClick={() => setRewindModalOpen(false)}>{t("common.close")}</button>
             </div>
           </div>
         </div>
@@ -401,6 +405,7 @@ export function SequencePlayerPage() {
 function SequencePlayerPageInner() {
   const { id: audioId, seqId } = useParams<{ id: string; seqId: string }>()
   const navigate = useNavigate()
+  const t = useT()
 
   const {
     files,
@@ -774,7 +779,7 @@ function SequencePlayerPageInner() {
   }, [])
 
   // --- Derived ---
-  const fileName = files.find(f => f.id === audioId)?.name ?? "Unknown"
+  const fileName = files.find(f => f.id === audioId)?.name ?? t("common.unknown")
 
   /* Lock-screen transport. The browser dispatches these itself, so unlike our
      own timers they survive the screen going off — which is exactly when the
@@ -800,8 +805,8 @@ function SequencePlayerPageInner() {
   if (!audioId || !seqId) {
     return (
       <div className="page">
-        <p>Invalid URL. Missing audio or sequence ID.</p>
-        <button onClick={() => navigate("/")}>← Back to library</button>
+        <p>{t("player.invalidUrl")}</p>
+        <button onClick={() => navigate("/")}>{t("player.backToLibrary")}</button>
       </div>
     )
   }
@@ -809,10 +814,9 @@ function SequencePlayerPageInner() {
   if (!sequence) {
     return (
       <div className="page">
-        <h2>Sequence Player</h2>
-        <h3>Test 4</h3>
-        <p className="empty-state">Loading sequence...</p>
-        <button onClick={() => navigate(-1)}>← Back</button>
+        <h2>{t("player.title")}</h2>
+        <p className="empty-state">{t("player.loading")}</p>
+        <button onClick={() => navigate(-1)}>{t("common.back")}</button>
       </div>
     )
   }
@@ -822,26 +826,26 @@ function SequencePlayerPageInner() {
   return (
     <div className="page">
       {/* Header */}
-      <h2>Sequence Player</h2>
+      <h2>{t("player.title")}</h2>
       <p className="sp-file-info">
         <strong>#{sequence.label}</strong>
         <span className="sp-file-info-separator">·</span>
         {fileName}
         <span className="sp-file-info-separator">·</span>
-        {sequence.fragments.length} fragment{sequence.fragments.length !== 1 ? "s" : ""}
+        {t.n("player.fragments", sequence.fragments.length)}
       </p>
 
       {/* Back + Play-all / Stop-all + Volume */}
       <div className="sp-playall-row">
         <button className="sp-playall-btn" onClick={() => navigate(-1)}>
-          <span>← Back</span>
+          <span>{t("common.back")}</span>
         </button>
         {isPlayAllActive ? (
           <>
             {isPaused ? (
               <button className="sp-playall-btn" onClick={() => play()}>
                 <PlayIcon />
-                <span>Resume all</span>
+                <span>{t("player.resumeAll")}</span>
               </button>
             ) : (
               /* In the gap between two fragments the engine is momentarily
@@ -850,12 +854,12 @@ function SequencePlayerPageInner() {
                  control keeps its place and goes disabled for the handover. */
               <button className="sp-playall-btn" onClick={() => pause()} disabled={!isPlaying}>
                 <PauseIcon />
-                <span>Pause all</span>
+                <span>{t("player.pauseAll")}</span>
               </button>
             )}
             <button className="sp-playall-btn" onClick={handleStopAll}>
               <StopIcon />
-              <span>Stop</span>
+              <span>{t("common.stop")}</span>
             </button>
           </>
         ) : (
@@ -863,10 +867,10 @@ function SequencePlayerPageInner() {
             className="sp-playall-btn"
             onClick={handlePlayAll}
             disabled={sequence.fragments.length === 0}
-            title="Play all fragments consecutively"
+            title={t("player.playAllTitle")}
           >
             <PlayAllIcon size={20} />
-            <span>Play all</span>
+            <span>{t("player.playAll")}</span>
           </button>
         )}
         {/* Same infinity glyph as the fragment control panel: one symbol means
@@ -878,11 +882,11 @@ function SequencePlayerPageInner() {
           className={`sp-playall-btn sp-loop-btn${infiniteSequence ? " sp-loop-btn--active" : ""}`}
           onClick={() => setInfiniteSequence(v => !v)}
           aria-pressed={infiniteSequence}
-          title={infiniteSequence ? "Repeat sequence: on" : "Repeat sequence: off"}
+          title={infiniteSequence ? t("player.repeatOn") : t("player.repeatOff")}
         >
           <InfiniteRewindIcon />
         </button>
-        <label className="sp-global-speed" title="Global playback speed (multiplied with each fragment's saved speed)">
+        <label className="sp-global-speed" title={t("player.globalSpeed")}>
           <span className="sp-global-speed__icon"><SpeedIcon /></span>
           <input
             type="range"
@@ -928,10 +932,10 @@ function SequencePlayerPageInner() {
                   <span className="sp-frag-speed">{frag.speed}×</span>
                 )}
                 {frag.subtitles.length > 0 && (
-                  <span className="sp-frag-sub-indicator" title="Has subtitles">📝</span>
+                  <span className="sp-frag-sub-indicator" title={t("player.hasSubtitles")}>📝</span>
                 )}
                 {isFragDisabled && (
-                  <span className="sp-frag-disabled-indicator" title="Excluded from Play-all">skip</span>
+                  <span className="sp-frag-disabled-indicator" title={t("player.excluded")}>{t("player.skip")}</span>
                 )}
                 {isCurrentlyPlaying && (
                   <span className="sp-frag-playing-indicator">▶</span>

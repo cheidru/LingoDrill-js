@@ -6,8 +6,10 @@ import { createPortal } from "react-dom"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useSharedAudioEngine } from "../hooks/useSharedAudioEngine"
 import { OnboardingScreen } from "./OnboardingScreen"
+import { HelpScreen } from "./HelpScreen"
 import { hasSeenOnboarding, setOnboardingSeen } from "../../utils/settings"
 import { useT } from "../../utils/i18n"
+import { APP_VERSION } from "../../utils/version"
 
 /* main.tsx adds this class once, before it renders. It has to be read during
    render rather than at module scope: imports are evaluated before the body
@@ -17,7 +19,8 @@ const isMobile = () => document.documentElement.classList.contains("mobile")
 /* Settings and Contacts are branches of the menu rather than places in the app:
    they are reachable only from the burger and there is nothing to do on them
    once the menu is gone. They are routes purely so they get a full screen on
-   mobile, so the header treats them as menu state, not as destinations. */
+   mobile, so the header treats them as menu state, not as destinations.
+   Help is not among them — like the Demo it is a takeover window, not a route. */
 const MENU_SCREEN_PATHS = ["/settings", "/contacts"]
 const isMenuScreen = (path: string) =>
   MENU_SCREEN_PATHS.some(p => path === p || path.startsWith(`${p}/`))
@@ -30,6 +33,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [aboutMenuOpen, setAboutMenuOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(() => !hasSeenOnboarding())
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const audioIdMatch = location.pathname.match(/\/file\/([^/]+)/)
   const audioId = audioIdMatch ? audioIdMatch[1] : selectedFile?.id ?? null
@@ -100,6 +104,11 @@ export function Header() {
     closeMenus()
   }
 
+  const openHelp = () => {
+    setHelpOpen(true)
+    closeMenus()
+  }
+
   const closeDemo = () => {
     setOnboardingSeen()
     setOnboardingOpen(false)
@@ -146,6 +155,13 @@ export function Header() {
       <button role="menuitem" className="header__about-item" onClick={openDemo}>
         {t("nav.about.demo")}
       </button>
+      <button role="menuitem" className="header__about-item" onClick={openHelp}>
+        {t("nav.about.help")}
+      </button>
+      {/* Not a menu item: no role, not focusable, just the build the user is on. */}
+      <p className="header__about-version">
+        {t("app.title")} {t("about.version")} {APP_VERSION}
+      </p>
     </div>
   )
 
@@ -215,6 +231,7 @@ export function Header() {
       {aboutOpen && !mobile && aboutPos && createPortal(aboutMenu, document.body)}
 
       {onboardingOpen && <OnboardingScreen onClose={closeDemo} />}
+      {helpOpen && <HelpScreen onClose={() => setHelpOpen(false)} />}
     </>
   )
 }

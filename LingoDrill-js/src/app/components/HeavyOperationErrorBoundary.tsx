@@ -19,6 +19,9 @@
 import { Component } from "react"
 import type { ReactNode, ErrorInfo } from "react"
 import { MobileInstructionModal } from "./MobileInstructionModal"
+/* The plain `t`, not the hook: this is a class component, and an error screen
+   has no reason to re-render on a language change anyway. */
+import { t } from "../../utils/i18n"
 
 interface Props {
   children: ReactNode
@@ -72,21 +75,21 @@ export class HeavyOperationErrorBoundary extends Component<Props, State> {
         <>
           <div className="error-boundary-fallback">
             <p style={{ color: "#d32f2f", marginBottom: 8 }}>
-              ⚠ {this.props.operationName} failed.
+              ⚠ {t("error.heavyFailed", { op: this.props.operationName })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: 12 }}>
-              This operation may require too much processing power for this device.
+              {t("error.heavyBody")}
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={this.handleRetry} className="btn-primary">
-                Try again
+                {t("error.retry")}
               </button>
               <button
                 onClick={() => this.setState({ showModal: true })}
                 className="btn-primary"
                 style={{ backgroundColor: "#ff9800" }}
               >
-                How to prepare on desktop
+                {t("editor.howToPrepare")}
               </button>
             </div>
           </div>

@@ -9,8 +9,10 @@ import { AudioUploader } from "../app/components/AudioUploader"
 import { AudioLibrary } from "../app/components/AudioLibrary"
 import { AudioPlayer } from "../app/components/AudioPlayer"
 import { ImportBundleButton } from "../app/components/ImportBundleButton"
+import { useT } from "../utils/i18n"
 
 export default function LibraryPage() {
+  const t = useT()
   const { files, selectedFile, isLoading, error, addFile, removeFile, selectFile, isReady, isPlaying, duration, currentTime, loadById, play, stop, seekTo, setVolume, volume, pause } = useSharedAudioEngine()
 
   // Stop playback when leaving the page (unmount)
@@ -40,8 +42,8 @@ export default function LibraryPage() {
 
   return (
     <div className="page">
-      <h2>Audio Library</h2>
-      {isLoading && <p>Loading...</p>}
+      <h2>{t("library.title")}</h2>
+      {isLoading && <p>{t("common.loading")}</p>}
       {error && <p style={{ color: "var(--color-danger)" }}>{error}</p>}
 
       <AudioUploader onUpload={addFile} />

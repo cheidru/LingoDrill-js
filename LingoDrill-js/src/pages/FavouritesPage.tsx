@@ -9,9 +9,11 @@ import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { IndexedDBSequenceStorage } from "../infrastructure/indexeddb/IndexedDBSequenceStorage"
 import type { Sequence } from "../core/domain/types"
 import { PlayIcon, EditIcon, FavouriteIcon } from "../app/components/SequenceIcons"
+import { useT } from "../utils/i18n"
 
 export function FavouritesPage() {
   const navigate = useNavigate()
+  const t = useT()
   const { files } = useSharedAudioEngine()
 
   const storageRef = useRef<IndexedDBSequenceStorage | null>(null)
@@ -47,16 +49,16 @@ export function FavouritesPage() {
   }, [])
 
   const getAudioName = (audioId: string) =>
-    files.find(f => f.id === audioId)?.name ?? "Unknown file"
+    files.find(f => f.id === audioId)?.name ?? t("common.unknownFile")
 
   return (
     <div className="page">
-      <h2>Favourites</h2>
+      <h2>{t("favourites.title")}</h2>
 
-      {isLoading && <p>Loading...</p>}
+      {isLoading && <p>{t("common.loading")}</p>}
 
       {!isLoading && sequences.length === 0 && (
-        <p className="empty-state">No favourite sequences yet. Star a sequence in the Fragment Library to see it here.</p>
+        <p className="empty-state">{t("favourites.empty")}</p>
       )}
 
       {sequences.map(seq => (
@@ -68,7 +70,7 @@ export function FavouritesPage() {
             </span>
 
             <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-              {seq.fragments.length} fragment{seq.fragments.length !== 1 ? "s" : ""}
+              {t.n("fragmentLibrary.fragments", seq.fragments.length)}
             </span>
 
             <span style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)" }}>
@@ -81,13 +83,13 @@ export function FavouritesPage() {
                 className="seq-controls__btn"
                 onClick={() => navigate(`/file/${seq.audioId}/player/${seq.id}`)}
                 disabled={seq.fragments.length === 0}
-                title={seq.fragments.length === 0 ? "No fragments to play" : "Open Sequence Player"}
+                title={seq.fragments.length === 0 ? t("fragmentLibrary.noFragments") : t("fragmentLibrary.openPlayer")}
               >
                 <PlayIcon />
               </button>
 
               {/* Edit */}
-              <button className="seq-controls__btn" onClick={() => navigate(`/file/${seq.audioId}/editor/${seq.id}`)} title="Edit">
+              <button className="seq-controls__btn" onClick={() => navigate(`/file/${seq.audioId}/editor/${seq.id}`)} title={t("common.edit")}>
                 <EditIcon />
               </button>
 
@@ -95,7 +97,7 @@ export function FavouritesPage() {
               <button
                 className="seq-controls__btn"
                 onClick={() => handleToggleFavourite(seq)}
-                title="Remove from favourites"
+                title={t("fragmentLibrary.removeFav")}
               >
                 <FavouriteIcon filled={true} />
               </button>

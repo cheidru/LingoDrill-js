@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react"
 import { importBundle } from "../../core/bundle/importBundle"
+import { useT } from "../../utils/i18n"
 
 interface Props {
   /** Перезагрузить список файлов после импорта */
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function ImportBundleButton({ onImportComplete }: Props) {
+  const t = useT()
   const [importing, setImporting] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [resultMessage, setResultMessage] = useState("")
@@ -41,20 +43,20 @@ export function ImportBundleButton({ onImportComplete }: Props) {
 
       const result = await importBundle(file)
       setResultMessage(
-        `Imported "${result.audioName}"\n` +
-        `${result.sequenceCount} sequence(s), ${result.subtitleCount} subtitle file(s)\n` +
-        `Waveform: ${result.waveformLoaded ? "loaded" : "not included"}\n` +
-        `Audio: ${result.audioImported ? "imported" : "not included"}`
+        `${t("bundle.imported", { name: result.audioName })}\n` +
+        `${t.n("bundle.sequences", result.sequenceCount)}, ${t.n("bundle.subtitleFiles", result.subtitleCount)}\n` +
+        `${t("bundle.waveform", { state: t(result.waveformLoaded ? "bundle.waveform.loaded" : "bundle.waveform.notIncluded") })}\n` +
+        `${t("bundle.audio", { state: t(result.audioImported ? "bundle.audio.imported" : "bundle.audio.notIncluded") })}`
       )
       setShowResult(true)
       onImportComplete()
     } catch (err) {
       console.error("Import failed:", err)
-      alert(`Import failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      alert(t("bundle.importFailed", { message: err instanceof Error ? err.message : t("bundle.unknownError") }))
     } finally {
       setImporting(false)
     }
-  }, [onImportComplete])
+  }, [onImportComplete, t])
 
   const handleAudioForBundle = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const audioFile = e.target.files?.[0]
@@ -69,20 +71,20 @@ export function ImportBundleButton({ onImportComplete }: Props) {
       const result = await importBundle(pendingBundleRef.current, audioFile)
       pendingBundleRef.current = null
       setResultMessage(
-        `Imported "${result.audioName}"\n` +
-        `${result.sequenceCount} sequence(s), ${result.subtitleCount} subtitle file(s)\n` +
-        `Waveform: ${result.waveformLoaded ? "loaded" : "not included"}\n` +
-        `Audio: imported from separate file`
+        `${t("bundle.imported", { name: result.audioName })}\n` +
+        `${t.n("bundle.sequences", result.sequenceCount)}, ${t.n("bundle.subtitleFiles", result.subtitleCount)}\n` +
+        `${t("bundle.waveform", { state: t(result.waveformLoaded ? "bundle.waveform.loaded" : "bundle.waveform.notIncluded") })}\n` +
+        `${t("bundle.audio", { state: t("bundle.audio.fromSeparate") })}`
       )
       setShowResult(true)
       onImportComplete()
     } catch (err) {
       console.error("Import failed:", err)
-      alert(`Import failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      alert(t("bundle.importFailed", { message: err instanceof Error ? err.message : t("bundle.unknownError") }))
     } finally {
       setImporting(false)
     }
-  }, [onImportComplete])
+  }, [onImportComplete, t])
 
   return (
     <div className="import-bundle">
@@ -91,10 +93,10 @@ export function ImportBundleButton({ onImportComplete }: Props) {
           onClick={() => bundleInputRef.current?.click()}
           disabled={importing}
         >
-          {importing ? "Importing..." : "Import bundle"}
+          {importing ? t("bundle.importing") : t("bundle.import")}
         </button>
         <span style={{ fontSize: "0.8rem", color: "#888" }}>
-          Load a <code>.lingodrill</code> file prepared on desktop
+          {t("bundle.importHint")}
         </span>
       </div>
 
@@ -110,23 +112,20 @@ export function ImportBundleButton({ onImportComplete }: Props) {
       {needAudio && (
         <div className="modal-overlay" onClick={() => { setNeedAudio(false); pendingBundleRef.current = null }}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>Audio file needed</h3>
-            <p>
-              This bundle was exported without audio.
-              Please select the original audio file to complete the import.
-            </p>
+            <h3 style={{ marginTop: 0 }}>{t("bundle.audioNeeded")}</h3>
+            <p>{t("bundle.audioNeededBody")}</p>
             <div className="modal-actions">
               <button
                 onClick={() => audioInputRef.current?.click()}
                 className="btn-primary"
               >
-                Select audio file
+                {t("bundle.selectAudio")}
               </button>
               <button
                 onClick={() => { setNeedAudio(false); pendingBundleRef.current = null }}
                 style={{ padding: "6px 16px" }}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
             <input
@@ -144,7 +143,7 @@ export function ImportBundleButton({ onImportComplete }: Props) {
       {showResult && (
         <div className="modal-overlay" onClick={() => setShowResult(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>Import complete</h3>
+            <h3 style={{ marginTop: 0 }}>{t("bundle.importComplete")}</h3>
             <pre style={{
               whiteSpace: "pre-wrap",
               fontSize: "0.9rem",
@@ -157,7 +156,7 @@ export function ImportBundleButton({ onImportComplete }: Props) {
             </pre>
             <div className="modal-actions">
               <button onClick={() => setShowResult(false)} className="btn-primary">
-                OK
+                {t("common.ok")}
               </button>
             </div>
           </div>

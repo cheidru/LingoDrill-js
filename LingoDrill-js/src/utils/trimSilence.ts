@@ -1,6 +1,7 @@
 // utils/trimSilence.ts
 
 import type { SpeechSegment } from "./detectSpeech"
+import { getTrimSilenceGap } from "./settings"
 
 /**
  * Склеивает только речевые сегменты из AudioBuffer в новый WAV Blob.
@@ -20,13 +21,13 @@ export interface TrimResult {
 /** Minimum gap duration (in seconds) to be removed. Gaps shorter than this are kept. */
 const MIN_GAP_TO_TRIM = 5
 
-/** Seconds of silence to keep on each side of a removed gap */
-const GAP_KEEP_SECONDS = 2
-
 export function trimSilence(
   audioBuffer: AudioBuffer,
   segments: SpeechSegment[],
   paddingSeconds: number = 0.1,
+  /* Seconds of silence to keep on each side of a removed gap — the
+     "Trim silence gap" setting, read at call time. */
+  gapKeepSeconds: number = getTrimSilenceGap(),
 ): TrimResult {
   const sampleRate = audioBuffer.sampleRate
   const numChannels = audioBuffer.numberOfChannels
@@ -50,7 +51,7 @@ export function trimSilence(
 
   // Second pass: handle gaps between segments.
   // - Gaps < MIN_GAP_TO_TRIM: fully preserved (segments merged over the gap)
-  // - Gaps >= MIN_GAP_TO_TRIM: trimmed, but GAP_KEEP_SECONDS kept on each side
+  // - Gaps >= MIN_GAP_TO_TRIM: trimmed, but gapKeepSeconds kept on each side
   const mergedWithShortGaps: { start: number; end: number }[] = []
   for (const seg of merged) {
     if (mergedWithShortGaps.length > 0) {
@@ -62,9 +63,9 @@ export function trimSilence(
         prev.end = Math.max(prev.end, seg.end)
         continue
       }
-      // Gap is long — keep GAP_KEEP_SECONDS on each side
-      const keepAfterPrev = Math.min(GAP_KEEP_SECONDS, gap / 2)
-      const keepBeforeSeg = Math.min(GAP_KEEP_SECONDS, gap / 2)
+      // Gap is long — keep gapKeepSeconds on each side
+      const keepAfterPrev = Math.min(gapKeepSeconds, gap / 2)
+      const keepBeforeSeg = Math.min(gapKeepSeconds, gap / 2)
       prev.end = Math.min(prev.end + keepAfterPrev, seg.start)
       const newStart = Math.max(seg.start - keepBeforeSeg, prev.end)
       console.log(`[trimSilence] Trimming long gap: ${gap.toFixed(2)}s, keeping ${keepAfterPrev.toFixed(2)}s after prev and ${keepBeforeSeg.toFixed(2)}s before next`)

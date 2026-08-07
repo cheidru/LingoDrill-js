@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import type { MouseEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { VolumeControl } from "./VolumeControl"
+import { useT } from "../../utils/i18n"
 
 type Props = {
   fileId: string; isReady: boolean; isPlaying: boolean; duration: number; currentTime: number
@@ -12,12 +13,13 @@ type Props = {
 
 // ToDo Убрать эквалайзер так-как загрузка аудиофайла происходит мгновенно
 function EqualizerLoader() {
+  const t = useT()
   return (
     <div className="eq-loader">
       {[0, 1, 2, 3, 4].map(i => (
         <div key={i} className="eq-loader__bar" style={{ animation: `eqBounce 0.8s ease-in-out ${i * 0.1}s infinite alternate` }} />
       ))}
-      <span className="eq-loader__text">Decoding audio...</span>
+      <span className="eq-loader__text">{t("library.decoding")}</span>
     </div>
   )
 }
@@ -31,6 +33,7 @@ const HANDLE_SIZE = 14
 
 export function AudioPlayer({ fileId, isReady, isPlaying, duration, currentTime, onPlay, onPause, onStop, onSeek, volume, onVolumeChange }: Props) {
   const navigate = useNavigate()
+  const t = useT()
   const [dragging, setDragging] = useState(false)
   const [hoverHandle, setHoverHandle] = useState(false)
   const progress = duration > 0 ? currentTime / duration : 0
@@ -116,7 +119,7 @@ export function AudioPlayer({ fileId, isReady, isPlaying, duration, currentTime,
 
   return (
     <div>
-      <h3>Player</h3>
+      <h3>{t("library.player")}</h3>
       {!isReady && <EqualizerLoader />}
       {isReady && (
         <>
@@ -137,12 +140,12 @@ export function AudioPlayer({ fileId, isReady, isPlaying, duration, currentTime,
             </div>
           </div>
           <div className="player-controls">
-            <button onClick={isPlaying ? onPause : onPlay}>{isPlaying ? "Pause" : "Play"}</button>
-            <button onClick={onStop}>Stop</button>
+            <button onClick={isPlaying ? onPause : onPlay}>{isPlaying ? t("common.pause") : t("common.play")}</button>
+            <button onClick={onStop}>{t("common.stop")}</button>
             <VolumeControl volume={volume} onVolumeChange={onVolumeChange} />
           </div>
           <div className="player-nav">
-            <button onClick={() => navigate(`/file/${fileId}/sequences`)}>Fragments</button>
+            <button onClick={() => navigate(`/file/${fileId}/sequences`)}>{t("library.fragments")}</button>
           </div>
         </>
       )}

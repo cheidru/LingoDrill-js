@@ -7,6 +7,7 @@ const KEY_START_PAGE = "lingodrill.startPage"
 const KEY_SUB_FONT_SIZE = "lingodrill.subFontSize"
 const KEY_LAST_SEQUENCE = "lingodrill.lastSequence"
 const KEY_FRAGMENT_GAP = "lingodrill.fragmentGap"
+const KEY_TRIM_SILENCE_GAP = "lingodrill.trimSilenceGap"
 const KEY_LANGUAGE = "lingodrill.language"
 const KEY_THEME = "lingodrill.theme"
 const KEY_COLOR_THEME = "lingodrill.colorTheme"
@@ -19,12 +20,16 @@ export const SUB_FONT_SIZE_MAX = 32
 export const DEFAULT_FRAGMENT_GAP = 2
 export const FRAGMENT_GAP_MIN = 0
 export const FRAGMENT_GAP_MAX = 10
+/* Silence kept on each side of a gap that "Trim silence" removes, in seconds.
+   Same units and range as the fragment gap, so both rows behave identically. */
+export const DEFAULT_TRIM_SILENCE_GAP = 2
+export const TRIM_SILENCE_GAP_MIN = 0
+export const TRIM_SILENCE_GAP_MAX = 10
 export const DEFAULT_LANGUAGE: Language = "en"
-/* Languages offered in Settings. The `ru` dictionary in utils/i18n.ts is kept
-   and maintained, but its coverage is not finished yet, so it stays out of this
-   list — which is also what stops a previously stored "ru" from taking effect.
-   Shipping it is a matter of adding it back here. */
-export const AVAILABLE_LANGUAGES: Language[] = ["en"]
+/* Languages offered in Settings. Anything listed here must have a dictionary in
+   utils/i18n.ts; a stored language that is not on this list falls back to the
+   default rather than stranding the user in a half-translated interface. */
+export const AVAILABLE_LANGUAGES: Language[] = ["en", "ru"]
 export const DEFAULT_THEME: Theme = "light"
 export const DEFAULT_COLOR_THEME: ColorTheme = "normal"
 
@@ -85,6 +90,19 @@ export function getFragmentGap(): number {
 export function setFragmentGap(n: number): void {
   const clamped = Math.max(FRAGMENT_GAP_MIN, Math.min(FRAGMENT_GAP_MAX, n))
   localStorage.setItem(KEY_FRAGMENT_GAP, String(clamped))
+}
+
+export function getTrimSilenceGap(): number {
+  const raw = localStorage.getItem(KEY_TRIM_SILENCE_GAP)
+  if (raw === null) return DEFAULT_TRIM_SILENCE_GAP
+  const n = parseFloat(raw)
+  if (!isNaN(n) && n >= TRIM_SILENCE_GAP_MIN && n <= TRIM_SILENCE_GAP_MAX) return n
+  return DEFAULT_TRIM_SILENCE_GAP
+}
+
+export function setTrimSilenceGap(n: number): void {
+  const clamped = Math.max(TRIM_SILENCE_GAP_MIN, Math.min(TRIM_SILENCE_GAP_MAX, n))
+  localStorage.setItem(KEY_TRIM_SILENCE_GAP, String(clamped))
 }
 
 export function getLanguage(): Language {

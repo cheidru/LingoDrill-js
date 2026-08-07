@@ -391,17 +391,6 @@
   color: var(--color-primary);
 }
 
-.ob-demo__badge {
-  padding: 2px 8px;
-  border: 1px dashed var(--color-border);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-text-muted);
-}
-
 /* Editor waveform stand-in */
 .ob-demo__wave {
   position: relative;
