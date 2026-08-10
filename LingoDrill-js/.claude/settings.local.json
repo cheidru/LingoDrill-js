@@ -101,7 +101,9 @@
       "Bash(grep -vE 'i18n|// |/\\\\*|\\\\* ')",
       "mcp__playwright__browser_drag",
       "Bash(grep -vE '<\\\\/\\(h[1-6]|p|span|div|button|li|strong|em|code|pre|label|option|output|summary|td|th|a\\)>$')",
-      "Bash(python \"C:/Users/chei/AppData/Local/Temp/claude/E--LingoDrill-LingoDrill-js-LingoDrill-js/6c8a70cc-07be-4ee4-b69c-7ee79e2592e5/scratchpad/loc_export.py\")"
+      "Bash(python \"C:/Users/chei/AppData/Local/Temp/claude/E--LingoDrill-LingoDrill-js-LingoDrill-js/6c8a70cc-07be-4ee4-b69c-7ee79e2592e5/scratchpad/loc_export.py\")",
+      "Bash(git check-ignore *)",
+      "Bash(git status *)"
     ],
     "deny": [
       "Bash(rm:*)",

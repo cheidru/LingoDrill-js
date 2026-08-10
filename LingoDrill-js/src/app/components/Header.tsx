@@ -118,7 +118,13 @@ export function Header() {
      Contacts count as part of it even though the drawer is shut over them, so
      the icon stays ✕ for every item that keeps the user inside the menu and
      turns back into ☰ only once a real page is showing. */
-  const anyMenuOpen = menuOpen || aboutOpen || (mobile && onMenuScreen)
+  const anyMenuOpen = menuOpen || aboutOpen || onMenuScreen
+
+  /* Desktop has no drawer to collapse, so the burger is hidden there — which
+     left a menu screen with no way out but picking another tab. It comes back
+     purely as the ✕, at the far end of the bar, for as long as the user is
+     standing on one. */
+  const desktopClose = !mobile && onMenuScreen
 
   /* What ✕ does. As well as collapsing the drawer it backs out of a menu
      screen, so a single press always ends the same way — menu gone, an app page
@@ -171,7 +177,7 @@ export function Header() {
         <span className="header__logo">{t("app.title")}</span>
 
         <button
-          className="header__burger"
+          className={`header__burger${desktopClose ? " header__burger--close" : ""}`}
           onClick={() => (anyMenuOpen ? dismissMenu() : setMenuOpen(true))}
           aria-label={anyMenuOpen ? t("menu.close") : t("menu.open")}
           aria-expanded={anyMenuOpen}

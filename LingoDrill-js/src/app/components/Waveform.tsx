@@ -19,6 +19,10 @@ type Props = {
   onSelect?: (start: number, end: number) => void
   /** Вызывается при клике на фрагмент — переводит его в режим редактирования */
   onFragmentClick?: (id: string) => void
+  /* Клик по уже выделенному фрагменту. Выделять нечего, поэтому обычный
+     onFragmentClick тут не зовётся — но клик всё ещё что-то значит, если
+     фрагмент звучит: страница делает из него паузу/возобновление. */
+  onSelectedFragmentClick?: (id: string) => void
   /** Вызывается при клике вне фрагментов — снимает выделение */
   onClickOutside?: () => void
   /** Вызывается при перетаскивании границ выделенного фрагмента (только для editingId) */
@@ -77,6 +81,7 @@ export function Waveform({
   fragments = [],
   onSelect,
   onFragmentClick,
+  onSelectedFragmentClick,
   onClickOutside,
   onEditDrag,
   onEditEnd,
@@ -399,6 +404,8 @@ export function Waveform({
     if (fragId) {
       if (fragId !== editingId) {
         onFragmentClick?.(fragId)
+      } else {
+        onSelectedFragmentClick?.(fragId)
       }
       return
     }
@@ -555,12 +562,14 @@ export function Waveform({
   // Refs для доступа к актуальным значениям из touch handlers
   const stateRef = useRef({
     editingId, fragments, selection, isSelecting, dragging, draggingCursor,
-    showPlaybackCursor, currentTime, onSeek, onEditDrag, onEditEnd, onFragmentClick, onClickOutside, onSelect,
+    showPlaybackCursor, currentTime, onSeek, onEditDrag, onEditEnd, onFragmentClick, onSelectedFragmentClick,
+    onClickOutside, onSelect,
   })
   useEffect(() => {
     stateRef.current = {
       editingId, fragments, selection, isSelecting, dragging, draggingCursor,
-      showPlaybackCursor, currentTime, onSeek, onEditDrag, onEditEnd, onFragmentClick, onClickOutside, onSelect,
+      showPlaybackCursor, currentTime, onSeek, onEditDrag, onEditEnd, onFragmentClick, onSelectedFragmentClick,
+      onClickOutside, onSelect,
     }
   })
 
@@ -836,6 +845,8 @@ export function Waveform({
         if (fragId) {
           if (fragId !== s.editingId) {
             s.onFragmentClick?.(fragId)
+          } else {
+            s.onSelectedFragmentClick?.(fragId)
           }
         } else if (s.editingId) {
           s.onClickOutside?.()

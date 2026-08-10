@@ -81,6 +81,14 @@
   background: var(--color-primary-bg);
   color: var(--color-primary);
 }
+/* Desktop exit from a menu screen (Settings, Contacts). The burger sits before
+   the nav in the DOM so the mobile drawer can hang off it; ordering it last
+   puts the ✕ at the far end of the bar, where an exit belongs, instead of
+   between the logo and the tabs. */
+.header__burger--close {
+  display: flex;
+  order: 1;
+}
 .header__burger-icon {
   display: block;
   font-size: 24px;
@@ -350,6 +358,10 @@ html.mobile .header__overlay {
 }
 .btn-save:hover { background-color: var(--color-primary-dark); border-color: transparent; color: white; }
 .btn-sub { padding: 4px 8px; font-size: 0.8rem; }
+/* Sub/Vocab button of a fragment that already has one bound. The accent colour
+   carries the whole signal, so a glance down the list tells the user which
+   fragments are done without opening any of them. */
+.btn-sub--bound { color: var(--color-primary); }
 .subtitle-display {
   border-left: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);

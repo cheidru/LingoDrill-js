@@ -65,7 +65,7 @@ function FragmentEditorPageInner() {
 
   const {
     getBlob, addFile, files,
-    loadById, playFragment, pause, play, stop, seekTo,
+    loadById, playFragment, pause, play, stop, seekTo, setOnEnded,
     isReady, isPlaying, isPaused, duration, currentTime,
     volume, setVolume,
   } = useSharedAudioEngine()
@@ -804,6 +804,55 @@ function FragmentEditorPageInner() {
     play()
   }, [play])
 
+  /* Is this the fragment currently loaded into the transport? Compared by
+     bounds rather than id because that is all playingFragment carries — and
+     the bounds are also what stops matching the moment an edge is dragged. */
+  const isTransportFragment = useCallback((f: SequenceFragment) =>
+    !isFilePlayback && playingFragment != null &&
+    playingFragment.start === f.start && playingFragment.end === f.end,
+  [isFilePlayback, playingFragment])
+
+  /* Once a fragment is selected there is nothing left for a click on it to
+     select, so it becomes the transport: play, then pause, then resume, as many
+     times as the user clicks. The first click on any other fragment still only
+     selects it — and stops whatever was sounding. */
+  const handleFragmentClick = useCallback((fragId: string) => {
+    const frag = fragments.find(f => f.id === fragId)
+    if (!frag) return
+    if (isTransportFragment(frag)) {
+      if (isPlaying) { handlePauseFragment(); return }
+      if (isPaused) { handleResumeFragment(); return }
+    }
+    /* Falls through to a fresh play when the fragment is selected but silent —
+       including once it has played out, which drops it from the transport. */
+    if (fragId === editingId) { handlePlayFragment(frag); return }
+    startEditingWithAnim(fragId)
+  }, [fragments, isTransportFragment, isPlaying, isPaused, handlePauseFragment,
+      handleResumeFragment, editingId, handlePlayFragment, startEditingWithAnim])
+
+  /* Dragging an edge invalidates what is sounding: the sound is bounded by the
+     old start/end, not the ones now on screen. Playback stops outright, and
+     with it the green progress shading — it measures against bounds that have
+     moved. Cheap to call on every drag tick: without playback it does nothing. */
+  const stopPlaybackForEdit = useCallback(() => {
+    if (!playingFragment) return
+    console.log("[FragmentEditor] Stopping playback — fragment boundary dragged")
+    stop()
+    setPlayingFragment(null)
+  }, [playingFragment, stop])
+
+  /* The last repeat running out ends the shading too. The engine reports it
+     through onEnded — the only end the page never triggers itself — and without
+     dropping playingFragment here the green progress fill would sit frozen over
+     a fragment that has finished sounding. */
+  useEffect(() => {
+    setOnEnded(() => {
+      console.log("[FragmentEditor] Fragment playback ended")
+      setPlayingFragment(null)
+    })
+    return () => setOnEnded(null)
+  }, [setOnEnded])
+
   // Stop playback when leaving the page (unmount)
   const stopRef = useRef(stop)
   useEffect(() => { stopRef.current = stop }, [stop])
@@ -1124,9 +1173,11 @@ function FragmentEditorPageInner() {
               duration={duration}
               fragments={waveformFragments}
               onSelect={addFragment}
-              onFragmentClick={startEditingWithAnim}
+              onFragmentClick={handleFragmentClick}
+              onSelectedFragmentClick={handleFragmentClick}
               onClickOutside={() => { setEditingId(null); savedBoundsRef.current = null }}
               onEditDrag={(id, newStart, newEnd) => {
+                stopPlaybackForEdit()
                 const frag = fragments.find(f => f.id === id)
                 if (frag) {
                   const updated = { ...frag, start: newStart, end: newEnd }
@@ -1295,7 +1346,7 @@ function FragmentEditorPageInner() {
                         handleBlockDeleteSelectEnd(f.id)
                         return
                       }
-                      if (!isEditing) startEditingWithAnim(f.id)
+                      handleFragmentClick(f.id)
                     }}
                     onPointerDown={() => { if (!blockDeleteStartId) handleFragmentPointerDown(f.id) }}
                     onPointerUp={handleFragmentPointerUp}
@@ -1338,14 +1389,14 @@ function FragmentEditorPageInner() {
                       {isEditing && (
                         <>
                           {/* CHANGE 3: Sub button always shown for selected (editing) fragment */}
-                          <button className="btn-sub" onClick={e => {
+                          <button className={`btn-sub${hasSubtitles ? " btn-sub--bound" : ""}`} onClick={e => {
                             e.stopPropagation()
                             openSubtitleModal(f.id)
                           }}>
                             {t("fragmentLibrary.sub")}
                           </button>
                           {showVocabBtn && (
-                            <button className="btn-sub" onClick={e => {
+                            <button className={`btn-sub${hasVocabularies ? " btn-sub--bound" : ""}`} onClick={e => {
                               e.stopPropagation()
                               openVocabularyModal(f.id)
                             }}>
@@ -1357,7 +1408,7 @@ function FragmentEditorPageInner() {
                       {/* Sub button on non-selected fragment: shown when subtitles are attached
                           or when subtitle files are available to attach */}
                       {!isEditing && showSubOnUnselected && (
-                        <button className="btn-sub" onClick={e => {
+                        <button className={`btn-sub${hasSubtitles ? " btn-sub--bound" : ""}`} onClick={e => {
                           e.stopPropagation()
                           startEditingWithAnim(f.id)
                           openSubtitleModal(f.id)
@@ -1366,7 +1417,7 @@ function FragmentEditorPageInner() {
                         </button>
                       )}
                       {!isEditing && showVocabOnUnselected && (
-                        <button className="btn-sub" onClick={e => {
+                        <button className={`btn-sub${hasVocabularies ? " btn-sub--bound" : ""}`} onClick={e => {
                           e.stopPropagation()
                           startEditingWithAnim(f.id)
                           openVocabularyModal(f.id)
