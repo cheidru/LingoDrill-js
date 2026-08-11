@@ -309,6 +309,15 @@ html.mobile .header__overlay {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* === Fragment Editor === */
+/* Audio file name, then the sequence being edited, tucked under the heading. */
+.editor-source {
+  margin-top: -8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.editor-source p { margin: 0; }
+.editor-source p + p { margin-top: 2px; }
 .frag-editor__loading { display: flex; align-items: center; gap: 8px; padding: 20px 0; color: var(--color-text-muted); }
 .file-player { display: flex; align-items: center; gap: 6px; margin-top: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .file-player__time { font-size: 0.8rem; color: var(--color-text-muted); }

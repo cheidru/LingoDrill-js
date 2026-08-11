@@ -211,6 +211,7 @@ const translations: Translations = {
     "favourites.empty": "No favourite sequences yet. Star a sequence in the Fragment Library to see it here.",
 
     "editor.title": "Fragment Editor",
+    "editor.sequenceLabel": "Sequence #{label}",
     "editor.noAudio": "No audio file selected.",
     "editor.loadingAudio": "Loading audio…",
     "editor.buildingWaveform": "Building waveform…",
@@ -229,10 +230,16 @@ const translations: Translations = {
     "editor.normalize": "Normalize volume",
     "editor.normalizing": "Normalizing…",
     "editor.cancelNormalize": "Cancel normalize",
+    "editor.maximize": "Maximize volume",
+    "editor.maximizing": "Maximizing…",
+    "editor.cancelMaximize": "Cancel maximize",
     "editor.deleteAll": "Delete all fragments",
     "editor.normalizeHint": "Use the checkboxes to exclude fragments. Play them on the waveform to preview.",
     "editor.normalizeRun.one": "Normalize {n} fragment",
     "editor.normalizeRun.other": "Normalize {n} fragments",
+    "editor.maximizeHint": "Each fragment is made as loud as it can be without distortion. Use the checkboxes to exclude fragments.",
+    "editor.maximizeRun.one": "Maximize {n} fragment",
+    "editor.maximizeRun.other": "Maximize {n} fragments",
     "editor.blockHint": "Tap another fragment to select the end of the range",
     "editor.confirmAutoDetect": "This will replace all existing fragments. Continue?",
     "editor.replaceAll": "Replace all",
@@ -272,9 +279,16 @@ const translations: Translations = {
     "editor.normalizeComplete": "Normalization complete",
     "editor.normalizedCount": "{n} of {total} fragments normalized.",
     "editor.openNormalized": "Open normalized file",
+    "editor.maximizeComplete": "Maximizing complete",
+    "editor.maximizedCount": "{n} of {total} fragments maximized.",
+    "editor.maximizedGain": "Average boost: {avg} dB (loudest fragment {min} dB, quietest {max} dB).",
+    "editor.maximizedCapped.one": "{n} fragment was too quiet to reach the ceiling and stopped at the {cap}× limit.",
+    "editor.maximizedCapped.other": "{n} fragments were too quiet to reach the ceiling and stopped at the {cap}× limit.",
+    "editor.openMaximized": "Open maximized file",
     "editor.op.autoDetect": "Auto-detect speech",
     "editor.op.trim": "Trim silence",
     "editor.op.normalize": "Normalize volume",
+    "editor.op.maximize": "Maximize volume",
     "editor.op.decode": "Audio decoding",
     "editor.op.editor": "Fragment Editor",
 
@@ -594,6 +608,7 @@ const translations: Translations = {
     "favourites.empty": "В избранном пока пусто. Отметьте последовательность сердечком в библиотеке фрагментов, и она появится здесь.",
 
     "editor.title": "Редактор фрагментов",
+    "editor.sequenceLabel": "Последовательность #{label}",
     "editor.noAudio": "Аудиофайл не выбран.",
     "editor.loadingAudio": "Загрузка аудио…",
     "editor.buildingWaveform": "Построение волны…",
@@ -612,11 +627,18 @@ const translations: Translations = {
     "editor.normalize": "Выровнять громкость",
     "editor.normalizing": "Выравнивание…",
     "editor.cancelNormalize": "Отменить выравнивание",
+    "editor.maximize": "Поднять громкость",
+    "editor.maximizing": "Поднимаю громкость…",
+    "editor.cancelMaximize": "Отменить подъём",
     "editor.deleteAll": "Удалить все фрагменты",
     "editor.normalizeHint": "Снимайте галочки, чтобы исключить фрагменты. Прослушать их можно на волне.",
     "editor.normalizeRun.one": "Выровнять {n} фрагмент",
     "editor.normalizeRun.few": "Выровнять {n} фрагмента",
     "editor.normalizeRun.many": "Выровнять {n} фрагментов",
+    "editor.maximizeHint": "Каждый фрагмент станет настолько громким, насколько это возможно без искажений. Снимайте галочки, чтобы исключить фрагменты.",
+    "editor.maximizeRun.one": "Поднять {n} фрагмент",
+    "editor.maximizeRun.few": "Поднять {n} фрагмента",
+    "editor.maximizeRun.many": "Поднять {n} фрагментов",
     "editor.blockHint": "Нажмите на другой фрагмент, чтобы выбрать конец диапазона",
     "editor.confirmAutoDetect": "Это заменит все существующие фрагменты. Продолжить?",
     "editor.replaceAll": "Заменить все",
@@ -659,9 +681,17 @@ const translations: Translations = {
     "editor.normalizeComplete": "Выравнивание завершено",
     "editor.normalizedCount": "Выровнено фрагментов: {n} из {total}.",
     "editor.openNormalized": "Открыть выровненный файл",
+    "editor.maximizeComplete": "Громкость поднята",
+    "editor.maximizedCount": "Обработано фрагментов: {n} из {total}.",
+    "editor.maximizedGain": "Средний подъём: {avg} дБ (самый громкий фрагмент {min} дБ, самый тихий {max} дБ).",
+    "editor.maximizedCapped.one": "{n} фрагмент оказался слишком тихим и остановился на пределе {cap}×.",
+    "editor.maximizedCapped.few": "{n} фрагмента оказались слишком тихими и остановились на пределе {cap}×.",
+    "editor.maximizedCapped.many": "{n} фрагментов оказались слишком тихими и остановились на пределе {cap}×.",
+    "editor.openMaximized": "Открыть файл с поднятой громкостью",
     "editor.op.autoDetect": "Поиск речи",
     "editor.op.trim": "Удаление пауз",
     "editor.op.normalize": "Выравнивание громкости",
+    "editor.op.maximize": "Подъём громкости",
     "editor.op.decode": "Декодирование аудио",
     "editor.op.editor": "Редактор фрагментов",
 
@@ -814,22 +844,29 @@ export function t(key: string, params?: Params, lang: Language = getLanguage()):
 }
 
 /** Counted string: picks `<key>.<form>` and fills `{n}` with the count. */
-export function tn(key: string, n: number, lang: Language = getLanguage()): string {
-  return t(`${key}.${pluralForm(n, lang)}`, { n }, lang)
+/* `params` covers counted strings that also carry a placeholder besides {n};
+   {n} is supplied automatically and wins over any n passed in. */
+export function tn(
+  key: string,
+  n: number,
+  params?: Params,
+  lang: Language = getLanguage(),
+): string {
+  return t(`${key}.${pluralForm(n, lang)}`, { ...params, n }, lang)
 }
 
 /* Translate bound to the active language. `t.n` is the counted variant, hung
    off the same function so a component needs only the one hook — and so the
    many existing `const t = useT()` call sites keep working unchanged. */
 export type TFunc = ((key: string, params?: Params) => string) & {
-  n: (key: string, count: number) => string
+  n: (key: string, count: number, params?: Params) => string
 }
 
 /* Built outside the hook: hanging `.n` off the function is a mutation, and the
    React compiler treats anything created inside a hook body as immutable. */
 function makeT(lang: Language): TFunc {
   const fn = ((key: string, params?: Params) => t(key, params, lang)) as TFunc
-  fn.n = (key: string, count: number) => tn(key, count, lang)
+  fn.n = (key: string, count: number, params?: Params) => tn(key, count, params, lang)
   return fn
 }
 

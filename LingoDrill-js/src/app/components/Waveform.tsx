@@ -60,7 +60,7 @@ const CURSOR_HANDLE_RADIUS_MOBILE = HANDLE_RADIUS_MOBILE
 const CURSOR_HIT_AREA = 15
 const CURSOR_HIT_AREA_MOBILE = HANDLE_HIT_AREA_MOBILE
 const MIN_ZOOM = 1
-const MAX_ZOOM = 50
+const MAX_ZOOM = 75
 /* A phone shows the same waveform across roughly a third of the width, so the
    desktop ceiling bottoms out while a fragment edge is still only a few pixels
    wide. Doubling it buys back the resolution needed to place handles by

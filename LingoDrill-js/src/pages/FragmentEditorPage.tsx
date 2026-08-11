@@ -7,12 +7,15 @@
 // 4. Компонент обёрнут в HeavyOperationErrorBoundary (для ошибок рендера)
 // 5. Кнопка play фрагмента переключается на pause при воспроизведении
 // 6. При уходе со страницы воспроизведение останавливается
-// 7. НОВОЕ: handleAutoDetectRun, handleTrimSilence и handleNormalizeRun не
-//    декодируют файл целиком. Auto-detect идёт через decodeMonoPcm (моно
-//    16 кГц чанками), trim и normalize — через streamAudioChunks (~30 с
-//    чанками, результат пишется в WAV по частям). Полное декодирование
-//    многочасового файла просило у браузера буфер на несколько гигабайт и
-//    падало — это и были ошибки "… failed" на десктопе.
+// 7. НОВОЕ: handleAutoDetectRun, handleTrimSilence и runVolumeOp не декодируют
+//    файл целиком. Auto-detect идёт через decodeMonoPcm (моно 16 кГц чанками),
+//    trim/normalize/maximize — через streamAudioChunks (~30 с чанками,
+//    результат пишется в WAV по частям). Полное декодирование многочасового
+//    файла просило у браузера буфер на несколько гигабайт и падало — это и
+//    были ошибки "… failed" на десктопе.
+// 12. НОВОЕ: Maximize volume — поднимает каждый фрагмент до потолка (без
+//    искажений), в отличие от Normalize, который выравнивает громкость
+//    фрагментов между собой. Оба используют один общий выбор фрагментов.
 // 8. НОВОЕ: если только 1 файл субтитров — сразу открывается "Select text", минуя "Choose subtitle file"
 // 9. НОВОЕ: субтитры НЕ отображаются под fragment box в списке фрагментов
 // 10. НОВОЕ: кнопка Sub в невыбранном фрагменте показывается только если есть привязанные субтитры
@@ -37,6 +40,7 @@ import { decodeMonoPcm } from "../utils/decodeMonoPcm"
 import { trimSilence } from "../utils/trimSilence"
 import { useT } from "../utils/i18n"
 import { normalizeFragments } from "../utils/normalizeFragments"
+import { maximizeFragments } from "../utils/maximizeFragments"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
 import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, Sequence } from "../core/domain/types"
@@ -66,6 +70,18 @@ const MAX_AUTO_DETECT_SEC = 3 * 60 * 60
 
 /** Share of the auto-detect progress bar spent decoding, before VAD starts. */
 const DECODE_PROGRESS_SHARE = 0.4
+
+/** The two fragment-gain operations, which share one fragment picker. */
+type VolumeOp = "normalize" | "maximize"
+
+/** "+6.0" / "0.0" — signed decibels for the Maximize result modal. */
+function formatDb(db: number): string {
+  const rounded = Math.abs(db) < 0.05 ? 0 : db
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`
+}
+
+/** Amplification cap in maximizeFragments — shown in the result modal. */
+const MAXIMIZE_GAIN_CAP = 20
 
 /**
  * Прокручивает контейнер с текстом (субтитры / словарь) к символу charOffset,
@@ -147,6 +163,12 @@ function FragmentEditorPageInner() {
   const [fragments, setFragments] = useState<SequenceFragment[]>([])
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
   const currentSeqIdRef = useRef<string | null>(seqId ?? null)
+  /* Mirrors currentSeqIdRef for rendering. The ref is what callbacks read, but
+     a ref assignment does not re-render — and a sequence created on the fly
+     (persistSequence) only updates the URL via history.replaceState, which
+     React Router never sees. Without this the header would keep showing no
+     sequence until something else happened to re-render. */
+  const [currentSeqId, setCurrentSeqId] = useState<string | null>(seqId ?? null)
 
   // --- Editing state ---
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -241,6 +263,7 @@ function FragmentEditorPageInner() {
     if (seq) {
       setFragments(seq.fragments.map(f => ({ ...f, subtitles: f.subtitles ? [...f.subtitles] : [] })))
       currentSeqIdRef.current = seq.id
+      setCurrentSeqId(seq.id)
       setSequenceLoaded(true)
       if (seq.fragments.length > 0) setVadDone(true)
     }
@@ -271,6 +294,7 @@ function FragmentEditorPageInner() {
       const newSeq = await addSequence(sorted)
       if (newSeq) {
         currentSeqIdRef.current = newSeq.id
+        setCurrentSeqId(newSeq.id)
         window.history.replaceState(null, "", `/LingoDrill-js/file/${audioId}/editor/${newSeq.id}`)
       }
     }
@@ -489,15 +513,26 @@ function FragmentEditorPageInner() {
     newAudioId: string | null
   } | null>(null)
 
-  // --- Normalize volume state ---
-  const [normalizeMode, setNormalizeMode] = useState(false)
-  const [normalizeExcluded, setNormalizeExcluded] = useState<Set<string>>(new Set())
+  // --- Volume operation state ---
+  //
+  // Normalize volume and Maximize volume share one fragment-picker mode: the
+  // checkboxes, the banner and the result modal are identical, only the gain
+  // rule and the wording differ. `volumeMode` says which one the picker is
+  // currently arming, or null when it is closed.
+  const [volumeMode, setVolumeMode] = useState<VolumeOp | null>(null)
+  const [volumeExcluded, setVolumeExcluded] = useState<Set<string>>(new Set())
   const [normalizing, setNormalizing] = useState(false)
-  const [normalizeResultInfo, setNormalizeResultInfo] = useState<{
-    normalizedName: string
+  const [maximizing, setMaximizing] = useState(false)
+  const [volumeResultInfo, setVolumeResultInfo] = useState<{
+    op: VolumeOp
+    createdName: string
     selectedCount: number
     totalCount: number
     newAudioId: string | null
+    /** Maximize only: gains actually applied, in dB. */
+    gainsDb?: number[]
+    /** Maximize only: fragments that stopped at the amplification cap. */
+    cappedCount?: number
   } | null>(null)
 
   const handleTrimSilence = useCallback(async () => {
@@ -651,40 +686,68 @@ function FragmentEditorPageInner() {
     setVadProgress(0)
   }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, subtitleFiles, files, wrapHeavyOp, t])
 
-  // --- Normalize volume ---
+  // --- Normalize / Maximize volume ---
+  //
+  // Both write a new WAV beside the original and clone its subtitles and
+  // sequence onto it; only the gain rule and the wording differ, so one runner
+  // serves both. Normalize matches every fragment's average loudness to the
+  // loudest one; Maximize lifts each fragment on its own to just under full
+  // scale, which is the most gain possible without clipping.
 
-  const handleNormalizeOpen = useCallback(() => {
-    setNormalizeExcluded(new Set())
-    setNormalizeMode(true)
+  /** A gain operation is running — both block the same set of actions. */
+  const volumeBusy = normalizing || maximizing
+
+  const openVolumeMode = useCallback((op: VolumeOp) => {
+    setVolumeExcluded(new Set())
+    setVolumeMode(op)
   }, [])
 
-  const handleNormalizeRun = useCallback(async () => {
-    if (!audioId || normalizing || vadDetecting || trimming) return
+  const runVolumeOp = useCallback(async (op: VolumeOp) => {
+    if (!audioId || normalizing || maximizing || vadDetecting || trimming) return
 
-    setNormalizing(true)
-    setNormalizeMode(false)
+    const setBusy = op === "normalize" ? setNormalizing : setMaximizing
+    setBusy(true)
+    setVolumeMode(null)
 
-    const result = await wrapHeavyOp(t("editor.op.normalize"), async () => {
+    const opLabel = op === "normalize" ? t("editor.op.normalize") : t("editor.op.maximize")
+
+    const result = await wrapHeavyOp(opLabel, async () => {
       const srcBlob = await getBlob(audioId)
       if (!srcBlob) {
         throw new Error(t("editor.audioNotFound"))
       }
-      const selectedFragments = fragments.filter(f => !normalizeExcluded.has(f.id))
+      const selectedFragments = fragments.filter(f => !volumeExcluded.has(f.id))
       if (selectedFragments.length === 0) {
         throw new Error(t("editor.noFragmentsNormalize"))
       }
 
-      const { blob, waveform } = await normalizeFragments(srcBlob, selectedFragments)
+      let blob: Blob
+      let waveform: number[]
+      let gainsDb: number[] | undefined
+      let cappedCount: number | undefined
+
+      if (op === "normalize") {
+        const r = await normalizeFragments(srcBlob, selectedFragments)
+        blob = r.blob
+        waveform = r.waveform
+      } else {
+        const r = await maximizeFragments(srcBlob, selectedFragments)
+        blob = r.blob
+        waveform = r.waveform
+        gainsDb = r.fragmentGains.map(g => 20 * Math.log10(g.gainApplied))
+        cappedCount = r.cappedCount
+      }
 
       const sourceFile = files.find(f => f.id === audioId)
       const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
-      const normalizedName = `${baseName}_normalized.wav`
-      const normalizedFile = new File([blob], normalizedName, { type: "audio/wav" })
+      const suffix = op === "normalize" ? "normalized" : "maximized"
+      const createdName = `${baseName}_${suffix}.wav`
+      const createdFile = new File([blob], createdName, { type: "audio/wav" })
 
       const newAudioId = crypto.randomUUID()
-      await addFile(normalizedFile, newAudioId)
+      await addFile(createdFile, newAudioId)
 
-      // Cache the waveform built while writing the normalized file
+      // Cache the waveform built while writing the new file
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const waveformCache = new WaveformCacheStorage()
       await waveformCache.save(newAudioId, waveform)
@@ -733,19 +796,22 @@ function FragmentEditorPageInner() {
       }
 
       return {
-        normalizedName,
+        op,
+        createdName,
         selectedCount: selectedFragments.length,
         totalCount: fragments.length,
         newAudioId,
+        gainsDb,
+        cappedCount,
       }
     })
 
     if (result) {
-      setNormalizeResultInfo(result)
+      setVolumeResultInfo(result)
     }
 
-    setNormalizing(false)
-  }, [audioId, normalizing, vadDetecting, trimming, getBlob, fragments, normalizeExcluded, files, addFile, subtitleFiles, wrapHeavyOp, t])
+    setBusy(false)
+  }, [audioId, normalizing, maximizing, vadDetecting, trimming, getBlob, fragments, volumeExcluded, files, addFile, subtitleFiles, wrapHeavyOp, t])
 
   // --- File playback ---
     // --- File playback ---
@@ -1186,6 +1252,11 @@ function FragmentEditorPageInner() {
   const audioFile = files.find(f => f.id === audioId)
   const audioName = audioFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
 
+  /* The sequence being edited, for the header. Read from `sequences` rather
+     than captured once, so a rename made in the Sequence library is reflected
+     here too. */
+  const currentSequence = sequences.find(s => s.id === currentSeqId)
+
   // --- Get full sequences for export ---
   const allSequencesForExport = useMemo(() => {
     if (!audioId) return sequences
@@ -1206,9 +1277,14 @@ function FragmentEditorPageInner() {
   return (
     <div className="page">
       <h2>{t("editor.title")}</h2>
-      <p style={{ fontSize: "0.9rem", color: "#666", marginTop: -8, marginBottom: 12 }}>
-        {audioFile?.name ?? t("common.unknownFile")}
-      </p>
+      <div className="editor-source">
+        <p>{audioFile?.name ?? t("common.unknownFile")}</p>
+        {/* Absent until the sequence exists — a brand new one is only written
+            once the first fragment is added. */}
+        {currentSequence && (
+          <p>{t("editor.sequenceLabel", { label: currentSequence.label })}</p>
+        )}
+      </div>
 
       {/* Navigation and Export — at the top. Export is offered on phones too:
           bundling is cheap next to decoding, and it is how a drill cut on one
@@ -1347,20 +1423,27 @@ function FragmentEditorPageInner() {
           {/* Action bar */}
           <div className="action-bar">
             <button className="action-bar__btn" onClick={handleAutoDetectClick}
-              disabled={vadDetecting || trimming || normalizing || vadDone}>
+              disabled={vadDetecting || trimming || volumeBusy || vadDone}>
               {vadDetecting && !trimming ? t("editor.detecting") : vadDone ? t("editor.autoDetectDone") : t("editor.autoDetect")}
             </button>
-            <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming || normalizing}>
+            <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming || volumeBusy}>
               {trimming ? t("editor.trimming") : t("editor.trim")}
             </button>
-            <button className="action-bar__btn" onClick={normalizeMode ? () => setNormalizeMode(false) : handleNormalizeOpen}
-              disabled={vadDetecting || trimming || normalizing || fragments.length === 0}
-              style={normalizeMode ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
-              {normalizing ? t("editor.normalizing") : normalizeMode ? t("editor.cancelNormalize") : t("editor.normalize")}
+            <button className="action-bar__btn"
+              onClick={volumeMode === "normalize" ? () => setVolumeMode(null) : () => openVolumeMode("normalize")}
+              disabled={vadDetecting || trimming || volumeBusy || fragments.length === 0}
+              style={volumeMode === "normalize" ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
+              {normalizing ? t("editor.normalizing") : volumeMode === "normalize" ? t("editor.cancelNormalize") : t("editor.normalize")}
+            </button>
+            <button className="action-bar__btn"
+              onClick={volumeMode === "maximize" ? () => setVolumeMode(null) : () => openVolumeMode("maximize")}
+              disabled={vadDetecting || trimming || volumeBusy || fragments.length === 0}
+              style={volumeMode === "maximize" ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
+              {maximizing ? t("editor.maximizing") : volumeMode === "maximize" ? t("editor.cancelMaximize") : t("editor.maximize")}
             </button>
             <button className="action-bar__btn action-bar__btn--danger"
               onClick={() => fragments.length > 0 ? setShowDeleteAllConfirm(true) : undefined}
-              disabled={vadDetecting || trimming || normalizing || fragments.length === 0}>
+              disabled={vadDetecting || trimming || volumeBusy || fragments.length === 0}>
               {t("editor.deleteAll")}
             </button>
             {vadDetecting && (
@@ -1369,17 +1452,17 @@ function FragmentEditorPageInner() {
                 <span>{trimming ? t("editor.detectingSpeech") : t("editor.detecting")}</span>
               </div>
             )}
-            {normalizing && (
+            {volumeBusy && (
               <div className="vad-indicator">
                 <div className="spinner spinner--vad spinner--vad-trim" />
-                <span>{t("editor.normalizing")}</span>
+                <span>{normalizing ? t("editor.normalizing") : t("editor.maximizing")}</span>
               </div>
             )}
           </div>
 
 
-          {/* Normalize mode banner */}
-          {normalizeMode && (
+          {/* Normalize / Maximize fragment-picker banner */}
+          {volumeMode && (
             <div style={{
               padding: "10px 14px",
               backgroundColor: "#e3f2fd",
@@ -1389,14 +1472,17 @@ function FragmentEditorPageInner() {
               display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
             }}>
               <span style={{ fontSize: "0.85rem", color: "#1565c0", flex: 1 }}>
-                {t("editor.normalizeHint")}
+                {volumeMode === "normalize" ? t("editor.normalizeHint") : t("editor.maximizeHint")}
               </span>
               <button className="btn-primary"
-                onClick={handleNormalizeRun}
-                disabled={fragments.length - normalizeExcluded.size === 0}>
-                {t.n("editor.normalizeRun", fragments.length - normalizeExcluded.size)}
+                onClick={() => runVolumeOp(volumeMode)}
+                disabled={fragments.length - volumeExcluded.size === 0}>
+                {t.n(
+                  volumeMode === "normalize" ? "editor.normalizeRun" : "editor.maximizeRun",
+                  fragments.length - volumeExcluded.size,
+                )}
               </button>
-              <button onClick={() => setNormalizeMode(false)}>{t("common.cancel")}</button>
+              <button onClick={() => setVolumeMode(null)}>{t("common.cancel")}</button>
             </div>
           )}
 
@@ -1457,12 +1543,12 @@ function FragmentEditorPageInner() {
                       backgroundColor: isInBlockRange ? "rgba(211, 47, 47, 0.1)" : undefined,
                       borderColor: isInBlockRange ? "#d32f2f" : undefined,
                     }}>
-                    {normalizeMode && (
+                    {volumeMode && (
                       <input
                         type="checkbox"
-                        checked={!normalizeExcluded.has(f.id)}
+                        checked={!volumeExcluded.has(f.id)}
                         onChange={() => {
-                          setNormalizeExcluded(prev => {
+                          setVolumeExcluded(prev => {
                             const next = new Set(prev)
                             if (next.has(f.id)) next.delete(f.id)
                             else next.add(f.id)
@@ -1474,7 +1560,7 @@ function FragmentEditorPageInner() {
                       />
                     )}
                     <span className="fragment-row__time"
-                      style={normalizeMode && normalizeExcluded.has(f.id) ? { opacity: 0.4 } : undefined}>
+                      style={volumeMode && volumeExcluded.has(f.id) ? { opacity: 0.4 } : undefined}>
                       {formatTime(f.start)} – {formatTime(f.end)}
                     </span>
                     <div className="fragment-row__actions">
@@ -1830,31 +1916,59 @@ function FragmentEditorPageInner() {
         </div>
       )}
 
-      {/* Normalize result modal */}
-      {normalizeResultInfo && (
-        <div className="modal-overlay" onClick={() => setNormalizeResultInfo(null)}>
+      {/* Normalize / Maximize result modal */}
+      {volumeResultInfo && (
+        <div className="modal-overlay" onClick={() => setVolumeResultInfo(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ textAlign: "left", maxWidth: "min(420px, 90vw)" }}>
-            <h3 style={{ marginTop: 0 }}>{t("editor.normalizeComplete")}</h3>
+            <h3 style={{ marginTop: 0 }}>
+              {volumeResultInfo.op === "normalize"
+                ? t("editor.normalizeComplete")
+                : t("editor.maximizeComplete")}
+            </h3>
             <p style={{ fontSize: "0.9rem", marginBottom: 8 }}>
-              {t("editor.created", { name: normalizeResultInfo.normalizedName })}
+              {t("editor.created", { name: volumeResultInfo.createdName })}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
-              {t("editor.normalizedCount", { n: normalizeResultInfo.selectedCount, total: normalizeResultInfo.totalCount })}
+              {t(
+                volumeResultInfo.op === "normalize" ? "editor.normalizedCount" : "editor.maximizedCount",
+                { n: volumeResultInfo.selectedCount, total: volumeResultInfo.totalCount },
+              )}
             </p>
+            {/* How much each fragment actually gained is the whole point of
+                Maximize — a file already near full scale gains almost nothing,
+                and saying so beats leaving the user to wonder. */}
+            {volumeResultInfo.gainsDb && volumeResultInfo.gainsDb.length > 0 && (
+              <p style={{ fontSize: "0.85rem", color: "#555", margin: "4px 0" }}>
+                {t("editor.maximizedGain", {
+                  avg: formatDb(
+                    volumeResultInfo.gainsDb.reduce((a, b) => a + b, 0) / volumeResultInfo.gainsDb.length,
+                  ),
+                  min: formatDb(Math.min(...volumeResultInfo.gainsDb)),
+                  max: formatDb(Math.max(...volumeResultInfo.gainsDb)),
+                })}
+              </p>
+            )}
+            {volumeResultInfo.cappedCount != null && volumeResultInfo.cappedCount > 0 && (
+              <p style={{ fontSize: "0.85rem", color: "#8a6d00", margin: "4px 0" }}>
+                {t.n("editor.maximizedCapped", volumeResultInfo.cappedCount, { cap: MAXIMIZE_GAIN_CAP })}
+              </p>
+            )}
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
               {t("editor.newFileAvailable")}
             </p>
             <div className="modal-actions">
-              {normalizeResultInfo.newAudioId && (
+              {volumeResultInfo.newAudioId && (
                 <button className="btn-primary" onClick={() => {
-                  const newId = normalizeResultInfo.newAudioId
-                  setNormalizeResultInfo(null)
+                  const newId = volumeResultInfo.newAudioId
+                  setVolumeResultInfo(null)
                   if (newId) navigate(`/file/${newId}/sequences`)
                 }}>
-                  {t("editor.openNormalized")}
+                  {volumeResultInfo.op === "normalize"
+                    ? t("editor.openNormalized")
+                    : t("editor.openMaximized")}
                 </button>
               )}
-              <button onClick={() => setNormalizeResultInfo(null)}>{t("common.close")}</button>
+              <button onClick={() => setVolumeResultInfo(null)}>{t("common.close")}</button>
             </div>
           </div>
         </div>
