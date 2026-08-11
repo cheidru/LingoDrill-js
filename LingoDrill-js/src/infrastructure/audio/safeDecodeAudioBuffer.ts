@@ -6,7 +6,10 @@
 //   - FragmentEditorPage.handleAutoDetectRun
 //   - FragmentEditorPage.handleTrimSilence
 //
-// ИСПРАВЛЕНИЕ: таймаут адаптивный — на десктопе щедрый, на мобильных короткий.
+// ИСПРАВЛЕНИЕ: watchdog-таймаут применяется ТОЛЬКО на мобильных, где долгий
+// decode означает, что браузер вот-вот убьёт вкладку по памяти. На десктопе
+// долгий decode означает просто «большой файл» — там ждём сколько нужно,
+// иначе Auto-detect speech на длинном аудио падает с ложным таймаутом.
 
 import { watchdogDecode, watchdogRace } from "./watchdogDecode"
 
@@ -24,10 +27,13 @@ function isMobile(): boolean {
 }
 
 /**
- * Safely decode a Blob into an AudioBuffer with watchdog timeout protection.
+ * Safely decode a Blob into an AudioBuffer.
  *
- * Timeouts scale with blob size and are much more generous on desktop
- * where there's no risk of browser killing the tab for memory usage.
+ * On mobile a watchdog timeout guards against the browser killing the tab
+ * mid-decode. On desktop there is no timeout at all: a long decode there just
+ * means a long file, and aborting it would surface a bogus "timed out" error
+ * for a job that would have succeeded. Pass an explicit `timeoutMs` to force
+ * a watchdog on any platform; pass `Infinity` to force it off.
  */
 export async function safeDecodeAudioBuffer(
   blob: Blob,
@@ -35,18 +41,11 @@ export async function safeDecodeAudioBuffer(
 ): Promise<AudioBuffer> {
   const mobile = isMobile()
 
-  // Compute adaptive timeout if not explicitly provided
-  const effectiveTimeout = timeoutMs ?? (
-    mobile
-      ? 8_000
-      // Desktop: 30s base + 15s per 10MB
-      : 30_000 + Math.ceil(blob.size / (10 * 1e6)) * 15_000
-  )
+  // Desktop: no watchdog. Mobile: short, fixed budget.
+  const effectiveTimeout = timeoutMs ?? (mobile ? 8_000 : Infinity)
 
-  // Step 1: read blob into ArrayBuffer (with timeout)
-  const readTimeout = mobile
-    ? 8_000
-    : 10_000 + Math.ceil(blob.size / (100 * 1e6)) * 5_000
+  // Step 1: read blob into ArrayBuffer (with timeout on mobile only)
+  const readTimeout = timeoutMs ?? (mobile ? 8_000 : Infinity)
 
   const arrayBuffer = await watchdogRace(
     blob.arrayBuffer(),

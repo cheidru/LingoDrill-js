@@ -23,8 +23,10 @@
 // 5. Добавлен signal?.aborted check перед каждой тяжёлой операцией.
 // 6. Все вызовы decodeAudioData обёрнуты в watchdogDecode с таймаутом.
 // 7. decodeFull() теперь тоже использует watchdogDecode.
-// 8. ИСПРАВЛЕНИЕ: таймауты адаптивные — на десктопе щедрые (60-120с),
-//    на мобильных короткие (5-8с) чтобы не ждать OOM-kill браузера.
+// 8. ИСПРАВЛЕНИЕ: decode-watchdog только на мобильных (5-8с), чтобы не ждать
+//    OOM-kill браузера. На десктопе таймаута нет вообще: там долгий decode
+//    означает просто большой файл, и «щедрый» таймаут всё равно срабатывал
+//    ложно на длинном аудио.
 // 9. ИСПРАВЛЕНИЕ: byte-range chunking некорректен для сжатого аудио —
 //    произвольные срезы не содержат заголовка контейнера и не выровнены
 //    по фреймам, поэтому decodeAudioData() их отклоняет. На десктопе всегда
@@ -41,8 +43,18 @@ import { parseWavHeader, readWavSamples, isWavSignature, type WavInfo } from "./
 export { DecodeTimeoutError }
 
 // ---------------------------------------------------------------------------
-// Adaptive timeouts: mobile vs desktop
+// Adaptive timeouts: mobile only
+//
+// Watchdogs exist because a mobile browser silently kills the tab when decode
+// eats too much memory — a timeout turns that into a readable error. Desktop
+// has no such failure mode: a slow decode there just means a big file, so the
+// decode watchdogs are disabled (Infinity) and we wait for the real result.
+// The probe timeout stays bounded on both — probes are tiny by construction
+// and their failure path falls through to the next probe size.
 // ---------------------------------------------------------------------------
+
+/** Disables the watchdog — see watchdogDecode/watchdogRace */
+const NO_TIMEOUT = Infinity
 
 /**
  * Detect if we're running on a mobile device.
@@ -59,24 +71,18 @@ function isMobile(): boolean {
 }
 
 /** Timeout for reading blob into ArrayBuffer */
-function getReadTimeoutMs(blobSize: number): number {
-  if (isMobile()) return 8_000
-  // Desktop: 10s base + 5s per 100MB
-  return 10_000 + Math.ceil(blobSize / (100 * 1e6)) * 5_000
+function getReadTimeoutMs(): number {
+  return isMobile() ? 8_000 : NO_TIMEOUT
 }
 
 /** Timeout for decoding a single chunk */
-function getChunkTimeoutMs(chunkSizeBytes: number): number {
-  if (isMobile()) return 5_000
-  // Desktop: 15s base + 10s per 10MB of compressed data
-  return 15_000 + Math.ceil(chunkSizeBytes / (10 * 1e6)) * 10_000
+function getChunkTimeoutMs(): number {
+  return isMobile() ? 5_000 : NO_TIMEOUT
 }
 
 /** Timeout for full-file decode */
-function getFullDecodeTimeoutMs(blobSize: number): number {
-  if (isMobile()) return 8_000
-  // Desktop: 30s base + 15s per 10MB
-  return 30_000 + Math.ceil(blobSize / (10 * 1e6)) * 15_000
+function getFullDecodeTimeoutMs(): number {
+  return isMobile() ? 8_000 : NO_TIMEOUT
 }
 
 /** Timeout for probe decode (always small) */
@@ -277,7 +283,7 @@ async function decodeFull(
 
   onProgress?.(0)
 
-  const readTimeout = getReadTimeoutMs(blob.size)
+  const readTimeout = getReadTimeoutMs()
   console.log(`[decodeFull] calling blob.arrayBuffer()... (timeout ${readTimeout}ms)`)
   const arrayBuffer = await watchdogRace(
     blob.arrayBuffer(),
@@ -292,7 +298,7 @@ async function decodeFull(
     throw new DOMException("Decode aborted", "AbortError")
   }
 
-  const decodeTimeout = getFullDecodeTimeoutMs(blob.size)
+  const decodeTimeout = getFullDecodeTimeoutMs()
   console.log(`[decodeFull] calling watchdogDecode (${decodeTimeout}ms timeout)...`)
   const ctx = makeDecodeContext(forcedRate)
   try {
@@ -343,7 +349,7 @@ async function decodeWavBlob(
   if (signal?.aborted) throw new DOMException("Decode aborted", "AbortError")
   onProgress?.(0)
 
-  const readTimeout = getReadTimeoutMs(blob.size)
+  const readTimeout = getReadTimeoutMs()
   const arrayBuffer = await watchdogRace(
     blob.arrayBuffer(),
     readTimeout,
@@ -470,7 +476,7 @@ async function decodeInChunks(
         throw new DOMException("Decode aborted", "AbortError")
       }
 
-      const chunkTimeout = getChunkTimeoutMs(chunkSizeBytes)
+      const chunkTimeout = getChunkTimeoutMs()
       chunkBuffer = await watchdogDecode(
         chunkCtx,
         chunkArrayBuf,

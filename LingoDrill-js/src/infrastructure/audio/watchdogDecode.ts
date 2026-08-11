@@ -20,6 +20,14 @@
 /** Default watchdog timeout in ms */
 const DEFAULT_WATCHDOG_MS = 5_000
 
+/**
+ * A timeout only makes sense when it is a finite, positive number of ms.
+ * `Infinity` / `0` / `NaN` mean "no watchdog — wait as long as it takes".
+ */
+function isWatchdogEnabled(timeoutMs: number): boolean {
+  return Number.isFinite(timeoutMs) && timeoutMs > 0
+}
+
 export class DecodeTimeoutError extends Error {
   constructor(chunkInfo?: string) {
     const detail = chunkInfo ? ` (${chunkInfo})` : ""
@@ -44,6 +52,9 @@ export class DecodeTimeoutError extends Error {
  * hanging indefinitely; callers treat a timeout as "file too large for this
  * device". The caller owns `ctx` and is responsible for closing it.
  *
+ * Pass `Infinity` (or 0) as `timeoutMs` to disable the watchdog entirely —
+ * used on desktop, where a slow decode means "big file", not "dying tab".
+ *
  * @param ctx          AudioContext to decode with (caller closes it)
  * @param arrayBuffer  compressed/encoded audio bytes (detached by decodeAudioData)
  * @param timeoutMs    max time before the decode promise is rejected
@@ -55,6 +66,10 @@ export async function watchdogDecode(
   timeoutMs: number = DEFAULT_WATCHDOG_MS,
   chunkInfo?: string,
 ): Promise<AudioBuffer> {
+  if (!isWatchdogEnabled(timeoutMs)) {
+    return await ctx.decodeAudioData(arrayBuffer)
+  }
+
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -78,12 +93,19 @@ export async function watchdogDecode(
 /**
  * Generic watchdog race for any async operation.
  * Rejects with DecodeTimeoutError if the promise doesn't resolve within timeoutMs.
+ *
+ * A non-finite or non-positive `timeoutMs` disables the watchdog — the promise
+ * is simply awaited.
  */
 export async function watchdogRace<T>(
   promise: Promise<T>,
   timeoutMs: number,
   label?: string,
 ): Promise<T> {
+  if (!isWatchdogEnabled(timeoutMs)) {
+    return await promise
+  }
+
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
   const timeoutPromise = new Promise<never>((_, reject) => {

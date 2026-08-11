@@ -46,6 +46,40 @@ function formatTime(sec: number): string {
 }
 
 /**
+ * Прокручивает контейнер с текстом (субтитры / словарь) к символу charOffset,
+ * ставя его примерно на четверть высоты сверху. Вызывать после того, как DOM
+ * контейнера отрисован.
+ */
+function scrollTextContainerToChar(
+  containerId: string,
+  charOffset: number,
+  contentLength: number,
+  behavior: ScrollBehavior,
+): boolean {
+  const container = document.getElementById(containerId)
+  if (!container) return false
+
+  const textNode = container.firstChild
+  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return false
+
+  try {
+    const clamped = Math.max(0, Math.min(charOffset, contentLength))
+    const range = document.createRange()
+    range.setStart(textNode, clamped)
+    range.setEnd(textNode, clamped)
+
+    const rect = range.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const scrollTarget = container.scrollTop + (rect.top - containerRect.top) - containerRect.height / 4
+    container.scrollTo({ top: Math.max(0, scrollTarget), behavior })
+    return true
+  } catch (err) {
+    console.warn("[FragmentEditor] Failed to scroll text container:", err)
+    return false
+  }
+}
+
+/**
  * Обёртка с Error Boundary для рендер-ошибок.
  */
 export function FragmentEditorPage() {
@@ -1025,61 +1059,82 @@ function FragmentEditorPageInner() {
     await persistSequence(updatedAll)
   }, [fragments, persistSequence])
 
-  // --- Auto-scroll to previous fragment's subtitle position when "select-text" step opens ---
-  // When a fragment has no subtitle from the selected file, scroll to where the
-  // previous fragment (by time order) has its subtitle, so the user can find the right area.
+  // --- Auto-scroll the subtitle text when the "select-text" step opens ---
+  // If the fragment already has a subtitle from this file (we came here via "Edit"),
+  // scroll to that snippet so the view stays where the user left it. Otherwise scroll
+  // to where the previous fragment (by time order) has its subtitle, so the user can
+  // find the right area.
   useEffect(() => {
     if (subModalStep !== "select-text" || !subModalFragId || !subModalFile) return
 
-    // Only do this if the current fragment does NOT have a subtitle from this file
     const currentFrag = fragments.find(f => f.id === subModalFragId)
     if (!currentFrag) return
+
     const existingSub = currentFrag.subtitles.find(s => s.subtitleFileId === subModalFile.id)
-    if (existingSub) return // fragment already has subtitle from this file — don't interfere
 
-    // Find the previous fragment by time order that has a subtitle from this file
-    const sorted = [...fragments].sort((a, b) => a.start - b.start)
-    const currentIdx = sorted.findIndex(f => f.id === subModalFragId)
-    let targetSub: { charStart: number; charEnd: number } | null = null
+    let targetChar: number | null = null
+    let behavior: ScrollBehavior = "smooth"
 
-    // Search backwards from the current fragment
-    for (let i = currentIdx - 1; i >= 0; i--) {
-      const prevSub = sorted[i].subtitles.find(s => s.subtitleFileId === subModalFile.id)
-      if (prevSub) {
-        targetSub = prevSub
-        break
+    if (existingSub) {
+      // Editing an existing binding — jump straight to its start, no animation from the top
+      targetChar = existingSub.charStart
+      behavior = "auto"
+    } else {
+      // Search backwards from the current fragment for a bound subtitle
+      const sorted = [...fragments].sort((a, b) => a.start - b.start)
+      const currentIdx = sorted.findIndex(f => f.id === subModalFragId)
+      for (let i = currentIdx - 1; i >= 0; i--) {
+        const prevSub = sorted[i].subtitles.find(s => s.subtitleFileId === subModalFile.id)
+        if (prevSub) {
+          targetChar = prevSub.charEnd
+          break
+        }
       }
     }
 
-    if (!targetSub) return // no previous fragment has a subtitle from this file
+    if (targetChar === null) return // nothing to scroll to — leave at the top
 
     // Wait for the DOM to render the subtitle-text-container
     requestAnimationFrame(() => {
-      const container = document.getElementById("subtitle-text-container")
-      if (!container) return
-
-      const content = subModalFile.content
-      const textNode = container.firstChild
-      if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return
-
-      try {
-        const clampedEnd = Math.min(targetSub!.charEnd, content.length)
-        const range = document.createRange()
-        range.setStart(textNode, clampedEnd)
-        range.setEnd(textNode, clampedEnd)
-
-        // Scroll so the end of the previous subtitle is visible near the top
-        const rect = range.getBoundingClientRect()
-        const containerRect = container.getBoundingClientRect()
-        const scrollTarget = container.scrollTop + (rect.top - containerRect.top) - containerRect.height / 4
-        container.scrollTo({ top: Math.max(0, scrollTarget), behavior: "smooth" })
-
-        console.log("[FragmentEditor] Scrolled to previous fragment's subtitle end position:", clampedEnd)
-      } catch (err) {
-        console.warn("[FragmentEditor] Failed to scroll to previous subtitle position:", err)
-      }
+      const ok = scrollTextContainerToChar("subtitle-text-container", targetChar!, subModalFile.content.length, behavior)
+      if (ok) console.log("[FragmentEditor] Scrolled subtitle text to char:", targetChar)
     })
   }, [subModalStep, subModalFragId, subModalFile, fragments])
+
+  // --- Same auto-scroll for the vocabulary text ---
+  useEffect(() => {
+    if (vocabModalStep !== "select-text" || !vocabModalFragId || !vocabModalFile) return
+
+    const currentFrag = fragments.find(f => f.id === vocabModalFragId)
+    if (!currentFrag) return
+
+    const existing = (currentFrag.vocabularies ?? []).find(v => v.vocabularyFileId === vocabModalFile.id)
+
+    let targetChar: number | null = null
+    let behavior: ScrollBehavior = "smooth"
+
+    if (existing) {
+      targetChar = existing.charStart
+      behavior = "auto"
+    } else {
+      const sorted = [...fragments].sort((a, b) => a.start - b.start)
+      const currentIdx = sorted.findIndex(f => f.id === vocabModalFragId)
+      for (let i = currentIdx - 1; i >= 0; i--) {
+        const prev = (sorted[i].vocabularies ?? []).find(v => v.vocabularyFileId === vocabModalFile.id)
+        if (prev) {
+          targetChar = prev.charEnd
+          break
+        }
+      }
+    }
+
+    if (targetChar === null) return
+
+    requestAnimationFrame(() => {
+      const ok = scrollTextContainerToChar("vocab-text-container", targetChar!, vocabModalFile.content.length, behavior)
+      if (ok) console.log("[FragmentEditor] Scrolled vocabulary text to char:", targetChar)
+    })
+  }, [vocabModalStep, vocabModalFragId, vocabModalFile, fragments])
 
   // --- Get audio file info for export ---
   const audioFile = files.find(f => f.id === audioId)
