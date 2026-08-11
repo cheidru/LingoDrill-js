@@ -1,12 +1,24 @@
 // utils/trimSilence.ts
+//
+// Склеивает только речевые сегменты аудиофайла в новый WAV Blob.
+//
+// STREAMED (was: whole-file decode). The previous version took a decoded
+// AudioBuffer and allocated per-channel output arrays plus the entire WAV in
+// one ArrayBuffer — for a long file that is several gigabytes of allocation on
+// top of the decoded input, which desktop browsers refuse, surfacing as
+// "Trim silence failed". Now the source is walked in ~30 s chunks (see
+// streamAudioChunks) and the WAV is assembled piece by piece (see
+// wavBlobWriter), so peak memory is one chunk regardless of file length.
 
 import type { SpeechSegment } from "./detectSpeech"
 import { getTrimSilenceGap } from "./settings"
+import { streamAudioChunks } from "./streamAudioChunks"
+import { WavBlobWriter } from "./wavBlobWriter"
+import { WaveformAccumulator } from "./buildWaveformProgressive"
 
 /**
- * Склеивает только речевые сегменты из AudioBuffer в новый WAV Blob.
- * Gaps between segments shorter than minGapSeconds are preserved (not trimmed).
- * Возвращает Blob (audio/wav) и маппинг старых таймкодов в новые.
+ * Gaps between segments shorter than MIN_GAP_TO_TRIM are preserved (not
+ * trimmed). Возвращает Blob (audio/wav) и маппинг старых таймкодов в новые.
  */
 export interface TrimResult {
   blob: Blob
@@ -14,26 +26,136 @@ export interface TrimResult {
   segmentMap: { oldStart: number; oldEnd: number; newStart: number; newEnd: number }[]
   /** Длительность нового файла в секундах */
   newDuration: number
-  /** First channel PCM data of the trimmed audio (for waveform building) */
-  channelData: Float32Array
+  /** Длительность исходного файла в секундах */
+  originalDuration: number
+  /** Waveform of the trimmed audio (values 0..1), ready to cache */
+  waveform: number[]
+}
+
+export interface TrimOptions {
+  /** Called with progress 0..1. */
+  onProgress?: (progress: number) => void
+  signal?: AbortSignal
+  /** Number of waveform points to produce (default 4000). */
+  waveformPoints?: number
 }
 
 /** Minimum gap duration (in seconds) to be removed. Gaps shorter than this are kept. */
 const MIN_GAP_TO_TRIM = 5
 
-export function trimSilence(
-  audioBuffer: AudioBuffer,
+/** A kept region of the source, in output samples. */
+interface KeptRange {
+  startSample: number
+  endSample: number
+}
+
+export async function trimSilence(
+  blob: Blob,
   segments: SpeechSegment[],
   paddingSeconds: number = 0.1,
   /* Seconds of silence to keep on each side of a removed gap — the
      "Trim silence gap" setting, read at call time. */
   gapKeepSeconds: number = getTrimSilenceGap(),
-): TrimResult {
-  const sampleRate = audioBuffer.sampleRate
-  const numChannels = audioBuffer.numberOfChannels
+  opts: TrimOptions = {},
+): Promise<TrimResult> {
+  const { onProgress, signal, waveformPoints = 4000 } = opts
 
+  let writer: WavBlobWriter | null = null
+  let waveform: WaveformAccumulator | null = null
+  let kept: KeptRange[] = []
+  let segmentMap: TrimResult["segmentMap"] = []
+  let plannedSamples = 0
+  /** Index of the first kept range that may still overlap the current chunk. */
+  let cursor = 0
+
+  const info = await streamAudioChunks(
+    blob,
+    (chunk, streamInfo) => {
+      if (!writer) {
+        // The plan needs the source duration and rate, so it is built from the
+        // first chunk's stream info rather than up front.
+        const merged = planKeptSegments(
+          segments,
+          streamInfo.duration,
+          paddingSeconds,
+          gapKeepSeconds,
+        )
+        const planned = toSampleRanges(merged, streamInfo.sampleRate)
+        kept = planned.kept
+        segmentMap = planned.segmentMap
+        plannedSamples = planned.totalSamples
+
+        writer = new WavBlobWriter(streamInfo.numChannels, streamInfo.sampleRate)
+        waveform = new WaveformAccumulator(plannedSamples, waveformPoints)
+      }
+
+      const chunkEnd = chunk.startSample + chunk.length
+
+      // Ranges are sorted and disjoint, and chunks arrive in order, so the
+      // pieces land in the output back to back.
+      for (let i = cursor; i < kept.length; i++) {
+        const range = kept[i]
+        if (range.startSample >= chunkEnd) break
+        if (range.endSample <= chunk.startSample) {
+          // Fully behind us — never revisit it.
+          cursor = i + 1
+          continue
+        }
+
+        const from = Math.max(chunk.startSample, range.startSample) - chunk.startSample
+        const to = Math.min(chunkEnd, range.endSample) - chunk.startSample
+        if (to <= from) continue
+
+        waveform!.push(chunk.channels[0], from, to - from)
+        writer!.append(chunk.channels, from, to - from)
+      }
+    },
+    { signal, onProgress },
+  )
+
+  if (!writer || !waveform) {
+    throw new Error("Could not read any audio from this file")
+  }
+  const wavWriter: WavBlobWriter = writer
+  const waveformAcc: WaveformAccumulator = waveform
+
+  // A final segment clamped to the source duration can come up a few samples
+  // short of the plan; pad so newDuration matches the segmentMap the caller
+  // remaps fragments with.
+  if (wavWriter.frameCount < plannedSamples) {
+    const missing = plannedSamples - wavWriter.frameCount
+    waveformAcc.push(new Float32Array(missing), 0, missing)
+    wavWriter.appendSilence(missing)
+  }
+
+  const result = wavWriter.finish()
+  const newDuration = wavWriter.frameCount / info.sampleRate
+
+  console.log(
+    `[trimSilence] Done. ${info.duration.toFixed(1)}s → ${newDuration.toFixed(1)}s, ` +
+    `${segmentMap.length} segments, output ${(result.size / 1e6).toFixed(1)} MB`,
+  )
+
+  return {
+    blob: result,
+    segmentMap,
+    newDuration,
+    originalDuration: info.duration,
+    waveform: waveformAcc.result(),
+  }
+}
+
+/**
+ * Expand the detected segments with padding, merge them, and decide which gaps
+ * to remove. Pure time math — unchanged from the pre-streaming version.
+ */
+function planKeptSegments(
+  segments: SpeechSegment[],
+  duration: number,
+  paddingSeconds: number,
+  gapKeepSeconds: number,
+): { start: number; end: number }[] {
   // Expand segments with padding, clamp to buffer bounds
-  const duration = audioBuffer.duration
   const padded = segments.map(seg => ({
     start: Math.max(0, seg.start - paddingSeconds),
     end: Math.min(duration, seg.end + paddingSeconds),
@@ -75,98 +197,34 @@ export function trimSilence(
     mergedWithShortGaps.push({ ...seg })
   }
 
-  // Calculate total samples needed
-  let totalSamples = 0
-  const segmentMap: TrimResult["segmentMap"] = []
+  return mergedWithShortGaps
+}
 
-  for (const seg of mergedWithShortGaps) {
-    const segSamples = Math.round((seg.end - seg.start) * sampleRate)
+/** Convert kept time ranges into sample ranges plus the old→new time mapping. */
+function toSampleRanges(
+  merged: { start: number; end: number }[],
+  sampleRate: number,
+): { kept: KeptRange[]; segmentMap: TrimResult["segmentMap"]; totalSamples: number } {
+  const kept: KeptRange[] = []
+  const segmentMap: TrimResult["segmentMap"] = []
+  let totalSamples = 0
+
+  for (const seg of merged) {
+    const startSample = Math.round(seg.start * sampleRate)
+    const endSample = Math.round(seg.end * sampleRate)
+    if (endSample <= startSample) continue
+
     const newStart = totalSamples / sampleRate
-    const newEnd = newStart + (seg.end - seg.start)
+    totalSamples += endSample - startSample
+
+    kept.push({ startSample, endSample })
     segmentMap.push({
       oldStart: seg.start,
       oldEnd: seg.end,
       newStart,
-      newEnd,
+      newEnd: totalSamples / sampleRate,
     })
-    totalSamples += segSamples
   }
 
-  // Build per-channel arrays, then encode to WAV
-  const channelArrays: Float32Array[] = []
-  for (let ch = 0; ch < numChannels; ch++) {
-    const channelOut = new Float32Array(totalSamples)
-    const channelIn = audioBuffer.getChannelData(ch)
-    let writeOffset = 0
-
-    for (const seg of mergedWithShortGaps) {
-      const startSample = Math.round(seg.start * sampleRate)
-      const endSample = Math.round(seg.end * sampleRate)
-      const length = endSample - startSample
-
-      for (let i = 0; i < length && (startSample + i) < channelIn.length; i++) {
-        channelOut[writeOffset + i] = channelIn[startSample + i]
-      }
-      writeOffset += length
-    }
-
-    channelArrays.push(channelOut)
-  }
-
-  // Encode to WAV
-  const blob = encodeWav(channelArrays, sampleRate)
-  const newDuration = totalSamples / sampleRate
-
-  return { blob, segmentMap, newDuration, channelData: channelArrays[0] }
-}
-
-/**
- * Кодирует массивы каналов в WAV Blob (16-bit PCM).
- */
-function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
-  const numChannels = channels.length
-  const numSamples = channels[0].length
-  const bytesPerSample = 2 // 16-bit
-  const dataSize = numSamples * numChannels * bytesPerSample
-  const headerSize = 44
-  const buffer = new ArrayBuffer(headerSize + dataSize)
-  const view = new DataView(buffer)
-
-  // RIFF header
-  writeString(view, 0, "RIFF")
-  view.setUint32(4, 36 + dataSize, true)
-  writeString(view, 8, "WAVE")
-
-  // fmt chunk
-  writeString(view, 12, "fmt ")
-  view.setUint32(16, 16, true) // chunk size
-  view.setUint16(20, 1, true) // PCM format
-  view.setUint16(22, numChannels, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true) // byte rate
-  view.setUint16(32, numChannels * bytesPerSample, true) // block align
-  view.setUint16(34, bytesPerSample * 8, true) // bits per sample
-
-  // data chunk
-  writeString(view, 36, "data")
-  view.setUint32(40, dataSize, true)
-
-  // Interleave and write samples
-  let offset = 44
-  for (let i = 0; i < numSamples; i++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      const sample = Math.max(-1, Math.min(1, channels[ch][i]))
-      const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
-      view.setInt16(offset, int16, true)
-      offset += 2
-    }
-  }
-
-  return new Blob([buffer], { type: "audio/wav" })
-}
-
-function writeString(view: DataView, offset: number, str: string) {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i))
-  }
+  return { kept, segmentMap, totalSamples }
 }

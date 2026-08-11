@@ -7,9 +7,12 @@
 // 4. Компонент обёрнут в HeavyOperationErrorBoundary (для ошибок рендера)
 // 5. Кнопка play фрагмента переключается на pause при воспроизведении
 // 6. При уходе со страницы воспроизведение останавливается
-// 7. НОВОЕ: raw ctx.decodeAudioData() в handleAutoDetectRun и handleTrimSilence
-//    заменены на safeDecodeAudioBuffer() с watchdog-таймаутом (5с), чтобы
-//    бросить JS-ошибку ДО того, как браузер убьёт вкладку (~10-15с watchdog).
+// 7. НОВОЕ: handleAutoDetectRun, handleTrimSilence и handleNormalizeRun не
+//    декодируют файл целиком. Auto-detect идёт через decodeMonoPcm (моно
+//    16 кГц чанками), trim и normalize — через streamAudioChunks (~30 с
+//    чанками, результат пишется в WAV по частям). Полное декодирование
+//    многочасового файла просило у браузера буфер на несколько гигабайт и
+//    падало — это и были ошибки "… failed" на десктопе.
 // 8. НОВОЕ: если только 1 файл субтитров — сразу открывается "Select text", минуя "Choose subtitle file"
 // 9. НОВОЕ: субтитры НЕ отображаются под fragment box в списке фрагментов
 // 10. НОВОЕ: кнопка Sub в невыбранном фрагменте показывается только если есть привязанные субтитры
@@ -34,7 +37,6 @@ import { decodeMonoPcm } from "../utils/decodeMonoPcm"
 import { trimSilence } from "../utils/trimSilence"
 import { useT } from "../utils/i18n"
 import { normalizeFragments } from "../utils/normalizeFragments"
-import { safeDecodeAudioBuffer } from "../infrastructure/audio/safeDecodeAudioBuffer"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
 import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, Sequence } from "../core/domain/types"
@@ -508,8 +510,6 @@ function FragmentEditorPageInner() {
 
     // ОБЁРНУТО в wrapHeavyOp
     const result = await wrapHeavyOp(t("editor.op.trim"), async () => {
-      const audioBuffer = await safeDecodeAudioBuffer(blob)
-
       let segments: { start: number; end: number }[]
 
       if (fragments.length > 0) {
@@ -518,10 +518,14 @@ function FragmentEditorPageInner() {
         setVadDetecting(true)
         setVadProgress(0)
 
-        segments = await detectSpeechSegments(
-          audioBuffer.getChannelData(0),
-          audioBuffer.sampleRate,
-          (p) => setVadProgress(p),
+        // Chunked mono decode, same as auto-detect: decoding a multi-hour file
+        // whole asks the browser for a several-GB buffer and fails.
+        const { samples, sampleRate } = await decodeMonoPcm(blob, {
+          onProgress: (p) => setVadProgress(p * DECODE_PROGRESS_SHARE),
+        })
+
+        segments = await detectSpeechSegments(samples, sampleRate, (p) =>
+          setVadProgress(DECODE_PROGRESS_SHARE + p * (1 - DECODE_PROGRESS_SHARE)),
         )
 
         setVadDetecting(false)
@@ -532,7 +536,13 @@ function FragmentEditorPageInner() {
         }
       }
 
-      const { blob: trimmedBlob, segmentMap, newDuration, channelData } = trimSilence(audioBuffer, segments)
+      const {
+        blob: trimmedBlob,
+        segmentMap,
+        newDuration,
+        originalDuration,
+        waveform: trimmedWaveform,
+      } = await trimSilence(blob, segments)
 
       const sourceFile = files.find(f => f.id === audioId)
       const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
@@ -543,9 +553,7 @@ function FragmentEditorPageInner() {
       const newAudioId = crypto.randomUUID()
       await addFile(trimmedFile, newAudioId)
 
-      // --- Build and cache waveform for the trimmed file ---
-      const { buildWaveformFromRaw } = await import("../utils/buildWaveformProgressive")
-      const trimmedWaveform = buildWaveformFromRaw(channelData, channelData.length, 4000)
+      // --- Cache the waveform built while writing the trimmed file ---
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const waveformCache = new WaveformCacheStorage()
       await waveformCache.save(newAudioId, trimmedWaveform)
@@ -620,16 +628,16 @@ function FragmentEditorPageInner() {
         console.log("[FragmentEditor] Created sequence for trimmed file with", remappedFragments.length, "fragments")
       }
 
-      return { audioBuffer, segmentMap, newDuration, trimmedName, newAudioId }
+      return { originalDuration, segmentMap, newDuration, trimmedName, newAudioId }
     })
 
     if (result) {
-      const { audioBuffer, segmentMap, newDuration, trimmedName, newAudioId } = result
-      const removedDuration = audioBuffer.duration - newDuration
-      const pct = Math.round((removedDuration / audioBuffer.duration) * 100)
+      const { originalDuration, segmentMap, newDuration, trimmedName, newAudioId } = result
+      const removedDuration = originalDuration - newDuration
+      const pct = Math.round((removedDuration / originalDuration) * 100)
       setTrimResultInfo({
         trimmedName,
-        originalDuration: audioBuffer.duration,
+        originalDuration,
         newDuration,
         removedDuration,
         pct,
@@ -661,14 +669,12 @@ function FragmentEditorPageInner() {
       if (!srcBlob) {
         throw new Error(t("editor.audioNotFound"))
       }
-      const audioBuffer = await safeDecodeAudioBuffer(srcBlob)
-
       const selectedFragments = fragments.filter(f => !normalizeExcluded.has(f.id))
       if (selectedFragments.length === 0) {
         throw new Error(t("editor.noFragmentsNormalize"))
       }
 
-      const { blob, channelData } = normalizeFragments(audioBuffer, selectedFragments)
+      const { blob, waveform } = await normalizeFragments(srcBlob, selectedFragments)
 
       const sourceFile = files.find(f => f.id === audioId)
       const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
@@ -678,9 +684,7 @@ function FragmentEditorPageInner() {
       const newAudioId = crypto.randomUUID()
       await addFile(normalizedFile, newAudioId)
 
-      // Build and cache waveform
-      const { buildWaveformFromRaw } = await import("../utils/buildWaveformProgressive")
-      const waveform = buildWaveformFromRaw(channelData, channelData.length, 4000)
+      // Cache the waveform built while writing the normalized file
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const waveformCache = new WaveformCacheStorage()
       await waveformCache.save(newAudioId, waveform)

@@ -10,22 +10,63 @@
 // 4. Apply gain with soft clipping to avoid distortion.
 // 5. Use short crossfade at fragment boundaries to prevent clicks.
 // 6. Encode the result as a WAV blob.
+//
+// STREAMED (was: whole-file decode). The previous version took a decoded
+// AudioBuffer and allocated a full second copy plus the entire output WAV in
+// one ArrayBuffer. For a big file that is three multi-gigabyte allocations at
+// once, which desktop browsers refuse — the user saw "Normalize volume failed".
+// Now the file is walked in ~30 s chunks (see streamAudioChunks) and the WAV is
+// assembled piece by piece (see wavBlobWriter), so peak memory is one chunk
+// regardless of file length.
+//
+// Two passes are needed because a fragment's gain depends on the loudest
+// fragment in the whole file, which is only known once every fragment has been
+// measured. Pass 1 measures at 16 kHz — loudness ratios are what matter and
+// they survive the lower rate — so only pass 2 pays for a full-rate decode.
 
 import type { SequenceFragment } from "../core/domain/types"
+import { streamAudioChunks } from "./streamAudioChunks"
+import { WavBlobWriter } from "./wavBlobWriter"
+import { WaveformAccumulator } from "./buildWaveformProgressive"
 
 export interface NormalizeResult {
   /** The normalized audio as a WAV blob */
   blob: Blob
-  /** First channel PCM data (for waveform rebuilding) */
-  channelData: Float32Array
+  /** Waveform of the normalized audio (values 0..1), ready to cache */
+  waveform: number[]
   /** Per-fragment info for the result modal */
   fragmentGains: { index: number; rms: number; gainApplied: number }[]
   /** RMS of the loudest fragment (target) */
   targetRms: number
 }
 
+export interface NormalizeOptions {
+  /** Called with overall progress 0..1 across both passes. */
+  onProgress?: (progress: number) => void
+  signal?: AbortSignal
+  /** Number of waveform points to produce (default 4000). */
+  waveformPoints?: number
+}
+
 /** Crossfade duration in seconds at fragment boundaries to prevent clicks */
 const CROSSFADE_SECONDS = 0.005
+
+/** Rate used to measure fragment loudness — only the ratios matter. */
+const ANALYSIS_RATE = 16_000
+
+/** Share of the progress bar spent on the measuring pass. */
+const ANALYSIS_PROGRESS_SHARE = 0.3
+
+/** 20x max amplification (~26 dB) — keeps very quiet fragments from turning into noise. */
+const MAX_GAIN = 20
+
+interface FragmentGain {
+  index: number
+  rms: number
+  gainApplied: number
+  startSample: number
+  endSample: number
+}
 
 /**
  * Soft-clip a sample value to prevent harsh digital clipping.
@@ -37,197 +78,207 @@ function softClip(sample: number): number {
 }
 
 /**
- * Compute RMS (root mean square) of a Float32Array region.
- */
-function computeRms(data: Float32Array, startSample: number, endSample: number): number {
-  const start = Math.max(0, startSample)
-  const end = Math.min(data.length, endSample)
-  const count = end - start
-  if (count <= 0) return 0
-
-  let sumSq = 0
-  for (let i = start; i < end; i++) {
-    sumSq += data[i] * data[i]
-  }
-  return Math.sqrt(sumSq / count)
-}
-
-/**
- * Normalize all fragments in an AudioBuffer so that each fragment's average
+ * Normalize all fragments in an audio file so that each fragment's average
  * loudness (RMS) matches the loudest fragment.
  *
- * @param audioBuffer - decoded audio
+ * @param blob - the source audio file
  * @param fragments - array of fragments with start/end times
  * @returns NormalizeResult with the new WAV blob and metadata
  */
-export function normalizeFragments(
-  audioBuffer: AudioBuffer,
+export async function normalizeFragments(
+  blob: Blob,
   fragments: SequenceFragment[],
-): NormalizeResult {
-  const sampleRate = audioBuffer.sampleRate
-  const numChannels = audioBuffer.numberOfChannels
-  const totalSamples = audioBuffer.length
-
-  console.log(`[normalizeFragments] Starting: ${fragments.length} fragments, ${numChannels} channels, ${sampleRate}Hz, ${totalSamples} samples`)
+  opts: NormalizeOptions = {},
+): Promise<NormalizeResult> {
+  const { onProgress, signal, waveformPoints = 4000 } = opts
 
   // Sort fragments by start time
   const sorted = [...fragments].sort((a, b) => a.start - b.start)
 
-  // Step 1: Compute RMS for each fragment (using channel 0 as reference)
-  const ch0 = audioBuffer.getChannelData(0)
-  const fragmentRmsData: { index: number; rms: number; startSample: number; endSample: number }[] = []
+  console.log(`[normalizeFragments] Starting: ${fragments.length} fragments`)
 
-  for (let i = 0; i < sorted.length; i++) {
-    const frag = sorted[i]
-    const startSample = Math.round(frag.start * sampleRate)
-    const endSample = Math.round(frag.end * sampleRate)
-    const rms = computeRms(ch0, startSample, endSample)
-    fragmentRmsData.push({ index: i, rms, startSample, endSample })
-    console.log(`[normalizeFragments] Fragment ${i}: ${frag.start.toFixed(2)}s–${frag.end.toFixed(2)}s, RMS=${rms.toFixed(6)}`)
-  }
+  // --- Pass 1: measure each fragment's RMS ---------------------------------
 
-  // Step 2: Find the loudest fragment
+  const rms = await measureFragmentRms(blob, sorted, {
+    signal,
+    onProgress: p => onProgress?.(p * ANALYSIS_PROGRESS_SHARE),
+  })
+
   let maxRms = 0
-  for (const fd of fragmentRmsData) {
-    if (fd.rms > maxRms) maxRms = fd.rms
+  for (const value of rms) {
+    if (value > maxRms) maxRms = value
   }
-
   console.log(`[normalizeFragments] Target RMS (loudest fragment): ${maxRms.toFixed(6)}`)
 
-  // If no fragments or all silent, return original audio as-is
-  if (maxRms === 0 || fragmentRmsData.length === 0) {
-    console.log("[normalizeFragments] All fragments are silent or no fragments — returning original")
-    const channelArrays: Float32Array[] = []
-    for (let ch = 0; ch < numChannels; ch++) {
-      channelArrays.push(new Float32Array(audioBuffer.getChannelData(ch)))
-    }
-    return {
-      blob: encodeWav(channelArrays, sampleRate),
-      channelData: channelArrays[0],
-      fragmentGains: fragmentRmsData.map(fd => ({ index: fd.index, rms: fd.rms, gainApplied: 1 })),
-      targetRms: 0,
-    }
-  }
+  // --- Pass 2: apply the gains and write the result ------------------------
 
-  // Step 3: Compute gain for each fragment
-  // Cap the maximum gain to prevent amplifying noise in very quiet fragments
-  const MAX_GAIN = 20 // 20x max amplification (~26 dB)
+  let writer: WavBlobWriter | null = null
+  let waveform: WaveformAccumulator | null = null
+  let gains: FragmentGain[] = []
 
-  const gains: { index: number; rms: number; gainApplied: number; startSample: number; endSample: number }[] = []
-  for (const fd of fragmentRmsData) {
-    let gain = 1
-    if (fd.rms > 0) {
-      gain = Math.min(maxRms / fd.rms, MAX_GAIN)
-    }
-    gains.push({ ...fd, gainApplied: gain })
-    console.log(`[normalizeFragments] Fragment ${fd.index}: gain=${gain.toFixed(3)}x (${(20 * Math.log10(gain)).toFixed(1)} dB)`)
-  }
-
-  // Step 4: Apply gains to all channels
-  const crossfadeSamples = Math.round(CROSSFADE_SECONDS * sampleRate)
-  const channelArrays: Float32Array[] = []
-
-  for (let ch = 0; ch < numChannels; ch++) {
-    const input = audioBuffer.getChannelData(ch)
-    const output = new Float32Array(totalSamples)
-
-    // Copy original data first
-    output.set(input)
-
-    // Apply gain to each fragment region
-    for (const g of gains) {
-      if (g.gainApplied === 1) continue // No change needed
-
-      const start = g.startSample
-      const end = Math.min(g.endSample, totalSamples)
-
-      for (let i = start; i < end; i++) {
-        let gain = g.gainApplied
-
-        // Apply crossfade at the beginning of the fragment
-        const fromStart = i - start
-        if (fromStart < crossfadeSamples) {
-          const t = fromStart / crossfadeSamples
-          gain = 1 + (g.gainApplied - 1) * t
-        }
-
-        // Apply crossfade at the end of the fragment
-        const fromEnd = end - 1 - i
-        if (fromEnd < crossfadeSamples) {
-          const t = fromEnd / crossfadeSamples
-          gain = 1 + (g.gainApplied - 1) * t
-        }
-
-        output[i] = softClip(input[i] * gain)
+  const info = await streamAudioChunks(
+    blob,
+    (chunk, streamInfo) => {
+      if (!writer) {
+        writer = new WavBlobWriter(streamInfo.numChannels, streamInfo.sampleRate)
+        waveform = new WaveformAccumulator(streamInfo.totalSamples, waveformPoints)
+        gains = buildGains(sorted, rms, maxRms, streamInfo.sampleRate)
       }
-    }
 
-    channelArrays.push(output)
+      applyGains(
+        chunk.channels,
+        chunk.startSample,
+        chunk.length,
+        gains,
+        Math.round(CROSSFADE_SECONDS * streamInfo.sampleRate),
+      )
+
+      waveform!.push(chunk.channels[0], 0, chunk.length)
+      writer!.append(chunk.channels, 0, chunk.length)
+    },
+    {
+      signal,
+      onProgress: p =>
+        onProgress?.(ANALYSIS_PROGRESS_SHARE + p * (1 - ANALYSIS_PROGRESS_SHARE)),
+    },
+  )
+
+  if (!writer || !waveform) {
+    throw new Error("Could not read any audio from this file")
   }
+  const wavWriter: WavBlobWriter = writer
+  const waveformAcc: WaveformAccumulator = waveform
 
-  console.log("[normalizeFragments] Gain applied to all channels, encoding WAV...")
-
-  // Step 5: Encode to WAV
-  const blob = encodeWav(channelArrays, sampleRate)
-
-  console.log(`[normalizeFragments] Done. Output WAV size: ${(blob.size / 1024).toFixed(1)} KB`)
+  const result = wavWriter.finish()
+  console.log(
+    `[normalizeFragments] Done. ${info.duration.toFixed(1)}s, ` +
+    `output WAV size: ${(result.size / 1e6).toFixed(1)} MB`,
+  )
 
   return {
-    blob,
-    channelData: channelArrays[0],
+    blob: result,
+    waveform: waveformAcc.result(),
     fragmentGains: gains.map(g => ({ index: g.index, rms: g.rms, gainApplied: g.gainApplied })),
     targetRms: maxRms,
   }
 }
 
-// ---------------------------------------------------------------------------
-// WAV encoder (same as in trimSilence.ts)
-// ---------------------------------------------------------------------------
+/**
+ * Pass 1 — RMS of every fragment, measured at ANALYSIS_RATE from channel 0.
+ */
+async function measureFragmentRms(
+  blob: Blob,
+  sorted: SequenceFragment[],
+  opts: { signal?: AbortSignal; onProgress?: (p: number) => void },
+): Promise<number[]> {
+  const sumSq = new Float64Array(sorted.length)
+  const counts = new Float64Array(sorted.length)
 
-function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
-  const numChannels = channels.length
-  const numSamples = channels[0].length
-  const bytesPerSample = 2 // 16-bit
-  const dataSize = numSamples * numChannels * bytesPerSample
-  const headerSize = 44
-  const buffer = new ArrayBuffer(headerSize + dataSize)
-  const view = new DataView(buffer)
+  await streamAudioChunks(
+    blob,
+    (chunk, info) => {
+      const ch0 = chunk.channels[0]
+      const chunkStart = chunk.startSample
+      const chunkEnd = chunkStart + chunk.length
 
-  // RIFF header
-  writeString(view, 0, "RIFF")
-  view.setUint32(4, 36 + dataSize, true)
-  writeString(view, 8, "WAVE")
+      for (let i = 0; i < sorted.length; i++) {
+        const from = Math.max(chunkStart, Math.round(sorted[i].start * info.sampleRate))
+        const to = Math.min(chunkEnd, Math.round(sorted[i].end * info.sampleRate))
+        if (to <= from) continue
 
-  // fmt chunk
-  writeString(view, 12, "fmt ")
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)
-  view.setUint16(22, numChannels, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true)
-  view.setUint16(32, numChannels * bytesPerSample, true)
-  view.setUint16(34, bytesPerSample * 8, true)
+        let sum = 0
+        for (let j = from - chunkStart; j < to - chunkStart; j++) {
+          const sample = ch0[j]
+          sum += sample * sample
+        }
+        sumSq[i] += sum
+        counts[i] += to - from
+      }
+    },
+    { sampleRate: ANALYSIS_RATE, signal: opts.signal, onProgress: opts.onProgress },
+  )
 
-  // data chunk
-  writeString(view, 36, "data")
-  view.setUint32(40, dataSize, true)
-
-  // Interleave and write samples
-  let offset = 44
-  for (let i = 0; i < numSamples; i++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      const sample = Math.max(-1, Math.min(1, channels[ch][i]))
-      const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
-      view.setInt16(offset, int16, true)
-      offset += 2
-    }
+  const rms: number[] = []
+  for (let i = 0; i < sorted.length; i++) {
+    const value = counts[i] > 0 ? Math.sqrt(sumSq[i] / counts[i]) : 0
+    rms.push(value)
+    console.log(
+      `[normalizeFragments] Fragment ${i}: ` +
+      `${sorted[i].start.toFixed(2)}s–${sorted[i].end.toFixed(2)}s, RMS=${value.toFixed(6)}`,
+    )
   }
-
-  return new Blob([buffer], { type: "audio/wav" })
+  return rms
 }
 
-function writeString(view: DataView, offset: number, str: string) {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i))
+/** Gain per fragment, in output samples. A gain of 1 leaves the region untouched. */
+function buildGains(
+  sorted: SequenceFragment[],
+  rms: number[],
+  maxRms: number,
+  sampleRate: number,
+): FragmentGain[] {
+  return sorted.map((frag, index) => {
+    // No usable reference (every fragment silent) → leave the audio alone.
+    const gainApplied =
+      maxRms > 0 && rms[index] > 0 ? Math.min(maxRms / rms[index], MAX_GAIN) : 1
+    if (gainApplied !== 1) {
+      console.log(
+        `[normalizeFragments] Fragment ${index}: gain=${gainApplied.toFixed(3)}x ` +
+        `(${(20 * Math.log10(gainApplied)).toFixed(1)} dB)`,
+      )
+    }
+    return {
+      index,
+      rms: rms[index],
+      gainApplied,
+      startSample: Math.round(frag.start * sampleRate),
+      endSample: Math.round(frag.end * sampleRate),
+    }
+  })
+}
+
+/**
+ * Apply fragment gains to one chunk, in place.
+ *
+ * `startSample` is the chunk's position on the file timeline, so a fragment
+ * spanning a chunk boundary keeps a single continuous crossfade envelope.
+ */
+function applyGains(
+  channels: Float32Array[],
+  startSample: number,
+  length: number,
+  gains: FragmentGain[],
+  crossfadeSamples: number,
+): void {
+  const chunkEnd = startSample + length
+
+  for (const g of gains) {
+    if (g.gainApplied === 1) continue
+
+    const from = Math.max(startSample, g.startSample)
+    const to = Math.min(chunkEnd, g.endSample)
+    if (to <= from) continue
+
+    for (const channel of channels) {
+      // Read from a snapshot so overlapping fragments each scale the original
+      // sample rather than compounding on one another's output.
+      const src = channel.slice(from - startSample, to - startSample)
+
+      for (let i = from; i < to; i++) {
+        let gain = g.gainApplied
+
+        // Crossfade in at the start of the fragment and out at its end.
+        const fromStart = i - g.startSample
+        if (fromStart < crossfadeSamples) {
+          gain = 1 + (g.gainApplied - 1) * (fromStart / crossfadeSamples)
+        }
+        const fromEnd = g.endSample - 1 - i
+        if (fromEnd < crossfadeSamples) {
+          gain = 1 + (g.gainApplied - 1) * (fromEnd / crossfadeSamples)
+        }
+
+        channel[i - startSample] = softClip(src[i - from] * gain)
+      }
+    }
   }
 }

@@ -41,8 +41,16 @@ export function isWavSignature(bytes: Uint8Array): boolean {
  * Parse the RIFF chunk list and fmt header. Throws a descriptive Error when
  * the buffer is not a WAV we can decode — the caller should then fall back to
  * the browser decoder.
+ *
+ * `fileBytes` is the size of the whole file, which differs from
+ * `arrayBuffer.byteLength` when only a head-of-file probe was read (see
+ * streamAudioChunks). It is used solely to clamp a bogus declared data-chunk
+ * size; without it a probe would report a frame count covering just the probe.
  */
-export function parseWavHeader(arrayBuffer: ArrayBuffer): WavInfo {
+export function parseWavHeader(
+  arrayBuffer: ArrayBuffer,
+  fileBytes: number = arrayBuffer.byteLength,
+): WavInfo {
   const bytes = new Uint8Array(arrayBuffer)
   if (!isWavSignature(bytes)) {
     throw new Error("Not a RIFF/WAVE file")
@@ -71,8 +79,8 @@ export function parseWavHeader(arrayBuffer: ArrayBuffer): WavInfo {
     } else if (id === "data") {
       dataOffset = body
       // The declared size may be a placeholder (0 / 0xFFFFFFFF / too large) —
-      // clamp to the bytes actually present.
-      dataSize = Math.min(size, total - body)
+      // clamp to the bytes the file actually holds.
+      dataSize = Math.min(size, fileBytes - body)
     }
 
     if (fmtOffset >= 0 && dataOffset >= 0) break

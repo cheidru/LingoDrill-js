@@ -69,3 +69,80 @@ export function buildWaveformFromRaw(
 
   return waveform
 }
+
+/**
+ * Same RMS-per-block waveform as buildWaveformFromRaw, accumulated as PCM
+ * arrives instead of read from one complete Float32Array.
+ *
+ * Trim silence and Normalize volume write their result in ~30 s chunks and
+ * never hold the whole thing (see streamAudioChunks), so they have no full
+ * channel-0 array to hand to buildWaveformFromRaw — they push each chunk here
+ * and read the waveform out at the end.
+ */
+export class WaveformAccumulator {
+  private readonly sumSq: Float64Array
+  private readonly counts: Float64Array
+  private readonly blockSize: number
+  private readonly outputSamples: number
+  private pos = 0
+
+  constructor(totalSamples: number, outputSamples = 1000) {
+    this.outputSamples = outputSamples
+    this.sumSq = new Float64Array(outputSamples)
+    this.counts = new Float64Array(outputSamples)
+    this.blockSize = Math.max(1, Math.floor(Math.max(0, totalSamples) / outputSamples))
+  }
+
+  /**
+   * Fold the next `length` samples (channel 0) into the waveform. Calls must be
+   * in timeline order — position is tracked internally.
+   */
+  push(data: Float32Array, offset: number, length: number): void {
+    const { blockSize, outputSamples, sumSq, counts } = this
+    const last = outputSamples - 1
+
+    let i = 0
+    while (i < length) {
+      const bucket = Math.min(Math.floor((this.pos + i) / blockSize), last)
+      // Everything past the last block's start folds into the final bucket,
+      // which also absorbs the remainder of an uneven division.
+      const n =
+        bucket === last
+          ? length - i
+          : Math.min(length - i, (bucket + 1) * blockSize - (this.pos + i))
+
+      let sum = 0
+      const from = offset + i
+      for (let j = from; j < from + n; j++) {
+        const sample = data[j]
+        sum += sample * sample
+      }
+      sumSq[bucket] += sum
+      counts[bucket] += n
+      i += n
+    }
+
+    this.pos += length
+  }
+
+  /** Normalized waveform values 0..1. */
+  result(): number[] {
+    const { outputSamples, sumSq, counts } = this
+    const waveform = new Array<number>(outputSamples).fill(0)
+
+    let max = 0
+    for (let i = 0; i < outputSamples; i++) {
+      const c = counts[i]
+      if (c <= 0) continue
+      const rms = Math.sqrt(sumSq[i] / c)
+      waveform[i] = rms
+      if (rms > max) max = rms
+    }
+
+    if (max > 0) {
+      for (let i = 0; i < outputSamples; i++) waveform[i] /= max
+    }
+
+    return waveform
+  }
+}
