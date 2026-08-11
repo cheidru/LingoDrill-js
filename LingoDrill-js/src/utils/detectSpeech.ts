@@ -49,10 +49,14 @@ function loadScript(src: string): Promise<void> {
 }
 
 /**
- * Определяет фрагменты с речью в аудиобуфере через Silero VAD.
+ * Определяет фрагменты с речью через Silero VAD.
+ *
+ * Принимает моно-PCM, а не AudioBuffer: длинный файл декодируется в моно 16 кГц
+ * (см. decodeMonoPcm), чтобы не аллоцировать многогигабайтный AudioBuffer.
  */
 export async function detectSpeechSegments(
-  audioBuffer: AudioBuffer,
+  channelData: Float32Array,
+  sampleRate: number,
   onProgress?: (progress: number) => void,
 ): Promise<SpeechSegment[]> {
   await ensureVadLoaded()
@@ -60,9 +64,6 @@ export async function detectSpeechSegments(
   if (!window.vad?.NonRealTimeVAD) {
     throw new Error("VAD library not loaded")
   }
-
-  const channelData = audioBuffer.getChannelData(0)
-  const sampleRate = audioBuffer.sampleRate
 
   const detector = await window.vad.NonRealTimeVAD.new({
     positiveSpeechThreshold: 0.5,

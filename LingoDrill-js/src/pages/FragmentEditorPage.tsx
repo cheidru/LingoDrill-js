@@ -30,6 +30,7 @@ import { HeavyOperationErrorBoundary } from "../app/components/HeavyOperationErr
 import type { WaveformFragment } from "../app/components/Waveform"
 import { streamWaveform } from "../utils/streamWaveform"
 import { detectSpeechSegments } from "../utils/detectSpeech"
+import { decodeMonoPcm } from "../utils/decodeMonoPcm"
 import { trimSilence } from "../utils/trimSilence"
 import { useT } from "../utils/i18n"
 import { normalizeFragments } from "../utils/normalizeFragments"
@@ -44,6 +45,25 @@ function formatTime(sec: number): string {
   const s = Math.floor(sec % 60)
   return `${m}:${s.toString().padStart(2, "0")}`
 }
+
+/** "2 h 24 min" / "3 h" / "45 min" — for the "file is too long" message. */
+function formatHoursMinutes(sec: number, hLabel: string, mLabel: string): string {
+  const total = Math.round(sec / 60)
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (h === 0) return `${m} ${mLabel}`
+  return m === 0 ? `${h} ${hLabel}` : `${h} ${hLabel} ${m} ${mLabel}`
+}
+
+/**
+ * Longest file auto-detect will run on. Decoding is streamed now, so the cap is
+ * about the user's time rather than memory: past this the run takes long enough
+ * that splitting the file into parts is the better answer.
+ */
+const MAX_AUTO_DETECT_SEC = 3 * 60 * 60
+
+/** Share of the auto-detect progress bar spent decoding, before VAD starts. */
+const DECODE_PROGRESS_SHARE = 0.4
 
 /**
  * Прокручивает контейнер с текстом (субтитры / словарь) к символу charOffset,
@@ -358,6 +378,8 @@ function FragmentEditorPageInner() {
 
   const [showAutoDetectConfirm, setShowAutoDetectConfirm] = useState(false)
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
+  /** Duration of the file that was rejected as too long, or null. */
+  const [autoDetectTooLong, setAutoDetectTooLong] = useState<number | null>(null)
 
   const handleDeleteAllFragments = useCallback(async () => {
     setShowDeleteAllConfirm(false)
@@ -374,6 +396,13 @@ function FragmentEditorPageInner() {
     setShowAutoDetectConfirm(false)
     if (!audioId || vadDetecting) return
 
+    // Guard before anything heavy: past a few hours the run takes long enough
+    // that splitting the file is the better answer.
+    if (duration > MAX_AUTO_DETECT_SEC) {
+      setAutoDetectTooLong(duration)
+      return
+    }
+
     const blob = await getBlob(audioId)
     if (!blob) return
 
@@ -385,12 +414,17 @@ function FragmentEditorPageInner() {
     setVadProgress(0)
 
     // ОБЁРНУТО в wrapHeavyOp
-    // ИСПРАВЛЕНО: используем safeDecodeAudioBuffer вместо raw ctx.decodeAudioData
+    // Декодируем в моно 16 кГц чанками (decodeMonoPcm), а не целиком через
+    // safeDecodeAudioBuffer: полное декодирование многочасового файла просит у
+    // браузера буфер на несколько гигабайт и падает — это и была ошибка
+    // «Auto-detect speech failed» на десктопе.
     const segments = await wrapHeavyOp(t("editor.op.autoDetect"), async () => {
-      const audioBuffer = await safeDecodeAudioBuffer(blob)
+      const { samples, sampleRate } = await decodeMonoPcm(blob, {
+        onProgress: (p) => setVadProgress(p * DECODE_PROGRESS_SHARE),
+      })
 
-      const segs = await detectSpeechSegments(audioBuffer, (p) => {
-        setVadProgress(p)
+      const segs = await detectSpeechSegments(samples, sampleRate, (p) => {
+        setVadProgress(DECODE_PROGRESS_SHARE + p * (1 - DECODE_PROGRESS_SHARE))
       })
       return segs
     })
@@ -423,15 +457,21 @@ function FragmentEditorPageInner() {
     setVadDone(true)
     setVadDetecting(false)
     setVadProgress(0)
-  }, [audioId, vadDetecting, getBlob, persistSequence, wrapHeavyOp, t])
+  }, [audioId, vadDetecting, duration, getBlob, persistSequence, wrapHeavyOp, t])
 
   const handleAutoDetectClick = useCallback(() => {
+    // Check the length first, so an over-long file is not preceded by a
+    // pointless "replace all fragments?" confirmation.
+    if (duration > MAX_AUTO_DETECT_SEC) {
+      setAutoDetectTooLong(duration)
+      return
+    }
     if (fragments.length > 0) {
       setShowAutoDetectConfirm(true)
     } else {
       handleAutoDetectRun()
     }
-  }, [fragments.length, handleAutoDetectRun])
+  }, [fragments.length, duration, handleAutoDetectRun])
 
   // --- Trim silence ---
   // ОБЁРНУТО в wrapHeavyOp
@@ -478,9 +518,11 @@ function FragmentEditorPageInner() {
         setVadDetecting(true)
         setVadProgress(0)
 
-        segments = await detectSpeechSegments(audioBuffer, (p) => {
-          setVadProgress(p)
-        })
+        segments = await detectSpeechSegments(
+          audioBuffer.getChannelData(0),
+          audioBuffer.sampleRate,
+          (p) => setVadProgress(p),
+        )
 
         setVadDetecting(false)
         setVadProgress(0)
@@ -1520,6 +1562,24 @@ function FragmentEditorPageInner() {
             <div className="modal-actions">
               <button onClick={handleAutoDetectRun} className="btn-danger">{t("editor.replaceAll")}</button>
               <button onClick={() => setShowAutoDetectConfirm(false)}>{t("common.cancel")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {autoDetectTooLong !== null && (
+        <div className="modal-overlay" onClick={() => setAutoDetectTooLong(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-box__title">{t("editor.tooLongTitle")}</h3>
+            <p>{t("editor.tooLongBody", {
+              actual: formatHoursMinutes(autoDetectTooLong, t("common.hoursShort"), t("common.minutesShort")),
+              max: formatHoursMinutes(MAX_AUTO_DETECT_SEC, t("common.hoursShort"), t("common.minutesShort")),
+            })}</p>
+            <p>{t("editor.tooLongHint")}</p>
+            <div className="modal-actions">
+              <button onClick={() => setAutoDetectTooLong(null)} className="btn-primary">
+                {t("common.gotIt")}
+              </button>
             </div>
           </div>
         </div>

@@ -735,6 +735,10 @@ html.mobile .header__overlay {
   flex-direction: column;
   text-align: left;
 }
+.modal-box__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
 .modal-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
 .btn-primary {
   background-color: var(--color-primary);
