@@ -7,7 +7,10 @@ import type { AudioFile, AudioFileId } from "../../core/domain/types"
 export class IndexedDBAudioStorage {
   // Сохранение аудиофайла в db
   // Теперь можно передавать id, чтобы не было рассинхронизации
-  async save(file: File, id: string): Promise<AudioFile> {
+  // derivedFrom помечает файл, созданный обработкой другого файла
+  // (обрезка пауз, выравнивание/подъём громкости) — такие файлы не показываются
+  // в аудиотеке и удаляются вместе с исходным.
+  async save(file: File, id: string, derivedFrom?: AudioFileId): Promise<AudioFile> {
     const db = await dbPromise
 
     const meta: AudioFile = {
@@ -17,6 +20,7 @@ export class IndexedDBAudioStorage {
       size: file.size,
       hash: "", // временно пустой
       createdAt: Date.now(),
+      ...(derivedFrom ? { derivedFrom } : {}),
     }
 
     await db.put("audioMeta", meta)

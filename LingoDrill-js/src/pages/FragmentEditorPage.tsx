@@ -43,7 +43,8 @@ import { normalizeFragments } from "../utils/normalizeFragments"
 import { maximizeFragments } from "../utils/maximizeFragments"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
-import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, Sequence } from "../core/domain/types"
+import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile } from "../core/domain/types"
+import { sequenceAudioId, isProcessed } from "../core/domain/sequenceAudio"
 import { nanoid } from "nanoid"
 
 function formatTime(sec: number): string {
@@ -136,7 +137,7 @@ function FragmentEditorPageInner() {
   const location = useLocation()
 
   const {
-    getBlob, addFile, files,
+    getBlob, addFile, removeFile, files,
     loadById, playFragment, pause, play, stop, seekTo, setOnEnded,
     isReady, isPlaying, isPaused, duration, currentTime,
     volume, setVolume,
@@ -170,6 +171,28 @@ function FragmentEditorPageInner() {
      sequence until something else happened to re-render. */
   const [currentSeqId, setCurrentSeqId] = useState<string | null>(seqId ?? null)
 
+  /* The sequence being edited. Read from `sequences` rather than captured once,
+     so a rename made in the Sequence library — or the audio swap a processing
+     run performs — is picked up here too. */
+  const currentSequence = useMemo(
+    () => sequences.find(s => s.id === currentSeqId) ?? null,
+    [sequences, currentSeqId],
+  )
+
+  /* Which audio the editor loads, plays and processes. Not always the file in
+     the URL: a sequence that has been trimmed or had its volume raised keeps
+     its place in that file's list but plays a processed copy.
+
+     Null means "not known yet" — the sequence exists but has not come back from
+     IndexedDB. Loading the original in the meantime would decode a file we are
+     about to replace and flash the wrong waveform, so everything downstream
+     waits instead. */
+  const audioSourceId = useMemo(() => {
+    if (!audioId) return null
+    if (!currentSeqId) return audioId
+    return currentSequence ? sequenceAudioId(currentSequence) : null
+  }, [audioId, currentSeqId, currentSequence])
+
   // --- Editing state ---
   const [editingId, setEditingId] = useState<string | null>(null)
   const savedBoundsRef = useRef<{ start: number; end: number } | null>(null)
@@ -200,9 +223,9 @@ function FragmentEditorPageInner() {
 
   // Load audio
   useEffect(() => {
-    if (!audioId) return
-    loadById(audioId)
-  }, [audioId, loadById])
+    if (!audioSourceId) return
+    loadById(audioSourceId)
+  }, [audioSourceId, loadById])
 
   // Build the waveform:
   //  1. a cached 4000-point envelope → use directly;
@@ -211,14 +234,17 @@ function FragmentEditorPageInner() {
   //     left-to-right), then store the finished envelope for future loads.
   // Streaming keeps memory constant, so multi-hour files no longer fail.
   useEffect(() => {
-    if (!audioId) return
+    if (!audioSourceId) return
     let cancelled = false
     const abort = new AbortController()
+    /* Bound to audioSourceId, not the URL's file: after a processing run this
+       effect re-runs and draws the processed audio the sequence now plays. */
+    const sourceId = audioSourceId
 
     const load = async () => {
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const cache = new WaveformCacheStorage()
-      const cached = await cache.get(audioId)
+      const cached = await cache.get(sourceId)
 
       if (cached && cached.length > 0 && !cancelled) {
         setWaveformData(cached)
@@ -226,7 +252,7 @@ function FragmentEditorPageInner() {
         return
       }
 
-      const blob = await getBlob(audioId)
+      const blob = await getBlob(sourceId)
       if (!blob || cancelled) return
       setWaveformError(null)
 
@@ -242,7 +268,7 @@ function FragmentEditorPageInner() {
         if (cancelled) return
         setWaveformData(envelope)
         setWaveformLoading(false)
-        cache.save(audioId, envelope)
+        cache.save(sourceId, envelope)
       } catch (err) {
         if (cancelled) return
         if (err instanceof DOMException && err.name === "AbortError") return
@@ -253,7 +279,7 @@ function FragmentEditorPageInner() {
     load()
 
     return () => { cancelled = true; abort.abort() }
-  }, [audioId, getBlob])
+  }, [audioSourceId, getBlob])
 
   // Load sequence fragments
   useEffect(() => {
@@ -300,6 +326,63 @@ function FragmentEditorPageInner() {
     }
   }, [audioId, sequences, addSequence, updateSequence])
 
+  /**
+   * Hands the sequence being edited over to a processed copy of its audio
+   * (trimmed, normalized, maximized) and returns the sequence's name.
+   *
+   * The sequence itself does not move: same id, same label, same place in this
+   * file's list, same subtitle and vocabulary bindings. Only `processedAudioId`
+   * and the fragment positions change. When the editor has no sequence yet —
+   * trimming a freshly opened file — one is created here, still under the
+   * original file, because a processed copy is hidden from the library and a
+   * sequence is the only thing that can lead back to it.
+   */
+  const attachProcessedAudio = useCallback(async (
+    processedFragments: SequenceFragment[],
+    processedAudioId: string,
+    processedDuration: number,
+  ): Promise<string> => {
+    if (!audioId) return ""
+
+    const previous = currentSeqIdRef.current
+      ? sequences.find(s => s.id === currentSeqIdRef.current)
+      : undefined
+    const replacedAudioId = previous?.processedAudioId
+
+    let label: string
+    if (previous) {
+      await updateSequence({
+        ...previous,
+        fragments: processedFragments,
+        processedAudioId,
+        processedDuration,
+      })
+      label = previous.label
+    } else {
+      const newSeq = await addSequence(processedFragments, { audioId: processedAudioId, duration: processedDuration })
+      if (!newSeq) return ""
+      currentSeqIdRef.current = newSeq.id
+      setCurrentSeqId(newSeq.id)
+      window.history.replaceState(null, "", `/LingoDrill-js/file/${audioId}/editor/${newSeq.id}`)
+      label = newSeq.label
+    }
+
+    /* Processing twice — trim, then maximize — leaves the intermediate copy
+       behind. Nothing can reach it once this sequence has moved on, so it goes,
+       unless a copy of the sequence is still playing it. */
+    if (replacedAudioId && replacedAudioId !== processedAudioId) {
+      const stillUsed = sequences.some(
+        s => s.id !== previous?.id && s.processedAudioId === replacedAudioId,
+      )
+      if (!stillUsed) {
+        console.log("[FragmentEditor] Dropping superseded processed audio:", replacedAudioId)
+        await removeFile(replacedAudioId)
+      }
+    }
+
+    return label
+  }, [audioId, sequences, addSequence, updateSequence, removeFile])
+
   // --- Fragment operations ---
 
   const addFragment = useCallback(async (start: number, end: number) => {
@@ -313,7 +396,17 @@ function FragmentEditorPageInner() {
   }, [editingId, fragments, persistSequence])
 
   const deleteLocalFragment = useCallback(async (fragId: string) => {
-    if (editingId === fragId) { setEditingId(null); savedBoundsRef.current = null }
+    /* Deleting the selected fragment moves the selection to its neighbour on
+       the left, so working backwards through a sequence — delete, delete,
+       delete — never needs a fresh click in between. The leftmost fragment has
+       no neighbour to hand over to, so there the selection simply clears. */
+    if (editingId === fragId) {
+      const sorted = [...fragments].sort((a, b) => a.start - b.start)
+      const idx = sorted.findIndex(f => f.id === fragId)
+      const left = idx > 0 ? sorted[idx - 1] : null
+      setEditingId(left?.id ?? null)
+      savedBoundsRef.current = left ? { start: left.start, end: left.end } : null
+    }
     const updated = fragments.filter(f => f.id !== fragId)
     setFragments(updated)
     stop(); setPlayingFragment(null)
@@ -420,7 +513,7 @@ function FragmentEditorPageInner() {
 
   const handleAutoDetectRun = useCallback(async () => {
     setShowAutoDetectConfirm(false)
-    if (!audioId || vadDetecting) return
+    if (!audioSourceId || vadDetecting) return
 
     // Guard before anything heavy: past a few hours the run takes long enough
     // that splitting the file is the better answer.
@@ -429,7 +522,7 @@ function FragmentEditorPageInner() {
       return
     }
 
-    const blob = await getBlob(audioId)
+    const blob = await getBlob(audioSourceId)
     if (!blob) return
 
     setFragments([])
@@ -483,7 +576,7 @@ function FragmentEditorPageInner() {
     setVadDone(true)
     setVadDetecting(false)
     setVadProgress(0)
-  }, [audioId, vadDetecting, duration, getBlob, persistSequence, wrapHeavyOp, t])
+  }, [audioSourceId, vadDetecting, duration, getBlob, persistSequence, wrapHeavyOp, t])
 
   const handleAutoDetectClick = useCallback(() => {
     // Check the length first, so an over-long file is not preceded by a
@@ -510,7 +603,8 @@ function FragmentEditorPageInner() {
     removedDuration: number
     pct: number
     segmentCount: number
-    newAudioId: string | null
+    /** Label of the sequence that now plays the trimmed audio. */
+    sequenceLabel: string
   } | null>(null)
 
   // --- Volume operation state ---
@@ -528,7 +622,8 @@ function FragmentEditorPageInner() {
     createdName: string
     selectedCount: number
     totalCount: number
-    newAudioId: string | null
+    /** Label of the sequence that now plays the processed audio. */
+    sequenceLabel: string
     /** Maximize only: gains actually applied, in dB. */
     gainsDb?: number[]
     /** Maximize only: fragments that stopped at the amplification cap. */
@@ -536,9 +631,9 @@ function FragmentEditorPageInner() {
   } | null>(null)
 
   const handleTrimSilence = useCallback(async () => {
-    if (!audioId || trimming || vadDetecting) return
+    if (!audioId || !audioSourceId || trimming || vadDetecting) return
 
-    const blob = await getBlob(audioId)
+    const blob = await getBlob(audioSourceId)
     if (!blob) return
 
     setTrimming(true)
@@ -579,14 +674,16 @@ function FragmentEditorPageInner() {
         waveform: trimmedWaveform,
       } = await trimSilence(blob, segments)
 
-      const sourceFile = files.find(f => f.id === audioId)
+      const sourceFile = files.find(f => f.id === audioSourceId)
       const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
       const trimmedName = `${baseName}_trimmed.wav`
       const trimmedFile = new File([trimmedBlob], trimmedName, { type: "audio/wav" })
 
-      // Save the trimmed file via addFile (updates both IndexedDB and UI state)
+      /* The trimmed audio is a processed copy of the file in the URL, not a
+         library entry of its own: `derivedFrom` keeps it out of the Audio
+         Library and ties its lifetime to the original. */
       const newAudioId = crypto.randomUUID()
-      await addFile(trimmedFile, newAudioId)
+      await addFile(trimmedFile, newAudioId, audioId)
 
       // --- Cache the waveform built while writing the trimmed file ---
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
@@ -594,27 +691,12 @@ function FragmentEditorPageInner() {
       await waveformCache.save(newAudioId, trimmedWaveform)
       console.log("[FragmentEditor] Built and cached waveform for trimmed file")
 
-      // --- Copy subtitle files for the new audio ID and build ID mapping ---
-      const subIdMap = new Map<string, string>() // old subtitle file ID → new subtitle file ID
-      if (subtitleFiles.length > 0) {
-        const { IndexedDBSubtitleStorage } = await import("../infrastructure/indexeddb/IndexedDBSubtitleStorage")
-        const subStorage = new IndexedDBSubtitleStorage()
-        for (const sf of subtitleFiles) {
-          const newSubId = nanoid()
-          subIdMap.set(sf.id, newSubId)
-          const newSub: SubtitleFile = {
-            id: newSubId,
-            audioId: newAudioId,
-            name: sf.name,
-            content: sf.content,
-            createdAt: Date.now(),
-          }
-          await subStorage.save(newSub)
-        }
-        console.log("[FragmentEditor] Copied", subtitleFiles.length, "subtitle files for trimmed audio")
-      }
+      /* Subtitles and vocabularies are not copied. The sequence stays under the
+         original file, so its fragments keep pointing at that file's subtitle
+         files — and trimming moves fragments in time without touching a single
+         character offset, so those bindings stay correct as they are. */
 
-      // --- Remap fragments with subtitles to the new trimmed timeline ---
+      // --- Remap fragments to the new trimmed timeline ---
       // Helper: convert an old time to the new trimmed time using segmentMap
       const remapTime = (oldTime: number): number | null => {
         for (const seg of segmentMap) {
@@ -626,50 +708,57 @@ function FragmentEditorPageInner() {
         return null // time falls in a removed gap
       }
 
+      /* Fragment ids survive the remap: the fragment is the same drill, just at
+         a new position on a shorter timeline, and keeping the id means anything
+         holding onto one (the player's edit link, for instance) still resolves. */
       const remappedFragments: SequenceFragment[] = []
       for (const frag of fragments) {
         const newStart = remapTime(frag.start)
         const newEnd = remapTime(frag.end)
         if (newStart !== null && newEnd !== null && newEnd > newStart) {
-          // Remap subtitle file IDs to the new copies
-          const remappedSubs: FragmentSubtitle[] = frag.subtitles.map(sub => ({
-            ...sub,
-            subtitleFileId: subIdMap.get(sub.subtitleFileId) ?? sub.subtitleFileId,
-            subtitleFileName: sub.subtitleFileName,
-          }))
-          remappedFragments.push({
-            id: nanoid(),
-            start: newStart,
-            end: newEnd,
-            repeat: frag.repeat,
-            speed: frag.speed,
-            subtitles: remappedSubs,
-          })
+          remappedFragments.push({ ...frag, start: newStart, end: newEnd })
         }
       }
 
-      // --- Create a sequence for the new trimmed file ---
-      if (remappedFragments.length > 0) {
-        const { IndexedDBSequenceStorage } = await import("../infrastructure/indexeddb/IndexedDBSequenceStorage")
-        const seqStorage = new IndexedDBSequenceStorage()
-        const newSeq: Sequence = {
-          id: nanoid(),
-          audioId: newAudioId,
-          label: "1",
-          fragments: remappedFragments.sort((a, b) => a.start - b.start),
-          createdAt: Date.now(),
+      /* Trimming a file that had no fragments yet: the detected speech segments
+         become the sequence, on the trimmed timeline. Without this the trimmed
+         audio would have nothing pointing at it and — being hidden from the
+         library — no way back to it. */
+      if (fragments.length === 0) {
+        for (const seg of segments) {
+          const newStart = remapTime(seg.start)
+          const newEnd = remapTime(seg.end)
+          if (newStart !== null && newEnd !== null && newEnd > newStart) {
+            remappedFragments.push({
+              id: nanoid(), start: newStart, end: newEnd, repeat: 1, speed: 1, subtitles: [],
+            })
+          }
         }
-        await seqStorage.save(newSeq)
-        console.log("[FragmentEditor] Created sequence for trimmed file with", remappedFragments.length, "fragments")
       }
 
-      return { originalDuration, segmentMap, newDuration, trimmedName, newAudioId }
+      remappedFragments.sort((a, b) => a.start - b.start)
+
+      /* Point the sequence at the trimmed audio, in place. It keeps its id, its
+         name and its spot in this file's list — only what it plays changes. */
+      const label = await attachProcessedAudio(remappedFragments, newAudioId, newDuration)
+
+      return { originalDuration, segmentMap, newDuration, trimmedName, remappedFragments, label }
     })
 
     if (result) {
-      const { originalDuration, segmentMap, newDuration, trimmedName, newAudioId } = result
+      const { originalDuration, segmentMap, newDuration, trimmedName, remappedFragments, label } = result
       const removedDuration = originalDuration - newDuration
       const pct = Math.round((removedDuration / originalDuration) * 100)
+
+      // The waveform under the fragments is about to change, so drop any
+      // in-progress edit and show the fragments at their new positions.
+      stop()
+      setPlayingFragment(null)
+      setEditingId(null)
+      savedBoundsRef.current = null
+      setFragments(remappedFragments)
+      if (remappedFragments.length > 0) setVadDone(true)
+
       setTrimResultInfo({
         trimmedName,
         originalDuration,
@@ -677,14 +766,14 @@ function FragmentEditorPageInner() {
         removedDuration,
         pct,
         segmentCount: segmentMap.length,
-        newAudioId,
+        sequenceLabel: label,
       })
     }
 
     setTrimming(false)
     setVadDetecting(false)
     setVadProgress(0)
-  }, [audioId, trimming, vadDetecting, getBlob, addFile, fragments, subtitleFiles, files, wrapHeavyOp, t])
+  }, [audioId, audioSourceId, trimming, vadDetecting, getBlob, addFile, fragments, files, stop, attachProcessedAudio, wrapHeavyOp, t])
 
   // --- Normalize / Maximize volume ---
   //
@@ -703,7 +792,7 @@ function FragmentEditorPageInner() {
   }, [])
 
   const runVolumeOp = useCallback(async (op: VolumeOp) => {
-    if (!audioId || normalizing || maximizing || vadDetecting || trimming) return
+    if (!audioId || !audioSourceId || normalizing || maximizing || vadDetecting || trimming) return
 
     const setBusy = op === "normalize" ? setNormalizing : setMaximizing
     setBusy(true)
@@ -712,7 +801,7 @@ function FragmentEditorPageInner() {
     const opLabel = op === "normalize" ? t("editor.op.normalize") : t("editor.op.maximize")
 
     const result = await wrapHeavyOp(opLabel, async () => {
-      const srcBlob = await getBlob(audioId)
+      const srcBlob = await getBlob(audioSourceId)
       if (!srcBlob) {
         throw new Error(t("editor.audioNotFound"))
       }
@@ -738,80 +827,48 @@ function FragmentEditorPageInner() {
         cappedCount = r.cappedCount
       }
 
-      const sourceFile = files.find(f => f.id === audioId)
+      const sourceFile = files.find(f => f.id === audioSourceId)
       const baseName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
       const suffix = op === "normalize" ? "normalized" : "maximized"
       const createdName = `${baseName}_${suffix}.wav`
       const createdFile = new File([blob], createdName, { type: "audio/wav" })
 
+      /* Derived from the file in the URL: hidden from the Audio Library and
+         deleted along with it (see AudioFile.derivedFrom). */
       const newAudioId = crypto.randomUUID()
-      await addFile(createdFile, newAudioId)
+      await addFile(createdFile, newAudioId, audioId)
 
       // Cache the waveform built while writing the new file
       const { WaveformCacheStorage } = await import("../infrastructure/indexeddb/waveformCacheStorage")
       const waveformCache = new WaveformCacheStorage()
       await waveformCache.save(newAudioId, waveform)
 
-      // Copy subtitle files
-      const subIdMap = new Map<string, string>()
-      if (subtitleFiles.length > 0) {
-        const { IndexedDBSubtitleStorage } = await import("../infrastructure/indexeddb/IndexedDBSubtitleStorage")
-        const subStorage = new IndexedDBSubtitleStorage()
-        for (const sf of subtitleFiles) {
-          const newSubId = nanoid()
-          subIdMap.set(sf.id, newSubId)
-          await subStorage.save({
-            id: newSubId,
-            audioId: newAudioId,
-            name: sf.name,
-            content: sf.content,
-            createdAt: Date.now(),
-          })
-        }
-      }
-
-      // Create sequence with same fragments (audio duration unchanged)
-      const newFragments: SequenceFragment[] = fragments.map(f => ({
-        id: nanoid(),
-        start: f.start,
-        end: f.end,
-        repeat: f.repeat,
-        speed: f.speed,
-        subtitles: f.subtitles.map(sub => ({
-          ...sub,
-          subtitleFileId: subIdMap.get(sub.subtitleFileId) ?? sub.subtitleFileId,
-        })),
-      }))
-
-      if (newFragments.length > 0) {
-        const { IndexedDBSequenceStorage } = await import("../infrastructure/indexeddb/IndexedDBSequenceStorage")
-        const seqStorage = new IndexedDBSequenceStorage()
-        await seqStorage.save({
-          id: nanoid(),
-          audioId: newAudioId,
-          label: "1",
-          fragments: newFragments.sort((a, b) => a.start - b.start),
-          createdAt: Date.now(),
-        })
-      }
+      /* Fragments carry over untouched — a gain change moves nothing in time —
+         and so do their subtitle and vocabulary bindings, which still belong to
+         the file this sequence lives under. */
+      const label = await attachProcessedAudio([...fragments].sort((a, b) => a.start - b.start), newAudioId, duration)
 
       return {
         op,
         createdName,
         selectedCount: selectedFragments.length,
         totalCount: fragments.length,
-        newAudioId,
+        sequenceLabel: label,
         gainsDb,
         cappedCount,
       }
     })
 
     if (result) {
+      // Same timeline, louder audio: only the waveform under the fragments
+      // changes, but playback has to stop for the new file to take over.
+      stop()
+      setPlayingFragment(null)
       setVolumeResultInfo(result)
     }
 
     setBusy(false)
-  }, [audioId, normalizing, maximizing, vadDetecting, trimming, getBlob, fragments, volumeExcluded, files, addFile, subtitleFiles, wrapHeavyOp, t])
+  }, [audioId, audioSourceId, normalizing, maximizing, vadDetecting, trimming, getBlob, fragments, volumeExcluded, files, addFile, duration, stop, attachProcessedAudio, wrapHeavyOp, t])
 
   // --- File playback ---
     // --- File playback ---
@@ -1248,27 +1305,31 @@ function FragmentEditorPageInner() {
     })
   }, [vocabModalStep, vocabModalFragId, vocabModalFile, fragments])
 
-  // --- Get audio file info for export ---
+  // --- Get audio file info ---
   const audioFile = files.find(f => f.id === audioId)
-  const audioName = audioFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
+  /* The audio that is actually open — the original, or the processed copy this
+     sequence plays. What gets exported, and what the header names. */
+  const sourceFile = files.find(f => f.id === audioSourceId)
+  const audioName = sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "audio"
 
-  /* The sequence being edited, for the header. Read from `sequences` rather
-     than captured once, so a rename made in the Sequence library is reflected
-     here too. */
-  const currentSequence = sequences.find(s => s.id === currentSeqId)
-
-  // --- Get full sequences for export ---
+  /* --- Sequences for export ---
+     A bundle carries exactly one audio file, so it can only carry the sequences
+     that play it: with a processed sequence open, that is the processed audio
+     and its own sequences, not the whole file's list. The current one is merged
+     from local state so unsaved edits go too. */
   const allSequencesForExport = useMemo(() => {
-    if (!audioId) return sequences
-    if (!currentSeqIdRef.current) return sequences
+    const forThisAudio = sequences.filter(s => sequenceAudioId(s) === audioSourceId)
+    if (!currentSeqId) return forThisAudio
 
-    return sequences.map(s => {
-      if (s.id === currentSeqIdRef.current) {
-        return { ...s, fragments: [...fragments].sort((a, b) => a.start - b.start) }
-      }
-      return s
-    })
-  }, [sequences, fragments, audioId])
+    return forThisAudio.map(s =>
+      s.id === currentSeqId
+        ? { ...s, fragments: [...fragments].sort((a, b) => a.start - b.start) }
+        : s,
+    )
+  }, [sequences, fragments, audioSourceId, currentSeqId])
+
+  /** Sequences left out of the export because they play a different audio. */
+  const sequencesNotExported = sequences.length - allSequencesForExport.length
 
   // --- RENDER ---
 
@@ -1284,6 +1345,12 @@ function FragmentEditorPageInner() {
         {currentSequence && (
           <p>{t("editor.sequenceLabel", { label: currentSequence.label })}</p>
         )}
+        {/* Says why the waveform is not the one the file itself would draw. */}
+        {currentSequence && isProcessed(currentSequence) && (
+          <p className="editor-source__processed">
+            {t("editor.playsProcessed", { name: sourceFile?.name ?? "" })}
+          </p>
+        )}
       </div>
 
       {/* Navigation and Export — at the top. Export is offered on phones too:
@@ -1295,12 +1362,13 @@ function FragmentEditorPageInner() {
         </button>
         {isReady && (
           <ExportBundleButton
-            audioId={audioId}
+            audioId={audioSourceId}
             audioName={audioName}
             getBlob={getBlob}
             waveformData={waveformData}
             sequences={allSequencesForExport}
             subtitleFiles={subtitleFiles}
+            omittedSequenceCount={sequencesNotExported}
             disabled={!isReady}
           />
         )}
@@ -1896,21 +1964,13 @@ function FragmentEditorPageInner() {
               {t.n("editor.trimSegments", trimResultInfo.segmentCount)}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
-              {t("editor.newFileAvailable")}
+              {t("editor.sequenceKeepsPlace", {
+                label: trimResultInfo.sequenceLabel,
+                file: audioFile?.name ?? t("common.unknownFile"),
+              })}
             </p>
             <div className="modal-actions">
-              {trimResultInfo.newAudioId && (
-                <button className="btn-primary" onClick={() => {
-                  const newId = trimResultInfo.newAudioId
-                  setTrimResultInfo(null)
-                  if (newId) {
-                    navigate(`/file/${newId}/sequences`)
-                  }
-                }}>
-                  {t("editor.openTrimmed")}
-                </button>
-              )}
-              <button onClick={() => setTrimResultInfo(null)}>{t("common.close")}</button>
+              <button className="btn-primary" onClick={() => setTrimResultInfo(null)}>{t("common.close")}</button>
             </div>
           </div>
         </div>
@@ -1954,21 +2014,13 @@ function FragmentEditorPageInner() {
               </p>
             )}
             <p style={{ fontSize: "0.85rem", color: "#555", margin: "8px 0 0" }}>
-              {t("editor.newFileAvailable")}
+              {t("editor.sequenceKeepsPlace", {
+                label: volumeResultInfo.sequenceLabel,
+                file: audioFile?.name ?? t("common.unknownFile"),
+              })}
             </p>
             <div className="modal-actions">
-              {volumeResultInfo.newAudioId && (
-                <button className="btn-primary" onClick={() => {
-                  const newId = volumeResultInfo.newAudioId
-                  setVolumeResultInfo(null)
-                  if (newId) navigate(`/file/${newId}/sequences`)
-                }}>
-                  {volumeResultInfo.op === "normalize"
-                    ? t("editor.openNormalized")
-                    : t("editor.openMaximized")}
-                </button>
-              )}
-              <button onClick={() => setVolumeResultInfo(null)}>{t("common.close")}</button>
+              <button className="btn-primary" onClick={() => setVolumeResultInfo(null)}>{t("common.close")}</button>
             </div>
           </div>
         </div>

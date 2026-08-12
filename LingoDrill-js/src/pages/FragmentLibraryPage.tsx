@@ -26,12 +26,17 @@ function SequenceBar({
   const BAR_WIDTH = 200
   const MIN_FRAG_PX = 2
 
+  /* A trimmed sequence plays a shorter copy of the file, and its fragments are
+     laid out against that copy — measuring them against the original duration
+     would squash the whole bar into its left end. */
+  const span = sequence.processedDuration ?? duration
+
   return (
     <svg width={BAR_WIDTH} height={16} style={{ display: "block", flexShrink: 0 }}>
       <rect x={0} y={2} width={BAR_WIDTH} height={12} rx={0} fill="#fef3c7" />
-      {duration > 0 && sequence.fragments.map((f, i) => {
-        const startPx = (f.start / duration) * BAR_WIDTH
-        let widthPx = ((f.end - f.start) / duration) * BAR_WIDTH
+      {span > 0 && sequence.fragments.map((f, i) => {
+        const startPx = (f.start / span) * BAR_WIDTH
+        let widthPx = ((f.end - f.start) / span) * BAR_WIDTH
         if (widthPx < MIN_FRAG_PX) widthPx = MIN_FRAG_PX
         return (
           <rect key={i} x={startPx} y={2} width={widthPx} height={12} rx={0}
@@ -104,7 +109,13 @@ function FragmentLibraryPageInner() {
       id: nanoid(),
       subtitles: [...f.subtitles],
     }))
-    const newSeq = await addSequence(copiedFragments)
+    /* The copy plays what the original plays. Dropping the processed audio here
+       would leave the copy's fragment times pointing at the untrimmed file —
+       the same fragments, landing in all the wrong places. */
+    const processed = seq.processedAudioId
+      ? { audioId: seq.processedAudioId, duration: seq.processedDuration ?? 0 }
+      : undefined
+    const newSeq = await addSequence(copiedFragments, processed)
     if (newSeq) {
       console.log("[FragmentLibrary] Copied sequence", seq.label, "→", newSeq.label)
     }

@@ -3,7 +3,7 @@
 // ИЗМЕНЕНИЕ: добавлена кнопка ImportBundleButton для загрузки .lingodrill бандлов
 // ИЗМЕНЕНИЕ: добавлен stop playback при уходе со страницы (unmount)
 
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import { AudioUploader } from "../app/components/AudioUploader"
 import { AudioLibrary } from "../app/components/AudioLibrary"
@@ -24,6 +24,8 @@ export default function LibraryPage() {
       stopRef.current()
     }
   }, [])
+
+  const uploadedFiles = useMemo(() => files.filter(f => !f.derivedFrom), [files])
 
   const handleSelect = useCallback(async (id: string) => { selectFile(id); await loadById(id) }, [selectFile, loadById])
   const handleDelete = useCallback(async (id: string) => {
@@ -48,7 +50,10 @@ export default function LibraryPage() {
 
       <ImportBundleButton onImportComplete={handleImportComplete} />
 
-      <AudioLibrary files={files} selectedFile={selectedFile} selectFile={id => void handleSelect(id)} onDelete={id => void handleDelete(id)} />
+      {/* Processed copies (trimmed / normalized / maximized) are left out: they
+          belong to the sequence that plays them, not to the library, and are
+          deleted with the file they came from. */}
+      <AudioLibrary files={uploadedFiles} selectedFile={selectedFile} selectFile={id => void handleSelect(id)} onDelete={id => void handleDelete(id)} />
       {selectedFile && (
         <div style={{ marginTop: 20 }}>
           <AudioPlayer fileId={selectedFile.id} isReady={isReady} isPlaying={isPlaying} duration={duration} currentTime={currentTime} onPlay={play} onPause={pause} onStop={stop} onSeek={seekTo} volume={volume} onVolumeChange={setVolume} />

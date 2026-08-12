@@ -12,6 +12,12 @@ interface Props {
   waveformData: number[]
   sequences: Sequence[]
   subtitleFiles: SubtitleFile[]
+  /**
+   * Sequences of the same file that were left out because they play a
+   * different audio (a processed copy). A bundle holds one audio file, so they
+   * cannot ride along — the user is told rather than left to discover it.
+   */
+  omittedSequenceCount?: number
   disabled?: boolean
 }
 
@@ -22,6 +28,7 @@ export function ExportBundleButton({
   waveformData,
   sequences,
   subtitleFiles,
+  omittedSequenceCount = 0,
   disabled,
 }: Props) {
   const t = useT()
@@ -85,6 +92,11 @@ export function ExportBundleButton({
         />
         <span style={{ fontSize: "0.85rem" }}>{t("bundle.includeAudio")}</span>
       </label>
+      {omittedSequenceCount > 0 && (
+        <span className="export-bundle__note">
+          {t.n("bundle.omittedSequences", omittedSequenceCount)}
+        </span>
+      )}
     </>
   )
 }

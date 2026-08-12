@@ -318,6 +318,10 @@ html.mobile .header__overlay {
 }
 .editor-source p { margin: 0; }
 .editor-source p + p { margin-top: 2px; }
+/* Sequence plays a trimmed / volume-raised copy rather than the file itself. */
+.editor-source__processed { font-size: 0.8rem; font-style: italic; opacity: 0.85; }
+/* Sequences that could not ride along in the bundle. */
+.export-bundle__note { font-size: 0.8rem; color: var(--color-text-muted); flex-basis: 100%; }
 .frag-editor__loading { display: flex; align-items: center; gap: 8px; padding: 20px 0; color: var(--color-text-muted); }
 .file-player { display: flex; align-items: center; gap: 6px; margin-top: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .file-player__time { font-size: 0.8rem; color: var(--color-text-muted); }

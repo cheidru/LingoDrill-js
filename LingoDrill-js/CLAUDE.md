@@ -40,12 +40,20 @@ src/utils/         — stateless utility functions
 
 ### Domain types (`src/core/domain/types.ts`)
 
-- **AudioFile** — uploaded audio file metadata
+- **AudioFile** — uploaded audio file metadata. `derivedFrom` marks a processed copy (see below): hidden from the Audio Library and deleted with its source.
 - **SubtitleFile** — text file linked to an audio file
 - **SequenceFragment** — time range with `start/end/repeat/speed` + optional subtitle bindings
 - **Sequence** — ordered list of `SequenceFragment`s linked to an `AudioFile`
 - **FragmentSubtitle** — links a fragment to a character range inside a `SubtitleFile`
 - **Fragment** — legacy type kept for backwards compatibility, superseded by `SequenceFragment`
+
+### Processed audio
+
+Trim silence / Normalize volume / Maximize volume write a new WAV, but the sequence does not move: it keeps its id, its label and its place in the original file's sequence list, and only gains `processedAudioId` (plus `processedDuration`) pointing at the new file. So `Sequence.audioId` is the grouping key — which file's list, subtitles and vocabularies it belongs to — while the audio actually played comes from `sequenceAudioId(seq)` in `src/core/domain/sequenceAudio.ts`. Anything loading audio for a sequence must go through that helper.
+
+The processed WAV is stored with `derivedFrom` set to the original file's id, which keeps it out of the Audio Library and deletes it when the original goes. Processing again (trim, then maximize) supersedes the previous copy, which is deleted unless another sequence still plays it.
+
+One consequence: a `.lingodrill` bundle holds exactly one audio file, so exporting from the editor exports the audio currently open and only the sequences that play it; the rest are reported as omitted.
 
 ### Dual audio engine
 

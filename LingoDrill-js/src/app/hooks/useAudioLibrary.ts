@@ -6,6 +6,12 @@ import { IndexedDBAudioStorage } from "../../infrastructure/indexeddb/IndexedDBA
 export interface AudioFile {
   id: string
   name: string
+  /**
+   * Id of the file this one was produced from (trim silence / normalize /
+   * maximize). Set means it is not an upload of its own: the Audio Library
+   * filters these out, and they are deleted with their source.
+   */
+  derivedFrom?: string
 }
 
 export function useAudioLibrary() {
@@ -33,7 +39,7 @@ export function useAudioLibrary() {
       try {
         setIsLoading(true)
         const storedFiles = await storageRef.current.getAll()
-        setFiles(storedFiles)
+        setFiles(storedFiles.map(f => ({ id: f.id, name: f.name, derivedFrom: f.derivedFrom })))
       } catch {
         setError("Failed to load audio library")
       } finally {
@@ -47,7 +53,8 @@ export function useAudioLibrary() {
   // ➜ Сохранение в IndexedDB
   // Accepts an optional id parameter so callers can control the file ID
   // Returns the id of the saved file
-  const addFile = useCallback(async (file: File, id?: string): Promise<void> => {
+  // derivedFrom — файл создан обработкой другого файла (см. AudioFile)
+  const addFile = useCallback(async (file: File, id?: string, derivedFrom?: string): Promise<void> => {
     if (!storageRef.current) return
 
     try {
@@ -55,8 +62,8 @@ export function useAudioLibrary() {
       setError(null)
 
       const fileId = id ?? crypto.randomUUID()
-      const savedFile = await storageRef.current.save(file, fileId)
-      setFiles(prev => [...prev, { id: savedFile.id, name: savedFile.name }])
+      const savedFile = await storageRef.current.save(file, fileId, derivedFrom)
+      setFiles(prev => [...prev, { id: savedFile.id, name: savedFile.name, derivedFrom: savedFile.derivedFrom }])
     } catch {
       setError("Failed to upload file")
     } finally {
@@ -67,13 +74,27 @@ export function useAudioLibrary() {
   // ➜ Удаление из IndexedDB
   const removeFile = useCallback(async (id: string) => {
     if (!storageRef.current) return
+    const storage = storageRef.current
 
-    await storageRef.current.delete(id)
+    /* Processed copies go with their source. Nothing can reach them once it is
+       deleted — they are hidden from the library and only sequences of the
+       source file point at them — so leaving them behind would just park
+       multi-megabyte blobs in the user's storage forever. */
+    const all = await storage.getAll()
+    const ids = [id, ...all.filter(f => f.derivedFrom === id).map(f => f.id)]
 
-    setFiles(prev => prev.filter(f => f.id !== id))
+    const { WaveformCacheStorage } = await import("../../infrastructure/indexeddb/waveformCacheStorage")
+    const waveformCache = new WaveformCacheStorage()
+
+    for (const fileId of ids) {
+      await storage.delete(fileId)
+      await waveformCache.delete(fileId)
+    }
+
+    setFiles(prev => prev.filter(f => !ids.includes(f.id)))
 
     // если удалён активный файл — сбрасываем выбор
-    setSelectedFile(prev => (prev?.id === id ? null : prev))
+    setSelectedFile(prev => (prev && ids.includes(prev.id) ? null : prev))
   }, [])
 
   // 🔥 ИСПРАВЛЕНО: теперь принимает string | null

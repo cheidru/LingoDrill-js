@@ -9,6 +9,13 @@ export interface AudioFile {
   size: number
   hash: string
   createdAt: number
+  /**
+   * Set on files this app produced from another one (trim silence, normalize,
+   * maximize). A derived file is not an upload of its own: it is hidden from
+   * the Audio Library, reachable only through the sequence that plays it, and
+   * deleted together with the file it came from.
+   */
+  derivedFrom?: AudioFileId
 }
 
 /** Файл субтитров, привязанный к аудиофайлу */
@@ -57,6 +64,12 @@ export interface SequenceFragment {
 
 export interface Sequence {
   id: string
+  /**
+   * The file this sequence belongs to — its place in the sequence library and
+   * the owner of its subtitles and vocabularies. Processing never changes it,
+   * so a processed sequence stays in the original file's list under its own
+   * name; see `processedAudioId` for what actually plays.
+   */
   audioId: AudioFileId
   label: string
   fragments: SequenceFragment[]
@@ -64,6 +77,18 @@ export interface Sequence {
   favourite?: boolean
   /** Sequence-wide playback speed multiplier. Defaults to 1.0 if missing. */
   playbackSpeed?: number
+  /**
+   * Audio actually played, when trim silence / normalize / maximize has
+   * produced a processed copy. Absent on an untouched sequence, which plays
+   * `audioId`. Read it through `sequenceAudioId()` rather than directly.
+   */
+  processedAudioId?: AudioFileId
+  /**
+   * Duration of `processedAudioId` in seconds. Trimming shortens the audio, so
+   * anything laying fragments out against a timeline needs this rather than the
+   * original file's duration.
+   */
+  processedDuration?: number
 }
 
 // Обратная совместимость

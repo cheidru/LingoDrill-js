@@ -30,7 +30,15 @@ export function useSequences(audioId: AudioFileId | null) {
     return () => { cancelled = true }
   }, [audioId])
 
-  const addSequence = useCallback(async (fragments: SequenceFragment[]): Promise<Sequence | null> => {
+  /**
+   * `processed` binds the new sequence to a processed copy of the audio right
+   * away — used when trim silence runs on a file that had no sequence yet, so
+   * the result still lands in this file's list rather than somewhere else.
+   */
+  const addSequence = useCallback(async (
+    fragments: SequenceFragment[],
+    processed?: { audioId: AudioFileId; duration: number },
+  ): Promise<Sequence | null> => {
     if (!audioId || !storageRef.current) return null
 
     const label = await storageRef.current.getNextLabel(audioId)
@@ -41,6 +49,7 @@ export function useSequences(audioId: AudioFileId | null) {
       label,
       fragments,
       createdAt: Date.now(),
+      ...(processed ? { processedAudioId: processed.audioId, processedDuration: processed.duration } : {}),
     }
 
     await storageRef.current.save(sequence)

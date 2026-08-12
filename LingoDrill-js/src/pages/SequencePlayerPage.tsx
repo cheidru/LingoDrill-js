@@ -15,6 +15,7 @@ import { useSubtitles } from "../app/hooks/useSubtitles"
 import { useVocabularies } from "../app/hooks/useVocabularies"
 import { useSharedAudioEngine } from "../app/hooks/useSharedAudioEngine"
 import type { Sequence, SequenceFragment } from "../core/domain/types"
+import { sequenceAudioId } from "../core/domain/sequenceAudio"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { VolumeControl } from "../app/components/VolumeControl"
 import { setLastSequence, getFragmentGap } from "../utils/settings"
@@ -508,14 +509,19 @@ function SequencePlayerPageInner() {
     return indices
   }, [sequence, playingFragIdx])
 
-  // Load audio. Fragments play straight from the streamed file via start/end
-  // time bounds — no AudioBuffer decode is needed, so just load.
+  /* Load audio. Fragments play straight from the streamed file via start/end
+     time bounds — no AudioBuffer decode is needed, so just load.
+
+     Which audio, though, is the sequence's to say: a trimmed or volume-raised
+     sequence lives in this file's list but plays a processed copy, and its
+     fragment times only line up with that copy. So this waits for the sequence
+     to come back from IndexedDB rather than loading the file in the URL. */
   useEffect(() => {
-    if (audioId) {
-      console.log("[SequencePlayerPage] Loading audio:", audioId)
-      loadById(audioId).catch(() => {})
-    }
-  }, [audioId, loadById])
+    if (!sequence) return
+    const playedId = sequenceAudioId(sequence)
+    console.log("[SequencePlayerPage] Loading audio:", playedId)
+    loadById(playedId).catch(() => {})
+  }, [sequence, loadById])
 
   // Stop playback on unmount
   const stopRef = useRef(stop)
