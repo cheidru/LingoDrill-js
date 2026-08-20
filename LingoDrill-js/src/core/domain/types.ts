@@ -62,6 +62,12 @@ export interface SequenceFragment {
   vocabularies?: FragmentVocabulary[]  // привязанный словарь
 }
 
+/**
+ * An audio processing step that has already been applied to a sequence.
+ * Recorded so the editor can tick off the button that ran it.
+ */
+export type ProcessedOp = "trim" | "normalize" | "maximize"
+
 export interface Sequence {
   id: string
   /**
@@ -89,6 +95,12 @@ export interface Sequence {
    * original file's duration.
    */
   processedDuration?: number
+  /**
+   * Processing steps already applied to this sequence (trim silence, normalize,
+   * maximize). The editor disables and ticks the matching button, the way
+   * auto-detect is ticked once fragments exist. Absent on an untouched sequence.
+   */
+  processedOps?: ProcessedOp[]
 }
 
 // Обратная совместимость

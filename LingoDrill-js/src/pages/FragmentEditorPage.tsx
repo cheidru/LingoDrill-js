@@ -43,7 +43,7 @@ import { normalizeFragments } from "../utils/normalizeFragments"
 import { maximizeFragments } from "../utils/maximizeFragments"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
-import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile } from "../core/domain/types"
+import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, ProcessedOp } from "../core/domain/types"
 import { sequenceAudioId, isProcessed } from "../core/domain/sequenceAudio"
 import { nanoid } from "nanoid"
 
@@ -331,9 +331,9 @@ function FragmentEditorPageInner() {
    * (trimmed, normalized, maximized) and returns the sequence's name.
    *
    * The sequence itself does not move: same id, same label, same place in this
-   * file's list, same subtitle and vocabulary bindings. Only `processedAudioId`
-   * and the fragment positions change. When the editor has no sequence yet —
-   * trimming a freshly opened file — one is created here, still under the
+   * file's list, same subtitle and vocabulary bindings. Only `processedAudioId`,
+   * `processedOps` and the fragment positions change. When the editor has no
+   * sequence yet — trimming a freshly opened file — one is created here, still under the
    * original file, because a processed copy is hidden from the library and a
    * sequence is the only thing that can lead back to it.
    */
@@ -341,6 +341,7 @@ function FragmentEditorPageInner() {
     processedFragments: SequenceFragment[],
     processedAudioId: string,
     processedDuration: number,
+    op: ProcessedOp,
   ): Promise<string> => {
     if (!audioId) return ""
 
@@ -351,15 +352,20 @@ function FragmentEditorPageInner() {
 
     let label: string
     if (previous) {
+      /* Ops accumulate: trimming and then maximizing ticks off both buttons. */
+      const processedOps = previous.processedOps?.includes(op)
+        ? previous.processedOps
+        : [...(previous.processedOps ?? []), op]
       await updateSequence({
         ...previous,
         fragments: processedFragments,
         processedAudioId,
         processedDuration,
+        processedOps,
       })
       label = previous.label
     } else {
-      const newSeq = await addSequence(processedFragments, { audioId: processedAudioId, duration: processedDuration })
+      const newSeq = await addSequence(processedFragments, { audioId: processedAudioId, duration: processedDuration, ops: [op] })
       if (!newSeq) return ""
       currentSeqIdRef.current = newSeq.id
       setCurrentSeqId(newSeq.id)
@@ -740,7 +746,7 @@ function FragmentEditorPageInner() {
 
       /* Point the sequence at the trimmed audio, in place. It keeps its id, its
          name and its spot in this file's list — only what it plays changes. */
-      const label = await attachProcessedAudio(remappedFragments, newAudioId, newDuration)
+      const label = await attachProcessedAudio(remappedFragments, newAudioId, newDuration, "trim")
 
       return { originalDuration, segmentMap, newDuration, trimmedName, remappedFragments, label }
     })
@@ -785,6 +791,16 @@ function FragmentEditorPageInner() {
 
   /** A gain operation is running — both block the same set of actions. */
   const volumeBusy = normalizing || maximizing
+
+  /* Steps already applied to the sequence being edited. The button that ran one
+     is ticked and disabled, the way Auto-detect speech is once it has run. */
+  const processedOps = useMemo<ProcessedOp[]>(() => {
+    const seq = currentSeqId ? sequences.find(s => s.id === currentSeqId) : undefined
+    return seq?.processedOps ?? []
+  }, [currentSeqId, sequences])
+  const trimDone = processedOps.includes("trim")
+  const normalizeDone = processedOps.includes("normalize")
+  const maximizeDone = processedOps.includes("maximize")
 
   const openVolumeMode = useCallback((op: VolumeOp) => {
     setVolumeExcluded(new Set())
@@ -846,7 +862,7 @@ function FragmentEditorPageInner() {
       /* Fragments carry over untouched — a gain change moves nothing in time —
          and so do their subtitle and vocabulary bindings, which still belong to
          the file this sequence lives under. */
-      const label = await attachProcessedAudio([...fragments].sort((a, b) => a.start - b.start), newAudioId, duration)
+      const label = await attachProcessedAudio([...fragments].sort((a, b) => a.start - b.start), newAudioId, duration, op)
 
       return {
         op,
@@ -1494,20 +1510,27 @@ function FragmentEditorPageInner() {
               disabled={vadDetecting || trimming || volumeBusy || vadDone}>
               {vadDetecting && !trimming ? t("editor.detecting") : vadDone ? t("editor.autoDetectDone") : t("editor.autoDetect")}
             </button>
-            <button className="action-bar__btn" onClick={handleTrimSilence} disabled={vadDetecting || trimming || volumeBusy}>
-              {trimming ? t("editor.trimming") : t("editor.trim")}
+            <button className="action-bar__btn" onClick={handleTrimSilence}
+              disabled={vadDetecting || trimming || volumeBusy || trimDone}>
+              {trimming ? t("editor.trimming") : trimDone ? t("editor.trimDone") : t("editor.trim")}
             </button>
             <button className="action-bar__btn"
               onClick={volumeMode === "normalize" ? () => setVolumeMode(null) : () => openVolumeMode("normalize")}
-              disabled={vadDetecting || trimming || volumeBusy || fragments.length === 0}
+              disabled={vadDetecting || trimming || volumeBusy || normalizeDone || fragments.length === 0}
               style={volumeMode === "normalize" ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
-              {normalizing ? t("editor.normalizing") : volumeMode === "normalize" ? t("editor.cancelNormalize") : t("editor.normalize")}
+              {normalizing ? t("editor.normalizing")
+                : normalizeDone ? t("editor.normalizeDone")
+                : volumeMode === "normalize" ? t("editor.cancelNormalize")
+                : t("editor.normalize")}
             </button>
             <button className="action-bar__btn"
               onClick={volumeMode === "maximize" ? () => setVolumeMode(null) : () => openVolumeMode("maximize")}
-              disabled={vadDetecting || trimming || volumeBusy || fragments.length === 0}
+              disabled={vadDetecting || trimming || volumeBusy || maximizeDone || fragments.length === 0}
               style={volumeMode === "maximize" ? { borderColor: "#0078ff", color: "#0078ff" } : undefined}>
-              {maximizing ? t("editor.maximizing") : volumeMode === "maximize" ? t("editor.cancelMaximize") : t("editor.maximize")}
+              {maximizing ? t("editor.maximizing")
+                : maximizeDone ? t("editor.maximizeDone")
+                : volumeMode === "maximize" ? t("editor.cancelMaximize")
+                : t("editor.maximize")}
             </button>
             <button className="action-bar__btn action-bar__btn--danger"
               onClick={() => fragments.length > 0 ? setShowDeleteAllConfirm(true) : undefined}

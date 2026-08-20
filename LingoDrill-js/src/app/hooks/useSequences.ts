@@ -1,7 +1,7 @@
 // hooks/useSequences.ts
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import type { Sequence, SequenceFragment, AudioFileId } from "../../core/domain/types"
+import type { Sequence, SequenceFragment, AudioFileId, ProcessedOp } from "../../core/domain/types"
 import { IndexedDBSequenceStorage } from "../../infrastructure/indexeddb/IndexedDBSequenceStorage"
 import { nanoid } from "nanoid"
 
@@ -34,10 +34,11 @@ export function useSequences(audioId: AudioFileId | null) {
    * `processed` binds the new sequence to a processed copy of the audio right
    * away — used when trim silence runs on a file that had no sequence yet, so
    * the result still lands in this file's list rather than somewhere else.
+   * Its `ops` records the processing steps behind that copy.
    */
   const addSequence = useCallback(async (
     fragments: SequenceFragment[],
-    processed?: { audioId: AudioFileId; duration: number },
+    processed?: { audioId: AudioFileId; duration: number; ops: ProcessedOp[] },
   ): Promise<Sequence | null> => {
     if (!audioId || !storageRef.current) return null
 
@@ -49,7 +50,13 @@ export function useSequences(audioId: AudioFileId | null) {
       label,
       fragments,
       createdAt: Date.now(),
-      ...(processed ? { processedAudioId: processed.audioId, processedDuration: processed.duration } : {}),
+      ...(processed
+        ? {
+            processedAudioId: processed.audioId,
+            processedDuration: processed.duration,
+            processedOps: processed.ops,
+          }
+        : {}),
     }
 
     await storageRef.current.save(sequence)

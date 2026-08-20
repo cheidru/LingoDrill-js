@@ -113,7 +113,11 @@ function FragmentLibraryPageInner() {
        would leave the copy's fragment times pointing at the untrimmed file —
        the same fragments, landing in all the wrong places. */
     const processed = seq.processedAudioId
-      ? { audioId: seq.processedAudioId, duration: seq.processedDuration ?? 0 }
+      ? {
+          audioId: seq.processedAudioId,
+          duration: seq.processedDuration ?? 0,
+          ops: seq.processedOps ?? [],
+        }
       : undefined
     const newSeq = await addSequence(copiedFragments, processed)
     if (newSeq) {
