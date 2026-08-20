@@ -43,7 +43,7 @@ import { normalizeFragments } from "../utils/normalizeFragments"
 import { maximizeFragments } from "../utils/maximizeFragments"
 import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
-import type { SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, ProcessedOp } from "../core/domain/types"
+import type { Sequence, SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, ProcessedOp } from "../core/domain/types"
 import { sequenceAudioId, isProcessed } from "../core/domain/sequenceAudio"
 import { nanoid } from "nanoid"
 
@@ -79,6 +79,22 @@ type VolumeOp = "normalize" | "maximize"
 function formatDb(db: number): string {
   const rounded = Math.abs(db) < 0.05 ? 0 : db
   return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`
+}
+
+/**
+ * `processedOps` after an edit that may have dropped fragments.
+ *
+ * A deleted fragment leaves its audio behind — in a trimmed file it becomes a
+ * fresh silent gap — so Trim silence has work to do again and its tick goes.
+ * The gain ops do not: every fragment that is still here was already normalized
+ * or maximized, and running them again would change nothing.
+ */
+function nextProcessedOps(seq: Sequence, updated: SequenceFragment[]): ProcessedOp[] | undefined {
+  const ops = seq.processedOps
+  if (!ops?.includes("trim")) return ops
+  const kept = new Set(updated.map(f => f.id))
+  if (seq.fragments.every(f => kept.has(f.id))) return ops
+  return ops.filter(op => op !== "trim")
 }
 
 /** Amplification cap in maximizeFragments — shown in the result modal. */
@@ -315,7 +331,7 @@ function FragmentEditorPageInner() {
     const sorted = [...updatedFragments].sort((a, b) => a.start - b.start)
     if (currentSeqIdRef.current) {
       const seq = sequences.find(s => s.id === currentSeqIdRef.current)
-      if (seq) await updateSequence({ ...seq, fragments: sorted })
+      if (seq) await updateSequence({ ...seq, fragments: sorted, processedOps: nextProcessedOps(seq, sorted) })
     } else {
       const newSeq = await addSequence(sorted)
       if (newSeq) {
@@ -794,10 +810,7 @@ function FragmentEditorPageInner() {
 
   /* Steps already applied to the sequence being edited. The button that ran one
      is ticked and disabled, the way Auto-detect speech is once it has run. */
-  const processedOps = useMemo<ProcessedOp[]>(() => {
-    const seq = currentSeqId ? sequences.find(s => s.id === currentSeqId) : undefined
-    return seq?.processedOps ?? []
-  }, [currentSeqId, sequences])
+  const processedOps = currentSequence?.processedOps ?? []
   const trimDone = processedOps.includes("trim")
   const normalizeDone = processedOps.includes("normalize")
   const maximizeDone = processedOps.includes("maximize")
