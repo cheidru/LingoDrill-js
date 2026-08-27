@@ -40,6 +40,22 @@ export function useVocabularies(audioId: AudioFileId | null) {
     return vocab
   }, [audioId])
 
+  /**
+   * Replaces the text of a vocabulary file. As with subtitles, fragment
+   * bindings are character offsets into this string, so the caller re-bases
+   * them across the same edit.
+   */
+  const updateVocabularyContent = useCallback(async (id: string, content: string): Promise<VocabularyFile | null> => {
+    if (!storageRef.current) return null
+    const existing = await storageRef.current.get(id)
+    if (!existing) return null
+
+    const updated: VocabularyFile = { ...existing, content }
+    await storageRef.current.save(updated)
+    setVocabularyFiles(prev => prev.map(v => v.id === id ? updated : v))
+    return updated
+  }, [])
+
   const deleteVocabularyFile = useCallback(async (id: string) => {
     if (!storageRef.current) return
     await storageRef.current.delete(id)
@@ -54,6 +70,7 @@ export function useVocabularies(audioId: AudioFileId | null) {
   return {
     vocabularyFiles,
     addVocabularyFile,
+    updateVocabularyContent,
     deleteVocabularyFile,
     getVocabularyFile,
   }

@@ -107,7 +107,8 @@
       "Bash(mkdir -p \"E:/LingoDrill/LingoDrill-js/LingoDrill-js/.playwright-mcp\")",
       "Bash(cp \"G:/LingoDrill/Movie/Casino.Royale.2006.1080p.BRrip.x264.YIFY.mp3\" \"E:/LingoDrill/LingoDrill-js/LingoDrill-js/.playwright-mcp/casino.mp3\")",
       "Bash(npx --no-install tsx --version)",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(npx --version)"
     ],
     "deny": [
       "Bash(rm:*)",

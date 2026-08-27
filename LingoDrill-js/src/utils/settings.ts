@@ -2,6 +2,15 @@ export type StartPage = "library" | "favourites" | "last-sequence"
 export type Language = "en" | "ru"
 export type Theme = "light" | "dark"
 export type ColorTheme = "normal" | "pastel" | "neon"
+/* Motif tiled behind the page. Each value needs a matching rule in index.css;
+   "none" is the default so nobody's app changes appearance under them. */
+export type BgPattern = "none" | "leaves"
+/* The ground the pattern sits on: the theme's flat page colour, or a soft
+   gradient mixed from the theme's own primary and accent. */
+export type BgGround = "plain" | "gradient"
+/* Hue mixed into the page ground. "default" leaves the theme's own colour
+   alone; every other value has a `--bg-tint-<name>` token in index.css. */
+export type BgTint = "default" | "sage" | "sand" | "clay" | "sky" | "lilac" | "slate"
 
 const KEY_START_PAGE = "lingodrill.startPage"
 const KEY_SUB_FONT_SIZE = "lingodrill.subFontSize"
@@ -11,6 +20,9 @@ const KEY_TRIM_SILENCE_GAP = "lingodrill.trimSilenceGap"
 const KEY_LANGUAGE = "lingodrill.language"
 const KEY_THEME = "lingodrill.theme"
 const KEY_COLOR_THEME = "lingodrill.colorTheme"
+const KEY_BG_PATTERN = "lingodrill.bgPattern"
+const KEY_BG_GROUND = "lingodrill.bgGround"
+const KEY_BG_TINT = "lingodrill.bgTint"
 const KEY_ONBOARDING_SEEN = "lingodrill.onboardingSeen"
 
 export const DEFAULT_START_PAGE: StartPage = "library"
@@ -32,6 +44,14 @@ export const DEFAULT_LANGUAGE: Language = "en"
 export const AVAILABLE_LANGUAGES: Language[] = ["en", "ru"]
 export const DEFAULT_THEME: Theme = "light"
 export const DEFAULT_COLOR_THEME: ColorTheme = "normal"
+export const DEFAULT_BG_PATTERN: BgPattern = "none"
+export const DEFAULT_BG_GROUND: BgGround = "plain"
+/* Patterns offered in Settings. As with languages, this is what the UI reads:
+   a stored motif that has since been withdrawn falls back to the default
+   rather than leaving the page with a mask that resolves to nothing. */
+export const AVAILABLE_BG_PATTERNS: BgPattern[] = ["none", "leaves"]
+export const DEFAULT_BG_TINT: BgTint = "default"
+export const AVAILABLE_BG_TINTS: BgTint[] = ["default", "sage", "sand", "clay", "sky", "lilac", "slate"]
 
 export function getStartPage(): StartPage {
   const v = localStorage.getItem(KEY_START_PAGE)
@@ -148,6 +168,53 @@ export function setColorTheme(v: ColorTheme): void {
 
 export function applyColorTheme(v: ColorTheme = getColorTheme()): void {
   document.documentElement.setAttribute("data-color-theme", v)
+}
+
+export function getBgPattern(): BgPattern {
+  const v = localStorage.getItem(KEY_BG_PATTERN)
+  if (AVAILABLE_BG_PATTERNS.includes(v as BgPattern)) return v as BgPattern
+  return DEFAULT_BG_PATTERN
+}
+
+export function setBgPattern(v: BgPattern): void {
+  localStorage.setItem(KEY_BG_PATTERN, v)
+  applyBgPattern(v)
+}
+
+export function applyBgPattern(v: BgPattern = getBgPattern()): void {
+  document.documentElement.setAttribute("data-bg-pattern", v)
+}
+
+export function getBgGround(): BgGround {
+  const v = localStorage.getItem(KEY_BG_GROUND)
+  if (v === "plain" || v === "gradient") return v
+  return DEFAULT_BG_GROUND
+}
+
+export function setBgGround(v: BgGround): void {
+  localStorage.setItem(KEY_BG_GROUND, v)
+  applyBgGround(v)
+}
+
+/* Always stamped, never absent: the neon dark theme keys its ambient halos off
+   `[data-bg-ground="plain"]`, so an unstamped document would lose them. */
+export function applyBgGround(v: BgGround = getBgGround()): void {
+  document.documentElement.setAttribute("data-bg-ground", v)
+}
+
+export function getBgTint(): BgTint {
+  const v = localStorage.getItem(KEY_BG_TINT)
+  if (AVAILABLE_BG_TINTS.includes(v as BgTint)) return v as BgTint
+  return DEFAULT_BG_TINT
+}
+
+export function setBgTint(v: BgTint): void {
+  localStorage.setItem(KEY_BG_TINT, v)
+  applyBgTint(v)
+}
+
+export function applyBgTint(v: BgTint = getBgTint()): void {
+  document.documentElement.setAttribute("data-bg-tint", v)
 }
 
 export function hasSeenOnboarding(): boolean {

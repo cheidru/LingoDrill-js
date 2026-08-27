@@ -45,6 +45,8 @@ import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
 import type { Sequence, SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, ProcessedOp } from "../core/domain/types"
 import { sequenceAudioId, isProcessed } from "../core/domain/sequenceAudio"
+import type { TextEdit } from "../core/domain/textBindings"
+import { diffText, rebaseSubtitleBindings, rebaseVocabularyBindings } from "../core/domain/textBindings"
 import { nanoid } from "nanoid"
 
 function formatTime(sec: number): string {
@@ -160,8 +162,8 @@ function FragmentEditorPageInner() {
   } = useSharedAudioEngine()
 
   const { sequences, addSequence, updateSequence } = useSequences(audioId ?? null)
-  const { subtitleFiles } = useSubtitles(audioId ?? null)
-  const { vocabularyFiles } = useVocabularies(audioId ?? null)
+  const { subtitleFiles, updateSubtitleContent } = useSubtitles(audioId ?? null)
+  const { vocabularyFiles, updateVocabularyContent } = useVocabularies(audioId ?? null)
 
   // --- Heavy operation error handling ---
   const { heavyError, showMobileHelp, wrapHeavyOp, clearError, closeHelp } = useHeavyOperation()
@@ -221,11 +223,19 @@ function FragmentEditorPageInner() {
   const [subModalFragId, setSubModalFragId] = useState<string | null>(null)
   const [subModalStep, setSubModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
   const [subModalFile, setSubModalFile] = useState<SubtitleFile | null>(null)
+  /* Text editing inside the "select text" step. Off by default: binding a
+     snippet stays a pure selection, the text is only editable on request. */
+  const [subTextEditing, setSubTextEditing] = useState(false)
+  const [subDraft, setSubDraft] = useState("")
+  const [subSaving, setSubSaving] = useState(false)
 
   // --- Vocabulary selection modal ---
   const [vocabModalFragId, setVocabModalFragId] = useState<string | null>(null)
   const [vocabModalStep, setVocabModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
   const [vocabModalFile, setVocabModalFile] = useState<VocabularyFile | null>(null)
+  const [vocabTextEditing, setVocabTextEditing] = useState(false)
+  const [vocabDraft, setVocabDraft] = useState("")
+  const [vocabSaving, setVocabSaving] = useState(false)
 
   // --- Block delete state ---
   const [blockDeleteStartId, setBlockDeleteStartId] = useState<string | null>(null)
@@ -1115,6 +1125,18 @@ function FragmentEditorPageInner() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [editingId, deleteLocalFragment, blockDeleteStartId, handleBlockDeleteCancel])
 
+  const closeSubModal = useCallback(() => {
+    setSubModalFragId(null)
+    setSubModalFile(null)
+    setSubTextEditing(false)
+  }, [])
+
+  const closeVocabModal = useCallback(() => {
+    setVocabModalFragId(null)
+    setVocabModalFile(null)
+    setVocabTextEditing(false)
+  }, [])
+
   // --- Subtitle handlers ---
   const handleSubtitleSelect = useCallback(async () => {
     const sel = window.getSelection()
@@ -1145,10 +1167,9 @@ function FragmentEditorPageInner() {
 
     setFragments(updatedAll)
     await persistSequence(updatedAll)
-    setSubModalFragId(null)
-    setSubModalFile(null)
+    closeSubModal()
     sel.removeAllRanges()
-  }, [subModalFragId, subModalFile, fragments, persistSequence])
+  }, [subModalFragId, subModalFile, fragments, persistSequence, closeSubModal])
 
 
   // --- Helper: after subtitle file is determined, check if fragment already has subtitle from that file ---
@@ -1190,6 +1211,57 @@ function FragmentEditorPageInner() {
     await persistSequence(updatedAll)
   }, [fragments, persistSequence])
 
+  /* --- Editing the subtitle file's own text ---
+
+     A snippet is a character range into the file's text, shared by every
+     sequence of this audio file, so rewriting a word moves every binding that
+     sits after it. The edit is therefore applied to the file and re-based
+     through all of those sequences in one go: the one open in the editor from
+     the live `fragments` state, the rest straight from storage. */
+  const applySubtitleTextEdit = useCallback(async (subtitleFileId: string, edit: TextEdit) => {
+    const rebasedLocal = rebaseSubtitleBindings(fragments, subtitleFileId, edit)
+    if (rebasedLocal !== fragments) {
+      setFragments(rebasedLocal)
+      // No sequence yet means no bindings either — nothing to write.
+      if (currentSeqIdRef.current) await persistSequence(rebasedLocal)
+    }
+
+    for (const seq of sequences) {
+      if (seq.id === currentSeqIdRef.current) continue
+      const rebased = rebaseSubtitleBindings(seq.fragments, subtitleFileId, edit)
+      if (rebased !== seq.fragments) {
+        console.log("[FragmentEditor] Rebased subtitle bindings in sequence:", seq.label)
+        await updateSequence({ ...seq, fragments: rebased })
+      }
+    }
+  }, [fragments, sequences, persistSequence, updateSequence])
+
+  const startSubTextEdit = useCallback(() => {
+    if (!subModalFile) return
+    setSubDraft(subModalFile.content)
+    setSubTextEditing(true)
+  }, [subModalFile])
+
+  const handleSubTextSave = useCallback(async () => {
+    if (!subModalFile) return
+
+    const edit = diffText(subModalFile.content, subDraft)
+    if (!edit) {
+      setSubTextEditing(false)
+      return
+    }
+
+    setSubSaving(true)
+    try {
+      const updated = await updateSubtitleContent(subModalFile.id, subDraft)
+      if (updated) setSubModalFile(updated)
+      await applySubtitleTextEdit(subModalFile.id, edit)
+    } finally {
+      setSubSaving(false)
+      setSubTextEditing(false)
+    }
+  }, [subModalFile, subDraft, updateSubtitleContent, applySubtitleTextEdit])
+
   // --- Vocabulary handlers ---
   const handleVocabularySelect = useCallback(async () => {
     const sel = window.getSelection()
@@ -1221,10 +1293,9 @@ function FragmentEditorPageInner() {
 
     setFragments(updatedAll)
     await persistSequence(updatedAll)
-    setVocabModalFragId(null)
-    setVocabModalFile(null)
+    closeVocabModal()
     sel.removeAllRanges()
-  }, [vocabModalFragId, vocabModalFile, fragments, persistSequence])
+  }, [vocabModalFragId, vocabModalFile, fragments, persistSequence, closeVocabModal])
 
   const goToVocabStepForFile = useCallback((fragId: string, vf: VocabularyFile) => {
     setVocabModalFile(vf)
@@ -1257,6 +1328,50 @@ function FragmentEditorPageInner() {
     await persistSequence(updatedAll)
   }, [fragments, persistSequence])
 
+  /* --- Editing the vocabulary file's own text --- (same contract as subtitles) */
+  const applyVocabularyTextEdit = useCallback(async (vocabularyFileId: string, edit: TextEdit) => {
+    const rebasedLocal = rebaseVocabularyBindings(fragments, vocabularyFileId, edit)
+    if (rebasedLocal !== fragments) {
+      setFragments(rebasedLocal)
+      if (currentSeqIdRef.current) await persistSequence(rebasedLocal)
+    }
+
+    for (const seq of sequences) {
+      if (seq.id === currentSeqIdRef.current) continue
+      const rebased = rebaseVocabularyBindings(seq.fragments, vocabularyFileId, edit)
+      if (rebased !== seq.fragments) {
+        console.log("[FragmentEditor] Rebased vocabulary bindings in sequence:", seq.label)
+        await updateSequence({ ...seq, fragments: rebased })
+      }
+    }
+  }, [fragments, sequences, persistSequence, updateSequence])
+
+  const startVocabTextEdit = useCallback(() => {
+    if (!vocabModalFile) return
+    setVocabDraft(vocabModalFile.content)
+    setVocabTextEditing(true)
+  }, [vocabModalFile])
+
+  const handleVocabTextSave = useCallback(async () => {
+    if (!vocabModalFile) return
+
+    const edit = diffText(vocabModalFile.content, vocabDraft)
+    if (!edit) {
+      setVocabTextEditing(false)
+      return
+    }
+
+    setVocabSaving(true)
+    try {
+      const updated = await updateVocabularyContent(vocabModalFile.id, vocabDraft)
+      if (updated) setVocabModalFile(updated)
+      await applyVocabularyTextEdit(vocabModalFile.id, edit)
+    } finally {
+      setVocabSaving(false)
+      setVocabTextEditing(false)
+    }
+  }, [vocabModalFile, vocabDraft, updateVocabularyContent, applyVocabularyTextEdit])
+
   // --- Auto-scroll the subtitle text when the "select-text" step opens ---
   // If the fragment already has a subtitle from this file (we came here via "Edit"),
   // scroll to that snippet so the view stays where the user left it. Otherwise scroll
@@ -1264,6 +1379,7 @@ function FragmentEditorPageInner() {
   // find the right area.
   useEffect(() => {
     if (subModalStep !== "select-text" || !subModalFragId || !subModalFile) return
+    if (subTextEditing) return // the textarea has replaced the text container
 
     const currentFrag = fragments.find(f => f.id === subModalFragId)
     if (!currentFrag) return
@@ -1297,11 +1413,12 @@ function FragmentEditorPageInner() {
       const ok = scrollTextContainerToChar("subtitle-text-container", targetChar!, subModalFile.content.length, behavior)
       if (ok) console.log("[FragmentEditor] Scrolled subtitle text to char:", targetChar)
     })
-  }, [subModalStep, subModalFragId, subModalFile, fragments])
+  }, [subModalStep, subModalFragId, subModalFile, subTextEditing, fragments])
 
   // --- Same auto-scroll for the vocabulary text ---
   useEffect(() => {
     if (vocabModalStep !== "select-text" || !vocabModalFragId || !vocabModalFile) return
+    if (vocabTextEditing) return
 
     const currentFrag = fragments.find(f => f.id === vocabModalFragId)
     if (!currentFrag) return
@@ -1332,7 +1449,7 @@ function FragmentEditorPageInner() {
       const ok = scrollTextContainerToChar("vocab-text-container", targetChar!, vocabModalFile.content.length, behavior)
       if (ok) console.log("[FragmentEditor] Scrolled vocabulary text to char:", targetChar)
     })
-  }, [vocabModalStep, vocabModalFragId, vocabModalFile, fragments])
+  }, [vocabModalStep, vocabModalFragId, vocabModalFile, vocabTextEditing, fragments])
 
   // --- Get audio file info ---
   const audioFile = files.find(f => f.id === audioId)
@@ -1806,7 +1923,7 @@ function FragmentEditorPageInner() {
 
       {/* Subtitle modal */}
       {subModalFragId && (
-        <div className="modal-overlay" onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>
+        <div className="modal-overlay" onClick={() => { if (!subTextEditing) closeSubModal() }}>
           <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()}>
             {subModalStep === "choose-file" ? (
               <>
@@ -1824,7 +1941,7 @@ function FragmentEditorPageInner() {
                   </div>
                 )}
                 <div className="modal-actions">
-                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>{t("common.cancel")}</button>
+                  <button onClick={closeSubModal}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : subModalStep === "view-existing" ? (
@@ -1853,30 +1970,48 @@ function FragmentEditorPageInner() {
                     if (subModalFile) {
                       await handleRemoveSubtitle(subModalFragId, subModalFile.id)
                     }
-                    setSubModalFragId(null)
-                    setSubModalFile(null)
+                    closeSubModal()
                   }} className="btn-danger">{t("editor.unbind")}</button>
                   {subtitleFiles.length > 1 && (
                     <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>{t("common.backPlain")}</button>
                   )}
-                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>{t("common.cancel")}</button>
+                  <button onClick={closeSubModal}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : (
               <>
                 <h3 style={{ marginTop: 0 }}>{t("editor.selectTextSub")}</h3>
                 <p style={{ fontSize: "0.85rem", color: "#666" }}>
-                  {t("editor.selectHint")}
+                  {subTextEditing ? t("editor.editTextHint") : t("editor.selectHint")}
                 </p>
-                <div id="subtitle-text-container" className="subtitle-content">
-                  {subModalFile?.content}
-                </div>
+                {subTextEditing ? (
+                  <textarea
+                    className="subtitle-content subtitle-content--edit"
+                    value={subDraft}
+                    onChange={e => setSubDraft(e.target.value)}
+                    disabled={subSaving}
+                  />
+                ) : (
+                  <div id="subtitle-text-container" className="subtitle-content">
+                    {subModalFile?.content}
+                  </div>
+                )}
                 <div className="modal-actions">
-                  <button onClick={handleSubtitleSelect} className="btn-primary">{t("common.bind")}</button>
-                  {subtitleFiles.length > 1 && (
-                    <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>{t("common.backPlain")}</button>
+                  {subTextEditing ? (
+                    <>
+                      <button onClick={handleSubTextSave} className="btn-primary" disabled={subSaving}>{t("common.save")}</button>
+                      <button onClick={() => setSubTextEditing(false)} disabled={subSaving}>{t("common.cancel")}</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={handleSubtitleSelect} className="btn-primary">{t("common.bind")}</button>
+                      <button onClick={startSubTextEdit}>{t("editor.editText")}</button>
+                      {subtitleFiles.length > 1 && (
+                        <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>{t("common.backPlain")}</button>
+                      )}
+                      <button onClick={closeSubModal}>{t("common.cancel")}</button>
+                    </>
                   )}
-                  <button onClick={() => { setSubModalFragId(null); setSubModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             )}
@@ -1886,7 +2021,7 @@ function FragmentEditorPageInner() {
 
       {/* Vocabulary modal */}
       {vocabModalFragId && (
-        <div className="modal-overlay" onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>
+        <div className="modal-overlay" onClick={() => { if (!vocabTextEditing) closeVocabModal() }}>
           <div className="modal-box modal-box--wide" onClick={e => e.stopPropagation()}>
             {vocabModalStep === "choose-file" ? (
               <>
@@ -1904,7 +2039,7 @@ function FragmentEditorPageInner() {
                   </div>
                 )}
                 <div className="modal-actions">
-                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>{t("common.cancel")}</button>
+                  <button onClick={closeVocabModal}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : vocabModalStep === "view-existing" ? (
@@ -1933,30 +2068,48 @@ function FragmentEditorPageInner() {
                     if (vocabModalFile) {
                       await handleRemoveVocabulary(vocabModalFragId, vocabModalFile.id)
                     }
-                    setVocabModalFragId(null)
-                    setVocabModalFile(null)
+                    closeVocabModal()
                   }} className="btn-danger">{t("editor.unbind")}</button>
                   {vocabularyFiles.length > 1 && (
                     <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>{t("common.backPlain")}</button>
                   )}
-                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>{t("common.cancel")}</button>
+                  <button onClick={closeVocabModal}>{t("common.cancel")}</button>
                 </div>
               </>
             ) : (
               <>
                 <h3 style={{ marginTop: 0 }}>{t("editor.selectTextVocab")}</h3>
                 <p style={{ fontSize: "0.85rem", color: "#666" }}>
-                  {t("editor.selectHint")}
+                  {vocabTextEditing ? t("editor.editTextHint") : t("editor.selectHint")}
                 </p>
-                <div id="vocab-text-container" className="subtitle-content">
-                  {vocabModalFile?.content}
-                </div>
+                {vocabTextEditing ? (
+                  <textarea
+                    className="subtitle-content subtitle-content--edit"
+                    value={vocabDraft}
+                    onChange={e => setVocabDraft(e.target.value)}
+                    disabled={vocabSaving}
+                  />
+                ) : (
+                  <div id="vocab-text-container" className="subtitle-content">
+                    {vocabModalFile?.content}
+                  </div>
+                )}
                 <div className="modal-actions">
-                  <button onClick={handleVocabularySelect} className="btn-primary">{t("common.bind")}</button>
-                  {vocabularyFiles.length > 1 && (
-                    <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>{t("common.backPlain")}</button>
+                  {vocabTextEditing ? (
+                    <>
+                      <button onClick={handleVocabTextSave} className="btn-primary" disabled={vocabSaving}>{t("common.save")}</button>
+                      <button onClick={() => setVocabTextEditing(false)} disabled={vocabSaving}>{t("common.cancel")}</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={handleVocabularySelect} className="btn-primary">{t("common.bind")}</button>
+                      <button onClick={startVocabTextEdit}>{t("editor.editText")}</button>
+                      {vocabularyFiles.length > 1 && (
+                        <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>{t("common.backPlain")}</button>
+                      )}
+                      <button onClick={closeVocabModal}>{t("common.cancel")}</button>
+                    </>
                   )}
-                  <button onClick={() => { setVocabModalFragId(null); setVocabModalFile(null) }}>{t("common.cancel")}</button>
                 </div>
               </>
             )}

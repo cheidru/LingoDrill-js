@@ -591,6 +591,32 @@ html.mobile .header__overlay {
 .settings-swatch__dot--pastel { background: linear-gradient(135deg, #7c9eb2, #d9a37a); }
 .settings-swatch__dot--neon { background: linear-gradient(135deg, #00e5ff, #ff6b35); }
 
+/* Tint swatches show the ground each option actually produces, mixed exactly
+   as the page is — so they re-colour themselves with the theme. */
+.settings-swatch__dot--tint-default { background: var(--color-bg-page); }
+.settings-swatch__dot--tint-sage { background: color-mix(in srgb, var(--bg-tint-sage) var(--bg-tint-strength), var(--color-bg-page)); }
+.settings-swatch__dot--tint-sand { background: color-mix(in srgb, var(--bg-tint-sand) var(--bg-tint-strength), var(--color-bg-page)); }
+.settings-swatch__dot--tint-clay { background: color-mix(in srgb, var(--bg-tint-clay) var(--bg-tint-strength), var(--color-bg-page)); }
+.settings-swatch__dot--tint-sky { background: color-mix(in srgb, var(--bg-tint-sky) var(--bg-tint-strength), var(--color-bg-page)); }
+.settings-swatch__dot--tint-lilac { background: color-mix(in srgb, var(--bg-tint-lilac) var(--bg-tint-strength), var(--color-bg-page)); }
+.settings-swatch__dot--tint-slate { background: color-mix(in srgb, var(--bg-tint-slate) var(--bg-tint-strength), var(--color-bg-page)); }
+
+/* Pattern swatches preview the motif itself, masked and tinted exactly as the
+   page layer is — at a tile size small enough to read inside a 14px dot. */
+.settings-swatch__dot--pattern-none {
+  background: var(--color-bg-page);
+}
+.settings-swatch__dot--pattern-leaves {
+  background-color: var(--color-text);
+  -webkit-mask-image: var(--bg-pattern-leaves);
+  mask-image: var(--bg-pattern-leaves);
+  -webkit-mask-size: 15px;
+  mask-size: 15px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  box-shadow: none;
+}
+
 /* --- Slider --- */
 .settings-slider {
   appearance: none;
@@ -783,6 +809,18 @@ html.mobile .header__overlay {
   cursor: text;
   border-radius: var(--radius-sm);
 }
+/* The same box, turned into a textarea for editing the subtitle / vocabulary
+   file's own text. */
+.subtitle-content--edit {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.subtitle-content--edit:disabled { opacity: 0.6; }
 /* === Contacts page === */
 .contacts-page__body {
   color: var(--color-text-secondary);

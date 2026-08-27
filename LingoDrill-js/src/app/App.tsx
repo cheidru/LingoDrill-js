@@ -10,7 +10,7 @@ import { SequencePlayerPage } from "../pages/SequencePlayerPage"
 import { FavouritesPage } from "../pages/FavouritesPage"
 import { SettingsPage } from "../pages/SettingsPage"
 import { ContactsPage } from "../pages/ContactsPage"
-import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColorTheme, applyLanguage } from "../utils/settings"
+import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColorTheme, applyBgPattern, applyBgGround, applyBgTint, applyLanguage } from "../utils/settings"
 import "./App.css"
 import "./bundle.css"
 import "./sequencePlayer.css"
@@ -20,6 +20,9 @@ import "./help.css"
 applySubFontSize()
 applyTheme()
 applyColorTheme()
+applyBgPattern()
+applyBgGround()
+applyBgTint()
 applyLanguage()
 
 const SESSION_REDIRECT_KEY = "lingodrill.startPageRedirected"

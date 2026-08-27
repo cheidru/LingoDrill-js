@@ -55,6 +55,22 @@ The processed WAV is stored with `derivedFrom` set to the original file's id, wh
 
 One consequence: a `.lingodrill` bundle holds exactly one audio file, so exporting from the editor exports the audio currently open and only the sequences that play it; the rest are reported as omitted.
 
+### Subtitle and vocabulary text
+
+A fragment never stores snippet text. `FragmentSubtitle` / `FragmentVocabulary` hold `charStart`/`charEnd` into the one shared `SubtitleFile.content` / `VocabularyFile.content`, and those files are keyed by `audioId` — so every sequence of that audio file reads from the same string. Editing that string therefore moves every binding sitting after the edit, in every sequence.
+
+The editor's Sub / Vocab modal offers "Edit text" alongside plain select-and-bind. On save it writes the file and re-bases all bindings through `diffText()` + `rebaseSubtitleBindings()` / `rebaseVocabularyBindings()` in `src/core/domain/textBindings.ts`: the sequence being edited from the live `fragments` state, the rest of the file's sequences straight from storage. Anything else that rewrites one of those files must re-base the same way, or bindings silently slide onto the wrong words.
+
+### Background pattern
+
+The page ground is painted by `html` alone — `background-color: var(--color-bg-page)` plus `--bg-ground-image` (`none`, or a gradient mixed from the theme's own primary and accent when `data-bg-ground="gradient"`). The pattern is `html::before` at `z-index: -1`: one black stroke-only SVG tile used as a `mask-image` and tinted with `--color-text`, so a single tile serves all six theme x colour-theme combinations. That z-index puts it after the ground and before every in-flow background, and since cards, rows and modals are opaque, the pattern only shows in the margins.
+
+The consequence to remember: **nothing may paint an opaque background on `html` or `body`** — that is what hides the layer. The neon dark theme's ambient halos are therefore `--bg-ground-image` under `[data-bg-ground="plain"]`, not a `body` background.
+
+The ground colour is `--bg-ground-color`: the chosen `--bg-tint` mixed into `--color-bg-page` at `--bg-tint-strength` (14% light, 16% dark). One hex per tint therefore covers both themes — the same green is pale sage over near-white and deep forest over near-black. Note that `--color-bg-page` itself is never redefined: filled buttons use it as their *text* colour, so tinting it would tint the type inside them.
+
+All three settings live in `src/utils/settings.ts` (`BgPattern`, `BgGround`, `BgTint`) beside theme and colour theme, and are stamped onto `<html>` at boot from `App.tsx`. Adding a motif is a `--bg-pattern-<name>` URL and a `[data-bg-pattern="<name>"]::before` rule in `index.css`, plus the name in `AVAILABLE_BG_PATTERNS` and two i18n keys.
+
 ### Dual audio engine
 
 `useAudioEngine` (`src/app/hooks/useAudioEngine.ts`) manages two engines in parallel:
