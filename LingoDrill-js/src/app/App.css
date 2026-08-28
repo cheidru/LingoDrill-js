@@ -591,15 +591,15 @@ html.mobile .header__overlay {
 .settings-swatch__dot--pastel { background: linear-gradient(135deg, #7c9eb2, #d9a37a); }
 .settings-swatch__dot--neon { background: linear-gradient(135deg, #00e5ff, #ff6b35); }
 
-/* Tint swatches show the ground each option actually produces, mixed exactly
-   as the page is — so they re-colour themselves with the theme. */
+/* Tint swatches show the ground the option actually produces. The theme dot is
+   the untinted page colour; the picker dot is the live ground, so it is the
+   colour the user chose mixed exactly as the page mixes it. Until something is
+   chosen that dot has nothing to show, and wears a colour wheel instead. */
 .settings-swatch__dot--tint-default { background: var(--color-bg-page); }
-.settings-swatch__dot--tint-sage { background: color-mix(in srgb, var(--bg-tint-sage) var(--bg-tint-strength), var(--color-bg-page)); }
-.settings-swatch__dot--tint-sand { background: color-mix(in srgb, var(--bg-tint-sand) var(--bg-tint-strength), var(--color-bg-page)); }
-.settings-swatch__dot--tint-clay { background: color-mix(in srgb, var(--bg-tint-clay) var(--bg-tint-strength), var(--color-bg-page)); }
-.settings-swatch__dot--tint-sky { background: color-mix(in srgb, var(--bg-tint-sky) var(--bg-tint-strength), var(--color-bg-page)); }
-.settings-swatch__dot--tint-lilac { background: color-mix(in srgb, var(--bg-tint-lilac) var(--bg-tint-strength), var(--color-bg-page)); }
-.settings-swatch__dot--tint-slate { background: color-mix(in srgb, var(--bg-tint-slate) var(--bg-tint-strength), var(--color-bg-page)); }
+.settings-swatch__dot--tint-custom { background: var(--bg-ground-color); }
+.settings-swatch__dot--tint-pick {
+  background: conic-gradient(#c0605f, #b08843, #4f8a63, #3d7fd6, #8271cf, #c0605f);
+}
 
 /* Pattern swatches preview the motif itself, masked and tinted exactly as the
    page layer is — at a tile size small enough to read inside a 14px dot. */
@@ -779,6 +779,18 @@ html.mobile .header__overlay {
   font-size: 1.05rem;
 }
 .modal-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+/* Why an action was refused — the snippet edit that would have moved another
+   fragment's text. Sits between the hint and the text box. */
+.modal-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-danger-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
 .btn-primary {
   background-color: var(--color-primary);
   color: white;

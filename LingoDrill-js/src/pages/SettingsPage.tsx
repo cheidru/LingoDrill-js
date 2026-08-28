@@ -28,7 +28,8 @@ import {
   getBgTint,
   setBgTint,
   AVAILABLE_BG_PATTERNS,
-  AVAILABLE_BG_TINTS,
+  DEFAULT_BG_TINT,
+  DEFAULT_TINT_COLOR,
   SUB_FONT_SIZE_MIN,
   SUB_FONT_SIZE_MAX,
   FRAGMENT_GAP_MIN,
@@ -237,22 +238,32 @@ export function SettingsPage() {
             </div>
             <div className="settings-row__control">
               <div className="settings-swatches">
-                {AVAILABLE_BG_TINTS.map(opt => (
-                  <label
-                    key={opt}
-                    className={`settings-swatch${bgTint === opt ? " settings-swatch--active" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="lingodrill-bg-tint"
-                      value={opt}
-                      checked={bgTint === opt}
-                      onChange={() => onBgTintChange(opt)}
-                    />
-                    <span className={`settings-swatch__dot settings-swatch__dot--tint-${opt}`} />
-                    {t(`settings.bgTint.${opt}`)}
-                  </label>
-                ))}
+                <label className={`settings-swatch${bgTint === DEFAULT_BG_TINT ? " settings-swatch--active" : ""}`}>
+                  <input
+                    type="radio"
+                    name="lingodrill-bg-tint"
+                    value={DEFAULT_BG_TINT}
+                    checked={bgTint === DEFAULT_BG_TINT}
+                    onChange={() => onBgTintChange(DEFAULT_BG_TINT)}
+                  />
+                  <span className="settings-swatch__dot settings-swatch__dot--tint-default" />
+                  {t("settings.bgTint.default")}
+                </label>
+                {/* The colour input is hidden like the radios are — the chip is
+                    the control, and clicking it opens the platform picker. The
+                    dot shows the ground the pick actually produced once it has
+                    been normalised, which is rarely the raw colour chosen. */}
+                <label className={`settings-swatch${bgTint === DEFAULT_BG_TINT ? "" : " settings-swatch--active"}`}>
+                  <input
+                    type="color"
+                    value={bgTint === DEFAULT_BG_TINT ? DEFAULT_TINT_COLOR : bgTint}
+                    onChange={e => onBgTintChange(e.target.value)}
+                  />
+                  <span
+                    className={`settings-swatch__dot settings-swatch__dot--tint-${bgTint === DEFAULT_BG_TINT ? "pick" : "custom"}`}
+                  />
+                  {t("settings.bgTint.custom")}
+                </label>
               </div>
             </div>
           </div>

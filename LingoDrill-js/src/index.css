@@ -466,27 +466,15 @@ html[data-bg-ground="gradient"] {
 }
 
 /* === Background colour ====================================================
-   A limited set of hues, each mixed into the theme's own page colour rather
-   than replacing it. One hex per tint then works in light and dark alike: the
-   same green over a near-white ground reads as pale sage, and over a near-
+   The colour the user picked in Settings, mixed into the theme's own page
+   colour rather than replacing it. One hex then works in light and dark alike:
+   the same green over a near-white ground reads as pale sage, and over a near-
    black one as a deep forest, and every colour theme keeps its own character.
+
+   There is no rule for it here: `applyBgTint` sets `--bg-tint` on <html>
+   itself, since the value is a free colour rather than one of a fixed set.
+   Without it the `:root` default below stands and the ground is the theme's.
    ========================================================================= */
-
-:root {
-  --bg-tint-sage: #4f8a63;
-  --bg-tint-sand: #b08843;
-  --bg-tint-clay: #c0605f;
-  --bg-tint-sky: #3d7fd6;
-  --bg-tint-lilac: #8271cf;
-  --bg-tint-slate: #5b6b82;
-}
-
-html[data-bg-tint="sage"]  { --bg-tint: var(--bg-tint-sage); }
-html[data-bg-tint="sand"]  { --bg-tint: var(--bg-tint-sand); }
-html[data-bg-tint="clay"]  { --bg-tint: var(--bg-tint-clay); }
-html[data-bg-tint="sky"]   { --bg-tint: var(--bg-tint-sky); }
-html[data-bg-tint="lilac"] { --bg-tint: var(--bg-tint-lilac); }
-html[data-bg-tint="slate"] { --bg-tint: var(--bg-tint-slate); }
 
 /* A dark ground swallows a hue the way it swallows the pattern tint, so the
    same colours are mixed in a little harder there. Not much harder, though:

@@ -120,3 +120,72 @@ export function rebaseVocabularyBindings(
 
   return changed ? next : fragments
 }
+
+/**
+ * One sequence's fragments, named so a clash can be pointed at in the UI.
+ * The sequence being edited contributes its live `fragments` state, the rest
+ * come straight from storage.
+ */
+export interface BindingSource {
+  label: string
+  fragments: SequenceFragment[]
+}
+
+/** The binding an edit would have disturbed, and the sequence it sits in. */
+export interface BindingOverlap {
+  label: string
+  charStart: number
+  charEnd: number
+}
+
+/** Half-open ranges: touching at an edge is not an overlap. */
+function overlaps(a: { charStart: number; charEnd: number }, b: { charStart: number; charEnd: number }): boolean {
+  return a.charStart < b.charEnd && b.charStart < a.charEnd
+}
+
+/**
+ * Finds a subtitle binding of another fragment that shares characters with
+ * `range`. Rewriting a span that two fragments read would change the other
+ * fragment's snippet too, so the editor refuses the edit instead of re-basing
+ * it. `skipFragmentId` is the fragment whose own snippet is being edited.
+ */
+export function findSubtitleOverlap(
+  sources: BindingSource[],
+  subtitleFileId: string,
+  range: { charStart: number; charEnd: number },
+  skipFragmentId: string,
+): BindingOverlap | null {
+  for (const source of sources) {
+    for (const f of source.fragments) {
+      if (f.id === skipFragmentId) continue
+      for (const s of f.subtitles) {
+        if (s.subtitleFileId !== subtitleFileId) continue
+        if (overlaps(s, range)) {
+          return { label: source.label, charStart: s.charStart, charEnd: s.charEnd }
+        }
+      }
+    }
+  }
+  return null
+}
+
+/** The same for vocabulary bindings. */
+export function findVocabularyOverlap(
+  sources: BindingSource[],
+  vocabularyFileId: string,
+  range: { charStart: number; charEnd: number },
+  skipFragmentId: string,
+): BindingOverlap | null {
+  for (const source of sources) {
+    for (const f of source.fragments) {
+      if (f.id === skipFragmentId) continue
+      for (const v of f.vocabularies ?? []) {
+        if (v.vocabularyFileId !== vocabularyFileId) continue
+        if (overlaps(v, range)) {
+          return { label: source.label, charStart: v.charStart, charEnd: v.charEnd }
+        }
+      }
+    }
+  }
+  return null
+}

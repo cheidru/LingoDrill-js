@@ -45,8 +45,14 @@ import type { PlayableFragment } from "../core/audio/audioEngine"
 import { getFragmentGap } from "../utils/settings"
 import type { Sequence, SequenceFragment, FragmentSubtitle, FragmentVocabulary, SubtitleFile, VocabularyFile, ProcessedOp } from "../core/domain/types"
 import { sequenceAudioId, isProcessed } from "../core/domain/sequenceAudio"
-import type { TextEdit } from "../core/domain/textBindings"
-import { diffText, rebaseSubtitleBindings, rebaseVocabularyBindings } from "../core/domain/textBindings"
+import type { TextEdit, BindingSource, BindingOverlap } from "../core/domain/textBindings"
+import {
+  diffText,
+  rebaseSubtitleBindings,
+  rebaseVocabularyBindings,
+  findSubtitleOverlap,
+  findVocabularyOverlap,
+} from "../core/domain/textBindings"
 import { nanoid } from "nanoid"
 
 function formatTime(sec: number): string {
@@ -224,10 +230,14 @@ function FragmentEditorPageInner() {
   const [subModalStep, setSubModalStep] = useState<"choose-file" | "view-existing" | "select-text">("choose-file")
   const [subModalFile, setSubModalFile] = useState<SubtitleFile | null>(null)
   /* Text editing inside the "select text" step. Off by default: binding a
-     snippet stays a pure selection, the text is only editable on request. */
+     snippet stays a pure selection, the text is only editable on request.
+     What is editable is the fragment's own snippet, not the whole file. */
   const [subTextEditing, setSubTextEditing] = useState(false)
   const [subDraft, setSubDraft] = useState("")
   const [subSaving, setSubSaving] = useState(false)
+  /* Set when the snippet shares characters with another fragment's snippet:
+     the edit is refused and this names the sequence it clashed with. */
+  const [subOverlap, setSubOverlap] = useState<BindingOverlap | null>(null)
 
   // --- Vocabulary selection modal ---
   const [vocabModalFragId, setVocabModalFragId] = useState<string | null>(null)
@@ -236,6 +246,7 @@ function FragmentEditorPageInner() {
   const [vocabTextEditing, setVocabTextEditing] = useState(false)
   const [vocabDraft, setVocabDraft] = useState("")
   const [vocabSaving, setVocabSaving] = useState(false)
+  const [vocabOverlap, setVocabOverlap] = useState<BindingOverlap | null>(null)
 
   // --- Block delete state ---
   const [blockDeleteStartId, setBlockDeleteStartId] = useState<string | null>(null)
@@ -1129,13 +1140,27 @@ function FragmentEditorPageInner() {
     setSubModalFragId(null)
     setSubModalFile(null)
     setSubTextEditing(false)
+    setSubOverlap(null)
   }, [])
 
   const closeVocabModal = useCallback(() => {
     setVocabModalFragId(null)
     setVocabModalFile(null)
     setVocabTextEditing(false)
+    setVocabOverlap(null)
   }, [])
+
+  /* --- Where a snippet may clash ---
+     Bindings are ranges into one shared text, so a fragment in any sequence of
+     this audio file can be reading the very characters being edited. The
+     sequence open in the editor contributes its live state, the rest come from
+     storage. */
+  const bindingSources = useMemo<BindingSource[]>(() => {
+    const others = sequences
+      .filter(s => s.id !== currentSeqId)
+      .map(s => ({ label: s.label, fragments: s.fragments }))
+    return [{ label: currentSequence?.label ?? t("editor.thisSequence"), fragments }, ...others]
+  }, [sequences, currentSeqId, currentSequence, fragments, t])
 
   // --- Subtitle handlers ---
   const handleSubtitleSelect = useCallback(async () => {
@@ -1175,6 +1200,7 @@ function FragmentEditorPageInner() {
   // --- Helper: after subtitle file is determined, check if fragment already has subtitle from that file ---
   const goToSubStepForFile = useCallback((fragId: string, sf: SubtitleFile) => {
     setSubModalFile(sf)
+    setSubOverlap(null)
     const frag = fragments.find(f => f.id === fragId)
     const existingSub = frag?.subtitles.find(s => s.subtitleFileId === sf.id)
     if (existingSub) {
@@ -1236,16 +1262,43 @@ function FragmentEditorPageInner() {
     }
   }, [fragments, sequences, persistSequence, updateSequence])
 
+  /* The snippet the open fragment reads from the open file — what "Edit text"
+     edits. Absent while a fragment with no binding is picking its text, and
+     then there is nothing to edit yet. */
+  const subBinding = useMemo(() => {
+    if (!subModalFragId || !subModalFile) return null
+    const frag = fragments.find(f => f.id === subModalFragId)
+    return frag?.subtitles.find(s => s.subtitleFileId === subModalFile.id) ?? null
+  }, [subModalFragId, subModalFile, fragments])
+
   const startSubTextEdit = useCallback(() => {
-    if (!subModalFile) return
-    setSubDraft(subModalFile.content)
+    if (!subModalFile || !subModalFragId || !subBinding) return
+
+    /* Two fragments reading the same characters cannot both be edited here:
+       rewriting the span would rewrite the other fragment's snippet as well,
+       and there is no re-basing that keeps it on its own words. */
+    const overlap = findSubtitleOverlap(bindingSources, subModalFile.id, subBinding, subModalFragId)
+    if (overlap) {
+      console.log("[FragmentEditor] Subtitle snippet overlaps another fragment's:", overlap)
+      setSubOverlap(overlap)
+      return
+    }
+
+    setSubOverlap(null)
+    setSubDraft(subModalFile.content.slice(subBinding.charStart, subBinding.charEnd))
     setSubTextEditing(true)
-  }, [subModalFile])
+  }, [subModalFile, subModalFragId, subBinding, bindingSources])
 
   const handleSubTextSave = useCallback(async () => {
-    if (!subModalFile) return
+    if (!subModalFile || !subBinding) return
 
-    const edit = diffText(subModalFile.content, subDraft)
+    /* Only the snippet was editable, so the file's new text is the old one with
+       that span replaced — which is exactly the shape `diffText` reduces to,
+       and every other binding re-bases across it as usual. */
+    const content = subModalFile.content
+    const nextContent = content.slice(0, subBinding.charStart) + subDraft + content.slice(subBinding.charEnd)
+
+    const edit = diffText(content, nextContent)
     if (!edit) {
       setSubTextEditing(false)
       return
@@ -1253,14 +1306,14 @@ function FragmentEditorPageInner() {
 
     setSubSaving(true)
     try {
-      const updated = await updateSubtitleContent(subModalFile.id, subDraft)
+      const updated = await updateSubtitleContent(subModalFile.id, nextContent)
       if (updated) setSubModalFile(updated)
       await applySubtitleTextEdit(subModalFile.id, edit)
     } finally {
       setSubSaving(false)
       setSubTextEditing(false)
     }
-  }, [subModalFile, subDraft, updateSubtitleContent, applySubtitleTextEdit])
+  }, [subModalFile, subBinding, subDraft, updateSubtitleContent, applySubtitleTextEdit])
 
   // --- Vocabulary handlers ---
   const handleVocabularySelect = useCallback(async () => {
@@ -1299,6 +1352,7 @@ function FragmentEditorPageInner() {
 
   const goToVocabStepForFile = useCallback((fragId: string, vf: VocabularyFile) => {
     setVocabModalFile(vf)
+    setVocabOverlap(null)
     const frag = fragments.find(f => f.id === fragId)
     const existing = (frag?.vocabularies ?? []).find(v => v.vocabularyFileId === vf.id)
     if (existing) {
@@ -1346,16 +1400,35 @@ function FragmentEditorPageInner() {
     }
   }, [fragments, sequences, persistSequence, updateSequence])
 
+  /* The vocabulary snippet of the open fragment — same contract as subtitles. */
+  const vocabBinding = useMemo(() => {
+    if (!vocabModalFragId || !vocabModalFile) return null
+    const frag = fragments.find(f => f.id === vocabModalFragId)
+    return (frag?.vocabularies ?? []).find(v => v.vocabularyFileId === vocabModalFile.id) ?? null
+  }, [vocabModalFragId, vocabModalFile, fragments])
+
   const startVocabTextEdit = useCallback(() => {
-    if (!vocabModalFile) return
-    setVocabDraft(vocabModalFile.content)
+    if (!vocabModalFile || !vocabModalFragId || !vocabBinding) return
+
+    const overlap = findVocabularyOverlap(bindingSources, vocabModalFile.id, vocabBinding, vocabModalFragId)
+    if (overlap) {
+      console.log("[FragmentEditor] Vocabulary snippet overlaps another fragment's:", overlap)
+      setVocabOverlap(overlap)
+      return
+    }
+
+    setVocabOverlap(null)
+    setVocabDraft(vocabModalFile.content.slice(vocabBinding.charStart, vocabBinding.charEnd))
     setVocabTextEditing(true)
-  }, [vocabModalFile])
+  }, [vocabModalFile, vocabModalFragId, vocabBinding, bindingSources])
 
   const handleVocabTextSave = useCallback(async () => {
-    if (!vocabModalFile) return
+    if (!vocabModalFile || !vocabBinding) return
 
-    const edit = diffText(vocabModalFile.content, vocabDraft)
+    const content = vocabModalFile.content
+    const nextContent = content.slice(0, vocabBinding.charStart) + vocabDraft + content.slice(vocabBinding.charEnd)
+
+    const edit = diffText(content, nextContent)
     if (!edit) {
       setVocabTextEditing(false)
       return
@@ -1363,14 +1436,14 @@ function FragmentEditorPageInner() {
 
     setVocabSaving(true)
     try {
-      const updated = await updateVocabularyContent(vocabModalFile.id, vocabDraft)
+      const updated = await updateVocabularyContent(vocabModalFile.id, nextContent)
       if (updated) setVocabModalFile(updated)
       await applyVocabularyTextEdit(vocabModalFile.id, edit)
     } finally {
       setVocabSaving(false)
       setVocabTextEditing(false)
     }
-  }, [vocabModalFile, vocabDraft, updateVocabularyContent, applyVocabularyTextEdit])
+  }, [vocabModalFile, vocabBinding, vocabDraft, updateVocabularyContent, applyVocabularyTextEdit])
 
   // --- Auto-scroll the subtitle text when the "select-text" step opens ---
   // If the fragment already has a subtitle from this file (we came here via "Edit"),
@@ -1965,7 +2038,7 @@ function FragmentEditorPageInner() {
                   )
                 })()}
                 <div className="modal-actions">
-                  <button onClick={() => setSubModalStep("select-text")} className="btn-primary">{t("common.edit")}</button>
+                  <button onClick={() => { setSubModalStep("select-text"); setSubOverlap(null) }} className="btn-primary">{t("common.edit")}</button>
                   <button onClick={async () => {
                     if (subModalFile) {
                       await handleRemoveSubtitle(subModalFragId, subModalFile.id)
@@ -1982,8 +2055,17 @@ function FragmentEditorPageInner() {
               <>
                 <h3 style={{ marginTop: 0 }}>{t("editor.selectTextSub")}</h3>
                 <p style={{ fontSize: "0.85rem", color: "#666" }}>
-                  {subTextEditing ? t("editor.editTextHint") : t("editor.selectHint")}
+                  {subTextEditing ? t("editor.editSnippetHint") : t("editor.selectHint")}
                 </p>
+                {/* The edit was refused: the snippet is not this fragment's alone. */}
+                {subOverlap && !subTextEditing && (
+                  <p className="modal-warning">
+                    {t("editor.snippetOverlap", {
+                      label: subOverlap.label,
+                      text: subModalFile?.content.slice(subOverlap.charStart, subOverlap.charEnd) ?? "",
+                    })}
+                  </p>
+                )}
                 {subTextEditing ? (
                   <textarea
                     className="subtitle-content subtitle-content--edit"
@@ -1999,15 +2081,16 @@ function FragmentEditorPageInner() {
                 <div className="modal-actions">
                   {subTextEditing ? (
                     <>
-                      <button onClick={handleSubTextSave} className="btn-primary" disabled={subSaving}>{t("common.save")}</button>
+                      <button onClick={handleSubTextSave} className="btn-primary" disabled={subSaving || !subDraft.trim()}>{t("common.save")}</button>
                       <button onClick={() => setSubTextEditing(false)} disabled={subSaving}>{t("common.cancel")}</button>
                     </>
                   ) : (
                     <>
                       <button onClick={handleSubtitleSelect} className="btn-primary">{t("common.bind")}</button>
-                      <button onClick={startSubTextEdit}>{t("editor.editText")}</button>
+                      {/* Only a snippet already bound to this fragment can be edited. */}
+                      {subBinding && <button onClick={startSubTextEdit}>{t("editor.editText")}</button>}
                       {subtitleFiles.length > 1 && (
-                        <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null) }}>{t("common.backPlain")}</button>
+                        <button onClick={() => { setSubModalStep("choose-file"); setSubModalFile(null); setSubOverlap(null) }}>{t("common.backPlain")}</button>
                       )}
                       <button onClick={closeSubModal}>{t("common.cancel")}</button>
                     </>
@@ -2063,7 +2146,7 @@ function FragmentEditorPageInner() {
                   )
                 })()}
                 <div className="modal-actions">
-                  <button onClick={() => setVocabModalStep("select-text")} className="btn-primary">{t("common.edit")}</button>
+                  <button onClick={() => { setVocabModalStep("select-text"); setVocabOverlap(null) }} className="btn-primary">{t("common.edit")}</button>
                   <button onClick={async () => {
                     if (vocabModalFile) {
                       await handleRemoveVocabulary(vocabModalFragId, vocabModalFile.id)
@@ -2080,8 +2163,16 @@ function FragmentEditorPageInner() {
               <>
                 <h3 style={{ marginTop: 0 }}>{t("editor.selectTextVocab")}</h3>
                 <p style={{ fontSize: "0.85rem", color: "#666" }}>
-                  {vocabTextEditing ? t("editor.editTextHint") : t("editor.selectHint")}
+                  {vocabTextEditing ? t("editor.editSnippetHint") : t("editor.selectHint")}
                 </p>
+                {vocabOverlap && !vocabTextEditing && (
+                  <p className="modal-warning">
+                    {t("editor.snippetOverlap", {
+                      label: vocabOverlap.label,
+                      text: vocabModalFile?.content.slice(vocabOverlap.charStart, vocabOverlap.charEnd) ?? "",
+                    })}
+                  </p>
+                )}
                 {vocabTextEditing ? (
                   <textarea
                     className="subtitle-content subtitle-content--edit"
@@ -2097,15 +2188,15 @@ function FragmentEditorPageInner() {
                 <div className="modal-actions">
                   {vocabTextEditing ? (
                     <>
-                      <button onClick={handleVocabTextSave} className="btn-primary" disabled={vocabSaving}>{t("common.save")}</button>
+                      <button onClick={handleVocabTextSave} className="btn-primary" disabled={vocabSaving || !vocabDraft.trim()}>{t("common.save")}</button>
                       <button onClick={() => setVocabTextEditing(false)} disabled={vocabSaving}>{t("common.cancel")}</button>
                     </>
                   ) : (
                     <>
                       <button onClick={handleVocabularySelect} className="btn-primary">{t("common.bind")}</button>
-                      <button onClick={startVocabTextEdit}>{t("editor.editText")}</button>
+                      {vocabBinding && <button onClick={startVocabTextEdit}>{t("editor.editText")}</button>}
                       {vocabularyFiles.length > 1 && (
-                        <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null) }}>{t("common.backPlain")}</button>
+                        <button onClick={() => { setVocabModalStep("choose-file"); setVocabModalFile(null); setVocabOverlap(null) }}>{t("common.backPlain")}</button>
                       )}
                       <button onClick={closeVocabModal}>{t("common.cancel")}</button>
                     </>
