@@ -3,8 +3,15 @@
 // Every app-wide preference lives here. Previously this was a modal opened
 // from the header (with the theme controls nested in a second modal on top);
 // both are now rows on this page, grouped into cards by topic.
+//
+// The topics are also the menu: the Settings tab in the header lists them and
+// each one is its own route (/settings/general, …), so this component renders
+// a single section — the one named by the URL — rather than the whole page.
+// The preference state stays here, shared by all three, because it is a handful
+// of useStates and splitting it per section would only duplicate the plumbing.
 
 import { useState } from "react"
+import { Navigate, useParams } from "react-router-dom"
 import {
   getStartPage,
   setStartPage,
@@ -21,6 +28,8 @@ import {
   setTheme,
   getColorTheme,
   setColorTheme,
+  isSettingsSection,
+  DEFAULT_SETTINGS_SECTION,
   SUB_FONT_SIZE_MIN,
   SUB_FONT_SIZE_MAX,
   FRAGMENT_GAP_MIN,
@@ -55,6 +64,7 @@ const ResetIcon = () => (
 
 export function SettingsPage() {
   const t = useT()
+  const { section } = useParams()
   const [language, setLanguageState] = useState<Language>(getLanguage())
   const [startPage, setStartPageState] = useState<StartPage>(getStartPage())
   const [subFontSize, setSubFontSizeState] = useState<number>(getSubFontSize())
@@ -97,201 +107,212 @@ export function SettingsPage() {
 
   const trimGapIsDefault = trimSilenceGap === DEFAULT_TRIM_SILENCE_GAP
 
+  /* A stale bookmark or a typed URL must not land on a blank page: anything
+     that is not one of the three sections is sent to the first one. */
+  if (!isSettingsSection(section)) {
+    return <Navigate to={`/settings/${DEFAULT_SETTINGS_SECTION}`} replace />
+  }
+
   return (
     <div className="page settings-page">
       <h2 className="settings-page__title">{t("settings.title")}</h2>
 
-      {/* General first, because changing the language relabels everything below. */}
-      <section className="settings-group">
-        <h3 className="settings-group__title">{t("settings.section.general")}</h3>
-        <div className="settings-card">
-          <div className="settings-row">
-            <div className="settings-row__text">
-              <label className="settings-row__label" htmlFor="settings-language">{t("settings.language")}</label>
-              <span className="settings-row__hint">{t("settings.language.hint")}</span>
-            </div>
-            <div className="settings-row__control">
-              <select
-                id="settings-language"
-                className="settings-select"
-                value={language}
-                onChange={e => onLanguageChange(e.target.value as Language)}
-              >
-                {AVAILABLE_LANGUAGES.map(code => (
-                  <option key={code} value={code}>{t(`settings.language.${code}`)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="settings-row">
-            <div className="settings-row__text">
-              <label className="settings-row__label" htmlFor="settings-start-page">{t("settings.startPage")}</label>
-              <span className="settings-row__hint">{t("settings.startPage.hint")}</span>
-            </div>
-            <div className="settings-row__control">
-              <select
-                id="settings-start-page"
-                className="settings-select"
-                value={startPage}
-                onChange={e => onStartPageChange(e.target.value as StartPage)}
-              >
-                <option value="library">{t("settings.startPage.library")}</option>
-                <option value="favourites">{t("settings.startPage.favourites")}</option>
-                <option value="last-sequence">{t("settings.startPage.lastSequence")}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="settings-group">
-        <h3 className="settings-group__title">{t("settings.section.appearance")}</h3>
-        <div className="settings-card">
-          <div className="settings-row">
-            <div className="settings-row__text">
-              <span className="settings-row__label">{t("settings.theme")}</span>
-              <span className="settings-row__hint">{t("settings.theme.hint")}</span>
-            </div>
-            <div className="settings-row__control">
-              <div className="settings-seg" role="group" aria-label={t("settings.theme.mode")}>
-                <button
-                  type="button"
-                  className={`settings-seg__btn${themeMode === "light" ? " settings-seg__btn--active" : ""}`}
-                  onClick={() => onThemeChange("light")}
-                  aria-pressed={themeMode === "light"}
+      {section === "general" && (
+        <section className="settings-group">
+          <h3 className="settings-group__title">{t("settings.section.general")}</h3>
+          <div className="settings-card">
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <label className="settings-row__label" htmlFor="settings-language">{t("settings.language")}</label>
+                <span className="settings-row__hint">{t("settings.language.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <select
+                  id="settings-language"
+                  className="settings-select"
+                  value={language}
+                  onChange={e => onLanguageChange(e.target.value as Language)}
                 >
-                  <span className="settings-seg__icon">☀</span>
-                  {t("settings.theme.light")}
-                </button>
-                <button
-                  type="button"
-                  className={`settings-seg__btn${themeMode === "dark" ? " settings-seg__btn--active" : ""}`}
-                  onClick={() => onThemeChange("dark")}
-                  aria-pressed={themeMode === "dark"}
+                  {AVAILABLE_LANGUAGES.map(code => (
+                    <option key={code} value={code}>{t(`settings.language.${code}`)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <label className="settings-row__label" htmlFor="settings-start-page">{t("settings.startPage")}</label>
+                <span className="settings-row__hint">{t("settings.startPage.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <select
+                  id="settings-start-page"
+                  className="settings-select"
+                  value={startPage}
+                  onChange={e => onStartPageChange(e.target.value as StartPage)}
                 >
-                  <span className="settings-seg__icon">🌙</span>
-                  {t("settings.theme.dark")}
-                </button>
+                  <option value="library">{t("settings.startPage.library")}</option>
+                  <option value="favourites">{t("settings.startPage.favourites")}</option>
+                  <option value="last-sequence">{t("settings.startPage.lastSequence")}</option>
+                </select>
               </div>
             </div>
           </div>
+        </section>
+      )}
 
-          <div className="settings-row">
-            <div className="settings-row__text">
-              <span className="settings-row__label">{t("settings.theme.colorTheme")}</span>
-              <span className="settings-row__hint">{t("settings.theme.colorTheme.hint")}</span>
-            </div>
-            <div className="settings-row__control">
-              <div className="settings-swatches">
-                {(["normal", "pastel", "neon"] as ColorTheme[]).map(opt => (
-                  <label
-                    key={opt}
-                    className={`settings-swatch${colorTheme === opt ? " settings-swatch--active" : ""}`}
+      {section === "appearance" && (
+        <section className="settings-group">
+          <h3 className="settings-group__title">{t("settings.section.appearance")}</h3>
+          <div className="settings-card">
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <span className="settings-row__label">{t("settings.theme")}</span>
+                <span className="settings-row__hint">{t("settings.theme.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <div className="settings-seg" role="group" aria-label={t("settings.theme.mode")}>
+                  <button
+                    type="button"
+                    className={`settings-seg__btn${themeMode === "light" ? " settings-seg__btn--active" : ""}`}
+                    onClick={() => onThemeChange("light")}
+                    aria-pressed={themeMode === "light"}
                   >
-                    <input
-                      type="radio"
-                      name="lingodrill-color-theme"
-                      value={opt}
-                      checked={colorTheme === opt}
-                      onChange={() => onColorThemeChange(opt)}
-                    />
-                    <span className={`settings-swatch__dot settings-swatch__dot--${opt}`} />
-                    {t(`settings.theme.${opt}`)}
-                  </label>
-                ))}
+                    <span className="settings-seg__icon">☀</span>
+                    {t("settings.theme.light")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-seg__btn${themeMode === "dark" ? " settings-seg__btn--active" : ""}`}
+                    onClick={() => onThemeChange("dark")}
+                    aria-pressed={themeMode === "dark"}
+                  >
+                    <span className="settings-seg__icon">🌙</span>
+                    {t("settings.theme.dark")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <span className="settings-row__label">{t("settings.theme.colorTheme")}</span>
+                <span className="settings-row__hint">{t("settings.theme.colorTheme.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <div className="settings-swatches">
+                  {(["normal", "pastel", "neon"] as ColorTheme[]).map(opt => (
+                    <label
+                      key={opt}
+                      className={`settings-swatch${colorTheme === opt ? " settings-swatch--active" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="lingodrill-color-theme"
+                        value={opt}
+                        checked={colorTheme === opt}
+                        onChange={() => onColorThemeChange(opt)}
+                      />
+                      <span className={`settings-swatch__dot settings-swatch__dot--${opt}`} />
+                      {t(`settings.theme.${opt}`)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-row settings-row--stacked">
+              <div className="settings-row__text">
+                <label className="settings-row__label" htmlFor="settings-sub-font-size">{t("settings.subFontSize")}</label>
+                <span className="settings-row__hint">{t("settings.subFontSize.hint")}</span>
+              </div>
+              <div className="settings-row__control settings-slider-row">
+                <input
+                  id="settings-sub-font-size"
+                  className="settings-slider"
+                  type="range"
+                  min={SUB_FONT_SIZE_MIN}
+                  max={SUB_FONT_SIZE_MAX}
+                  step={1}
+                  value={subFontSize}
+                  onChange={e => onSubFontSizeChange(parseInt(e.target.value, 10))}
+                />
+                <output className="settings-value" htmlFor="settings-sub-font-size">{subFontSize}px</output>
+              </div>
+            </div>
+
+            <div className="settings-row settings-row--preview">
+              <div className="settings-preview">
+                <div className="settings-preview__label">{t("settings.preview")}</div>
+                <div className="sp-subtitle-display">
+                  <div className="settings-preview__file">{t("settings.preview.file")}</div>
+                  <div className="settings-preview__text">{t("settings.preview.text")}</div>
+                </div>
               </div>
             </div>
           </div>
+        </section>
+      )}
 
-          <div className="settings-row settings-row--stacked">
-            <div className="settings-row__text">
-              <label className="settings-row__label" htmlFor="settings-sub-font-size">{t("settings.subFontSize")}</label>
-              <span className="settings-row__hint">{t("settings.subFontSize.hint")}</span>
+      {section === "playback" && (
+        <section className="settings-group">
+          <h3 className="settings-group__title">{t("settings.section.playback")}</h3>
+          <div className="settings-card">
+            <div className="settings-row settings-row--stacked">
+              <div className="settings-row__text">
+                <label className="settings-row__label" htmlFor="settings-fragment-gap">{t("settings.fragmentGap")}</label>
+                <span className="settings-row__hint">{t("settings.fragmentGap.hint")}</span>
+              </div>
+              <div className="settings-row__control settings-slider-row">
+                <input
+                  id="settings-fragment-gap"
+                  className="settings-slider"
+                  type="range"
+                  min={FRAGMENT_GAP_MIN}
+                  max={FRAGMENT_GAP_MAX}
+                  step={0.5}
+                  value={fragmentGap}
+                  onChange={e => onFragmentGapChange(parseFloat(e.target.value))}
+                />
+                <output className="settings-value" htmlFor="settings-fragment-gap">{fragmentGap.toFixed(1)}s</output>
+              </div>
             </div>
-            <div className="settings-row__control settings-slider-row">
-              <input
-                id="settings-sub-font-size"
-                className="settings-slider"
-                type="range"
-                min={SUB_FONT_SIZE_MIN}
-                max={SUB_FONT_SIZE_MAX}
-                step={1}
-                value={subFontSize}
-                onChange={e => onSubFontSizeChange(parseInt(e.target.value, 10))}
-              />
-              <output className="settings-value" htmlFor="settings-sub-font-size">{subFontSize}px</output>
-            </div>
-          </div>
 
-          <div className="settings-row settings-row--preview">
-            <div className="settings-preview">
-              <div className="settings-preview__label">{t("settings.preview")}</div>
-              <div className="sp-subtitle-display">
-                <div className="settings-preview__file">{t("settings.preview.file")}</div>
-                <div className="settings-preview__text">{t("settings.preview.text")}</div>
+            <div className="settings-row settings-row--stacked">
+              <div className="settings-row__text">
+                <label className="settings-row__label" htmlFor="settings-trim-silence-gap">{t("settings.trimSilenceGap")}</label>
+                <span className="settings-row__hint">{t("settings.trimSilenceGap.hint")}</span>
+              </div>
+              <div className="settings-row__control settings-slider-row">
+                <input
+                  id="settings-trim-silence-gap"
+                  className="settings-slider"
+                  type="range"
+                  min={TRIM_SILENCE_GAP_MIN}
+                  max={TRIM_SILENCE_GAP_MAX}
+                  step={0.5}
+                  value={trimSilenceGap}
+                  onChange={e => onTrimSilenceGapChange(parseFloat(e.target.value))}
+                />
+                <output className="settings-value" htmlFor="settings-trim-silence-gap">{trimSilenceGap.toFixed(1)}s</output>
+                {/* Disabled while the value already is the default, so the icon
+                    doubles as an indicator that nothing has been changed. */}
+                <button
+                  type="button"
+                  className="settings-reset"
+                  onClick={() => onTrimSilenceGapChange(DEFAULT_TRIM_SILENCE_GAP)}
+                  disabled={trimGapIsDefault}
+                  title={t("settings.resetDefault")}
+                  aria-label={t("settings.resetDefault")}
+                >
+                  <ResetIcon />
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="settings-group">
-        <h3 className="settings-group__title">{t("settings.section.playback")}</h3>
-        <div className="settings-card">
-          <div className="settings-row settings-row--stacked">
-            <div className="settings-row__text">
-              <label className="settings-row__label" htmlFor="settings-fragment-gap">{t("settings.fragmentGap")}</label>
-              <span className="settings-row__hint">{t("settings.fragmentGap.hint")}</span>
-            </div>
-            <div className="settings-row__control settings-slider-row">
-              <input
-                id="settings-fragment-gap"
-                className="settings-slider"
-                type="range"
-                min={FRAGMENT_GAP_MIN}
-                max={FRAGMENT_GAP_MAX}
-                step={0.5}
-                value={fragmentGap}
-                onChange={e => onFragmentGapChange(parseFloat(e.target.value))}
-              />
-              <output className="settings-value" htmlFor="settings-fragment-gap">{fragmentGap.toFixed(1)}s</output>
-            </div>
-          </div>
-
-          <div className="settings-row settings-row--stacked">
-            <div className="settings-row__text">
-              <label className="settings-row__label" htmlFor="settings-trim-silence-gap">{t("settings.trimSilenceGap")}</label>
-              <span className="settings-row__hint">{t("settings.trimSilenceGap.hint")}</span>
-            </div>
-            <div className="settings-row__control settings-slider-row">
-              <input
-                id="settings-trim-silence-gap"
-                className="settings-slider"
-                type="range"
-                min={TRIM_SILENCE_GAP_MIN}
-                max={TRIM_SILENCE_GAP_MAX}
-                step={0.5}
-                value={trimSilenceGap}
-                onChange={e => onTrimSilenceGapChange(parseFloat(e.target.value))}
-              />
-              <output className="settings-value" htmlFor="settings-trim-silence-gap">{trimSilenceGap.toFixed(1)}s</output>
-              {/* Disabled while the value already is the default, so the icon
-                  doubles as an indicator that nothing has been changed. */}
-              <button
-                type="button"
-                className="settings-reset"
-                onClick={() => onTrimSilenceGapChange(DEFAULT_TRIM_SILENCE_GAP)}
-                disabled={trimGapIsDefault}
-                title={t("settings.resetDefault")}
-                aria-label={t("settings.resetDefault")}
-              >
-                <ResetIcon />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   )
 }

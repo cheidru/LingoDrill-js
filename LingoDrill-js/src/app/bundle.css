@@ -44,6 +44,33 @@
   color: var(--color-text-muted);
 }
 
+.import-bundle__error-text {
+  text-align: left;
+  margin: 0 0 12px;
+}
+.import-bundle__error-file {
+  text-align: left;
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+/* Начало файла — техническая улика: моноширинным, с переносами и своей
+   полосой прокрутки, чтобы длинная строка не растягивала диалог. */
+.import-bundle__error-excerpt {
+  text-align: left;
+  margin: 0;
+  padding: 8px;
+  max-height: 8.5em;
+  overflow: auto;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-md);
+}
+
 /* === Error Boundary Fallback === */
 .error-boundary-fallback {
   padding: 16px;
@@ -77,4 +104,10 @@ html.mobile .import-bundle__row code {
 html.mobile .error-boundary-fallback {
   padding: 14px;
   font-size: 1rem;
+}
+html.mobile .import-bundle__error-file {
+  font-size: 0.9rem;
+}
+html.mobile .import-bundle__error-excerpt {
+  font-size: 0.8rem;
 }

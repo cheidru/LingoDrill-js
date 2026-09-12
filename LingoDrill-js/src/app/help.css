@@ -330,7 +330,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
-.hl-mock__about-menu .header__about-item {
+.hl-mock__about-menu .header__dropdown-item {
   padding: 8px 12px;
   border-radius: var(--radius-sm);
 }

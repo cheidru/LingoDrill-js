@@ -523,9 +523,9 @@ function AboutMock() {
           the last nav item, and its label changes width with the language. */}
       <div className="hl-mock__about-anchor">
         <div className="hl-mock__about-menu">
-          <span className="header__about-item" data-help="1">{t("nav.about.contacts")}</span>
-          <span className="header__about-item" data-help="2">{t("nav.about.demo")}</span>
-          <span className="header__about-item header__about-item--active" data-help="3">{t("nav.about.help")}</span>
+          <span className="header__dropdown-item" data-help="1">{t("nav.about.contacts")}</span>
+          <span className="header__dropdown-item" data-help="2">{t("nav.about.demo")}</span>
+          <span className="header__dropdown-item header__dropdown-item--active" data-help="3">{t("nav.about.help")}</span>
           <p className="header__about-version" data-help="4">{t("app.title")} {t("about.version")} {APP_VERSION}</p>
         </div>
       </div>

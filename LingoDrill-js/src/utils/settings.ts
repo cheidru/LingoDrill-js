@@ -2,6 +2,14 @@ export type StartPage = "library" | "favourites" | "last-sequence"
 export type Language = "en" | "ru"
 export type Theme = "light" | "dark"
 export type ColorTheme = "normal" | "pastel" | "neon"
+/* The Settings page is split one section per route, listed under the Settings
+   tab in the header. The order here is the order of the menu, and each key is
+   both the URL segment and the `settings.section.<key>` label. */
+export type SettingsSection = "general" | "appearance" | "playback"
+export const SETTINGS_SECTIONS: SettingsSection[] = ["general", "appearance", "playback"]
+export const DEFAULT_SETTINGS_SECTION: SettingsSection = "general"
+export const isSettingsSection = (v: string | undefined): v is SettingsSection =>
+  SETTINGS_SECTIONS.includes(v as SettingsSection)
 
 const KEY_START_PAGE = "lingodrill.startPage"
 const KEY_SUB_FONT_SIZE = "lingodrill.subFontSize"

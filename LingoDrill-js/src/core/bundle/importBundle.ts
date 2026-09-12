@@ -1,6 +1,7 @@
 // core/bundle/importBundle.ts
 
 import type { BundleFile } from "./types"
+import { readBundleFile } from "./parseBundle"
 import type { Sequence, SubtitleFile } from "../domain/types"
 import { IndexedDBAudioStorage } from "../../infrastructure/indexeddb/IndexedDBAudioStorage"
 import { IndexedDBSequenceStorage } from "../../infrastructure/indexeddb/IndexedDBSequenceStorage"
@@ -21,21 +22,16 @@ export interface ImportResult {
  * Если бандл включает аудио — сохраняет его в IndexedDB.
  * Если нет — аудиофайл нужно загрузить отдельно.
  *
- * @param bundleBlob - файл .lingodrill
+ * @param source - файл .lingodrill или уже разобранный бандл. Разобранный
+ *   передаётся, чтобы не читать и не парсить его второй раз: с аудио внутри
+ *   бандл весит десятки мегабайт, и лишний разбор на телефоне ощутим.
  * @param separateAudioFile - отдельный аудиофайл (если аудио не включено в бандл)
  */
 export async function importBundle(
-  bundleBlob: Blob,
+  source: Blob | BundleFile,
   separateAudioFile?: File,
 ): Promise<ImportResult> {
-  const text = await bundleBlob.text()
-  let bundle: BundleFile
-
-  try {
-    bundle = JSON.parse(text)
-  } catch {
-    throw new Error("Invalid bundle file: could not parse JSON")
-  }
+  const bundle = source instanceof Blob ? await readBundleFile(source) : source
 
   const { manifest } = bundle
 

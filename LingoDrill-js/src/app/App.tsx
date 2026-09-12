@@ -10,7 +10,7 @@ import { SequencePlayerPage } from "../pages/SequencePlayerPage"
 import { FavouritesPage } from "../pages/FavouritesPage"
 import { SettingsPage } from "../pages/SettingsPage"
 import { ContactsPage } from "../pages/ContactsPage"
-import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColorTheme, applyLanguage } from "../utils/settings"
+import { getStartPage, getLastSequence, applySubFontSize, applyTheme, applyColorTheme, applyLanguage, DEFAULT_SETTINGS_SECTION } from "../utils/settings"
 import "./App.css"
 import "./bundle.css"
 import "./sequencePlayer.css"
@@ -51,7 +51,10 @@ export default function App() {
           <Route path="/file/:id/editor/:seqId" element={<FragmentEditorPage />} />
           <Route path="/file/:id/player/:seqId" element={<SequencePlayerPage />} />
           <Route path="/favourites" element={<FavouritesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          {/* One route per section of Settings — the header's Settings tab is a
+              list of them, so the bare path only stands in for the first. */}
+          <Route path="/settings" element={<Navigate to={`/settings/${DEFAULT_SETTINGS_SECTION}`} replace />} />
+          <Route path="/settings/:section" element={<SettingsPage />} />
           <Route path="/contacts" element={<ContactsPage />} />
         </Routes>
       </AudioEngineProvider>
