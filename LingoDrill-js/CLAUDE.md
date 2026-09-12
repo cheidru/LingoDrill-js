@@ -55,6 +55,26 @@ The processed WAV is stored with `derivedFrom` set to the original file's id, wh
 
 One consequence: a `.lingodrill` bundle holds exactly one audio file, so exporting from the editor exports the audio currently open and only the sequences that play it; the rest are reported as omitted.
 
+### Subtitle and vocabulary text
+
+A fragment never stores snippet text. `FragmentSubtitle` / `FragmentVocabulary` hold `charStart`/`charEnd` into the one shared `SubtitleFile.content` / `VocabularyFile.content`, and those files are keyed by `audioId` — so every sequence of that audio file reads from the same string. Editing that string therefore moves every binding sitting after the edit, in every sequence.
+
+The editor's Sub / Vocab modal offers "Edit text" alongside plain select-and-bind, but only for the snippet the open fragment is bound to — the textarea holds `content.slice(charStart, charEnd)`, never the whole file, and the button is absent until the fragment has a binding. On save the file becomes "text before + draft + text after", which is exactly the single replaced span `diffText()` reduces to, so all bindings re-base through `rebaseSubtitleBindings()` / `rebaseVocabularyBindings()` in `src/core/domain/textBindings.ts`: the sequence being edited from the live `fragments` state, the rest of the file's sequences straight from storage. Anything else that rewrites one of those files must re-base the same way, or bindings silently slide onto the wrong words.
+
+Two fragments may bind overlapping ranges, and then no re-basing can keep both on their own words — so `findSubtitleOverlap()` / `findVocabularyOverlap()` scan every sequence of the audio file when "Edit text" is clicked, and a hit refuses the edit with a warning naming the sequence it clashed with instead of opening the textarea.
+
+### Background pattern
+
+The page ground is painted by `html` alone — `background-color: var(--color-bg-page)` plus `--bg-ground-image` (`none`, or a gradient mixed from the theme's own primary and accent when `data-bg-ground="gradient"`). The pattern is `html::before` at `z-index: -1`: one black stroke-only SVG tile used as a `mask-image` and tinted with `--color-text`, so a single tile serves all six theme x colour-theme combinations. That z-index puts it after the ground and before every in-flow background, and since cards, rows and modals are opaque, the pattern only shows in the margins.
+
+The consequence to remember: **nothing may paint an opaque background on `html` or `body`** — that is what hides the layer. The neon dark theme's ambient halos are therefore `--bg-ground-image` under `[data-bg-ground="plain"]`, not a `body` background.
+
+The ground colour is `--bg-ground-color`: the chosen `--bg-tint` mixed into `--color-bg-page` at `--bg-tint-strength` (14% light, 16% dark). One hex therefore covers both themes — the same green is pale sage over near-white and deep forest over near-black. Note that `--color-bg-page` itself is never redefined: filled buttons use it as their *text* colour, so tinting it would tint the type inside them.
+
+`BgTint` is the user's own colour, picked with a native colour input in Settings — there is no palette of named tints. What the user does not get to set is how far it carries: `normalizeBgTint()` in `src/utils/settings.ts` keeps the hue but pulls saturation and lightness into the band the mix strength was tuned for (a colour picked as grey stays grey), and the normalised value is what gets stored. Because it is a free colour rather than one of a fixed set, it reaches CSS as a `--bg-tint` custom property set on `<html>` by `applyBgTint()`, not as a `data-` attribute; removing it lets the `:root` default stand and the ground goes back to the theme's own.
+
+All three settings live in `src/utils/settings.ts` (`BgPattern`, `BgGround`, `BgTint`) beside theme and colour theme, and are applied to `<html>` at boot from `App.tsx`. Adding a motif is a `--bg-pattern-<name>` URL and a `[data-bg-pattern="<name>"]::before` rule in `index.css`, plus the name in `AVAILABLE_BG_PATTERNS` and two i18n keys.
+
 ### Dual audio engine
 
 `useAudioEngine` (`src/app/hooks/useAudioEngine.ts`) manages two engines in parallel:

@@ -591,6 +591,32 @@ html.mobile .header__overlay {
 .settings-swatch__dot--pastel { background: linear-gradient(135deg, #7c9eb2, #d9a37a); }
 .settings-swatch__dot--neon { background: linear-gradient(135deg, #00e5ff, #ff6b35); }
 
+/* Tint swatches show the ground the option actually produces. The theme dot is
+   the untinted page colour; the picker dot is the live ground, so it is the
+   colour the user chose mixed exactly as the page mixes it. Until something is
+   chosen that dot has nothing to show, and wears a colour wheel instead. */
+.settings-swatch__dot--tint-default { background: var(--color-bg-page); }
+.settings-swatch__dot--tint-custom { background: var(--bg-ground-color); }
+.settings-swatch__dot--tint-pick {
+  background: conic-gradient(#c0605f, #b08843, #4f8a63, #3d7fd6, #8271cf, #c0605f);
+}
+
+/* Pattern swatches preview the motif itself, masked and tinted exactly as the
+   page layer is — at a tile size small enough to read inside a 14px dot. */
+.settings-swatch__dot--pattern-none {
+  background: var(--color-bg-page);
+}
+.settings-swatch__dot--pattern-leaves {
+  background-color: var(--color-text);
+  -webkit-mask-image: var(--bg-pattern-leaves);
+  mask-image: var(--bg-pattern-leaves);
+  -webkit-mask-size: 15px;
+  mask-size: 15px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  box-shadow: none;
+}
+
 /* --- Slider --- */
 .settings-slider {
   appearance: none;
@@ -753,6 +779,18 @@ html.mobile .header__overlay {
   font-size: 1.05rem;
 }
 .modal-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+/* Why an action was refused — the snippet edit that would have moved another
+   fragment's text. Sits between the hint and the text box. */
+.modal-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-danger-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
 .btn-primary {
   background-color: var(--color-primary);
   color: white;
@@ -783,6 +821,18 @@ html.mobile .header__overlay {
   cursor: text;
   border-radius: var(--radius-sm);
 }
+/* The same box, turned into a textarea for editing the subtitle / vocabulary
+   file's own text. */
+.subtitle-content--edit {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+.subtitle-content--edit:disabled { opacity: 0.6; }
 /* === Contacts page === */
 .contacts-page__body {
   color: var(--color-text-secondary);

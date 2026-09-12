@@ -42,6 +42,23 @@ export function useSubtitles(audioId: AudioFileId | null) {
     return sub
   }, [audioId])
 
+  /**
+   * Replaces the text of a subtitle file. Every fragment bound to this file
+   * points into that string by character offset, so callers must re-base those
+   * bindings across the same edit (see `core/domain/textBindings.ts`) — this
+   * only writes the file.
+   */
+  const updateSubtitleContent = useCallback(async (id: string, content: string): Promise<SubtitleFile | null> => {
+    if (!storageRef.current) return null
+    const existing = await storageRef.current.get(id)
+    if (!existing) return null
+
+    const updated: SubtitleFile = { ...existing, content }
+    await storageRef.current.save(updated)
+    setSubtitleFiles(prev => prev.map(s => s.id === id ? updated : s))
+    return updated
+  }, [])
+
   const deleteSubtitleFile = useCallback(async (id: string) => {
     if (!storageRef.current) return
     await storageRef.current.delete(id)
@@ -56,6 +73,7 @@ export function useSubtitles(audioId: AudioFileId | null) {
   return {
     subtitleFiles,
     addSubtitleFile,
+    updateSubtitleContent,
     deleteSubtitleFile,
     getSubtitleFile,
   }

@@ -30,6 +30,15 @@ import {
   setColorTheme,
   isSettingsSection,
   DEFAULT_SETTINGS_SECTION,
+  getBgPattern,
+  setBgPattern,
+  getBgGround,
+  setBgGround,
+  getBgTint,
+  setBgTint,
+  AVAILABLE_BG_PATTERNS,
+  DEFAULT_BG_TINT,
+  DEFAULT_TINT_COLOR,
   SUB_FONT_SIZE_MIN,
   SUB_FONT_SIZE_MAX,
   FRAGMENT_GAP_MIN,
@@ -41,6 +50,9 @@ import {
   type Language,
   type Theme,
   type ColorTheme,
+  type BgPattern,
+  type BgGround,
+  type BgTint,
 } from "../utils/settings"
 import { useT } from "../utils/i18n"
 
@@ -72,6 +84,9 @@ export function SettingsPage() {
   const [trimSilenceGap, setTrimSilenceGapState] = useState<number>(getTrimSilenceGap())
   const [themeMode, setThemeModeState] = useState<Theme>(getTheme())
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(getColorTheme())
+  const [bgPattern, setBgPatternState] = useState<BgPattern>(getBgPattern())
+  const [bgGround, setBgGroundState] = useState<BgGround>(getBgGround())
+  const [bgTint, setBgTintState] = useState<BgTint>(getBgTint())
 
   /* setLanguage fires lingodrill:languagechange, which is what re-renders every
      useT consumer — including this page, so the labels switch under the cursor
@@ -103,6 +118,18 @@ export function SettingsPage() {
   const onColorThemeChange = (v: ColorTheme) => {
     setColorThemeState(v)
     setColorTheme(v)
+  }
+  const onBgPatternChange = (v: BgPattern) => {
+    setBgPatternState(v)
+    setBgPattern(v)
+  }
+  const onBgGroundChange = (v: BgGround) => {
+    setBgGroundState(v)
+    setBgGround(v)
+  }
+  const onBgTintChange = (v: BgTint) => {
+    setBgTintState(v)
+    setBgTint(v)
   }
 
   const trimGapIsDefault = trimSilenceGap === DEFAULT_TRIM_SILENCE_GAP
@@ -217,6 +244,92 @@ export function SettingsPage() {
                       <span className={`settings-swatch__dot settings-swatch__dot--${opt}`} />
                       {t(`settings.theme.${opt}`)}
                     </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <span className="settings-row__label">{t("settings.bgTint")}</span>
+                <span className="settings-row__hint">{t("settings.bgTint.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <div className="settings-swatches">
+                  <label className={`settings-swatch${bgTint === DEFAULT_BG_TINT ? " settings-swatch--active" : ""}`}>
+                    <input
+                      type="radio"
+                      name="lingodrill-bg-tint"
+                      value={DEFAULT_BG_TINT}
+                      checked={bgTint === DEFAULT_BG_TINT}
+                      onChange={() => onBgTintChange(DEFAULT_BG_TINT)}
+                    />
+                    <span className="settings-swatch__dot settings-swatch__dot--tint-default" />
+                    {t("settings.bgTint.default")}
+                  </label>
+                  {/* The colour input is hidden like the radios are — the chip is
+                      the control, and clicking it opens the platform picker. The
+                      dot shows the ground the pick actually produced once it has
+                      been normalised, which is rarely the raw colour chosen. */}
+                  <label className={`settings-swatch${bgTint === DEFAULT_BG_TINT ? "" : " settings-swatch--active"}`}>
+                    <input
+                      type="color"
+                      value={bgTint === DEFAULT_BG_TINT ? DEFAULT_TINT_COLOR : bgTint}
+                      onChange={e => onBgTintChange(e.target.value)}
+                    />
+                    <span
+                      className={`settings-swatch__dot settings-swatch__dot--tint-${bgTint === DEFAULT_BG_TINT ? "pick" : "custom"}`}
+                    />
+                    {t("settings.bgTint.custom")}
+                  </label>
+                </div>
+              </div>
+            </div>
+  
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <span className="settings-row__label">{t("settings.bgPattern")}</span>
+                <span className="settings-row__hint">{t("settings.bgPattern.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <div className="settings-swatches">
+                  {AVAILABLE_BG_PATTERNS.map(opt => (
+                    <label
+                      key={opt}
+                      className={`settings-swatch${bgPattern === opt ? " settings-swatch--active" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="lingodrill-bg-pattern"
+                        value={opt}
+                        checked={bgPattern === opt}
+                        onChange={() => onBgPatternChange(opt)}
+                      />
+                      <span className={`settings-swatch__dot settings-swatch__dot--pattern-${opt}`} />
+                      {t(`settings.bgPattern.${opt}`)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+  
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <span className="settings-row__label">{t("settings.bgGround")}</span>
+                <span className="settings-row__hint">{t("settings.bgGround.hint")}</span>
+              </div>
+              <div className="settings-row__control">
+                <div className="settings-seg" role="group" aria-label={t("settings.bgGround")}>
+                  {(["plain", "gradient"] as BgGround[]).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`settings-seg__btn${bgGround === opt ? " settings-seg__btn--active" : ""}`}
+                      onClick={() => onBgGroundChange(opt)}
+                      aria-pressed={bgGround === opt}
+                    >
+                      {t(`settings.bgGround.${opt}`)}
+                    </button>
                   ))}
                 </div>
               </div>
