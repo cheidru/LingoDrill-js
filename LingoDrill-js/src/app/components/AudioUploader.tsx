@@ -15,7 +15,9 @@ export function AudioUploader({ onUpload }: AudioUploaderProps) {
 
   return (
     <div>
-      <button onClick={() => inputRef.current?.click()}>
+      {/* library-action: shared with Import bundle so the two stacked buttons
+          line up at one width. */}
+      <button className="library-action" onClick={() => inputRef.current?.click()}>
         {t("library.upload")}
       </button>
       <input

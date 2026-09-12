@@ -48,7 +48,7 @@
   --bg-tint-strength: 14%;
   --bg-ground-color: color-mix(in srgb, var(--bg-tint) var(--bg-tint-strength), var(--color-bg-page));
   --bg-ground-image: none;
-  --bg-pattern-opacity: 0.055;
+  --bg-pattern-opacity: 0.14;
   --bg-pattern-size: 72px;
 
   /* Radii */
@@ -211,9 +211,9 @@ html[data-color-theme="neon"][data-theme="dark"] {
 html[data-color-theme="neon"][data-theme="dark"] body {
   font-family: var(--font-body);
 }
-/* Blend's ambient halos are this theme's *plain* ground. They move to html for
-   the same reason as above, and step aside when the user picks the gradient. */
-html[data-color-theme="neon"][data-theme="dark"][data-bg-ground="plain"] {
+/* Blend's ambient halos are this theme's ground, and move to html for the same
+   reason as above: nothing may paint an opaque background on html or body. */
+html[data-color-theme="neon"][data-theme="dark"] {
   --bg-ground-image:
     radial-gradient(1200px 600px at 80% -10%, rgba(0, 229, 255, 0.05), transparent 60%),
     radial-gradient(900px 500px at -10% 110%, rgba(255, 107, 53, 0.04), transparent 60%);
@@ -402,8 +402,9 @@ html.mobile button {
 
 
 /* === Background pattern ===================================================
-   A motif is one black SVG tile. It is applied as a mask and tinted with the
-   theme's own `--color-text`, so a single tile serves all six theme x
+   A background is one black SVG tile. It is applied as a mask and tinted with
+   `--bg-pattern-color` — the colour chosen for that background, defaulting to
+   the theme's own `--color-text` — so a single tile serves all six theme x
    colour-theme combinations instead of needing a recoloured copy of each.
 
    Where the layer sits matters: `html::before` at `z-index: -1` paints after
@@ -412,14 +413,12 @@ html.mobile button {
    pattern can only ever show in the margins around them. That is also why
    nothing else may paint an opaque background on `html` or `body`.
 
-   Adding a motif is two rules: a `--bg-pattern-<name>` URL beside this one and
-   a `[data-bg-pattern="<name>"]::before` that selects it. Keep the tile
-   stroke-only and black — the colour comes from the theme, not the file.
+   Nothing is hard-coded here any more. The tile is built at runtime from the
+   selected background's own SVG drawings and written to `--bg-pattern` (plus
+   `--bg-pattern-size`, which must stay the tile's real pixel size or the
+   drawings stop being 40px tall) by utils/backgroundRuntime.ts. Its only job
+   here is to be shown at all, which is what `data-bg-pattern="custom"` does.
    ========================================================================= */
-
-:root {
-  --bg-pattern-leaves: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20110%20110%22%20fill=%22none%22%20stroke=%22%23000%22%20stroke-width=%222.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M14%2030c0-9%207-16%2016-16%200%209-7%2016-16%2016Zm0%200c0%206%204%2010%2010%2011%22/%3E%3Ccircle%20cx=%2252%22%20cy=%2220%22%20r=%224%22/%3E%3Cpath%20d=%22M52%2012v4M52%2024v4M44%2020h4M56%2020h4M46%2014l3%203M58%2014l-3%203M46%2026l3-3M58%2026l-3-3%22/%3E%3Cpath%20d=%22M78%2046c-9%200-16%207-16%2016%209%200%2016-7%2016-16Zm0%200c6%200%2010-4%2011-10%22/%3E%3Cpath%20d=%22M22%2062c6%204%206%2014%200%2018-6-4-6-14%200-18Z%22/%3E%3Ccircle%20cx=%2290%22%20cy=%2286%22%20r=%223.5%22/%3E%3Cpath%20d=%22M90%2079v3.5M90%2089.5V93M83%2086h3.5M93.5%2086H97%22/%3E%3Cpath%20d=%22M44%2088c8-2%2014%202%2016%208%22/%3E%3C/svg%3E");
-}
 
 html::before {
   content: "";
@@ -428,7 +427,7 @@ html::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: var(--color-text);
+  background-color: var(--bg-pattern-color, var(--color-text));
   opacity: var(--bg-pattern-opacity);
   -webkit-mask-image: var(--bg-pattern);
   mask-image: var(--bg-pattern);
@@ -438,32 +437,16 @@ html::before {
   mask-repeat: repeat;
 }
 
-html[data-bg-pattern="leaves"]::before {
+html[data-bg-pattern="custom"]::before {
   display: block;
-  --bg-pattern: var(--bg-pattern-leaves);
 }
 
-/* Light ink on a dark ground reads stronger at the same alpha. */
+/* Light ink on a dark ground reads stronger at the same alpha, so dark sits a
+   little under light to land at the same apparent weight. */
 html[data-theme="dark"] {
-  --bg-pattern-opacity: 0.045;
+  --bg-pattern-opacity: 0.12;
 }
 
-/* A phone shows a fraction of the page, so the tile shrinks with it — the
-   pattern should read as texture there too, not as three stray leaves. */
-html.mobile {
-  --bg-pattern-size: 56px;
-}
-
-/* The gradient ground: built from the theme's own primary and accent, so it
-   follows every colour theme rather than pinning one hue into the CSS. */
-html[data-bg-ground="gradient"] {
-  --bg-ground-image: linear-gradient(
-    155deg,
-    color-mix(in srgb, var(--color-primary) 7%, var(--bg-ground-color)) 0%,
-    var(--bg-ground-color) 48%,
-    color-mix(in srgb, var(--color-accent) 6%, var(--bg-ground-color)) 100%
-  );
-}
 
 /* === Background colour ====================================================
    The colour the user picked in Settings, mixed into the theme's own page

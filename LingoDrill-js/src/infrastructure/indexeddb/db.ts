@@ -2,7 +2,7 @@
 
 import { openDB } from "idb"
 
-export const dbPromise = openDB("language-trainer", 7, {
+export const dbPromise = openDB("language-trainer", 8, {
   upgrade(db, oldVersion) {
     if (oldVersion < 1) {
       db.createObjectStore("audioMeta", { keyPath: "id" })
@@ -35,6 +35,14 @@ export const dbPromise = openDB("language-trainer", 7, {
     if (oldVersion >= 6 && oldVersion < 7) {
       if (db.objectStoreNames.contains("renderedSequenceCache")) {
         db.deleteObjectStore("renderedSequenceCache")
+      }
+    }
+    /* v8: user-made backgrounds — the SVG drawings and the colour behind the
+       page. The one the app ships with is not in here; it is a constant, so an
+       untouched install has an empty store and still has a background. */
+    if (oldVersion < 8) {
+      if (!db.objectStoreNames.contains("backgrounds")) {
+        db.createObjectStore("backgrounds", { keyPath: "id" })
       }
     }
   },

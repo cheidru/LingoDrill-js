@@ -132,7 +132,10 @@ export function ImportBundleButton({ onImportComplete }: Props) {
   return (
     <div className="import-bundle">
       <div className="import-bundle__row">
+        {/* library-action: shared with Upload audio, which sits directly above
+            this one on the library page. */}
         <button
+          className="library-action"
           onClick={() => bundleInputRef.current?.click()}
           disabled={importing}
         >

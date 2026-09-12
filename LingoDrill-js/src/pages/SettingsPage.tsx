@@ -10,8 +10,8 @@
 // The preference state stays here, shared by all three, because it is a handful
 // of useStates and splitting it per section would only duplicate the plumbing.
 
-import { useState } from "react"
-import { Navigate, useParams } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   getStartPage,
   setStartPage,
@@ -31,12 +31,9 @@ import {
   isSettingsSection,
   DEFAULT_SETTINGS_SECTION,
   getBgPattern,
-  setBgPattern,
-  getBgGround,
-  setBgGround,
   getBgTint,
   setBgTint,
-  AVAILABLE_BG_PATTERNS,
+  BG_PATTERN_NONE,
   DEFAULT_BG_TINT,
   DEFAULT_TINT_COLOR,
   SUB_FONT_SIZE_MIN,
@@ -50,10 +47,9 @@ import {
   type Language,
   type Theme,
   type ColorTheme,
-  type BgPattern,
-  type BgGround,
   type BgTint,
 } from "../utils/settings"
+import { IndexedDBBackgroundStorage } from "../infrastructure/indexeddb/IndexedDBBackgroundStorage"
 import { useT } from "../utils/i18n"
 
 /* Arrow curling back on itself — "put this back the way it was". */
@@ -76,6 +72,7 @@ const ResetIcon = () => (
 
 export function SettingsPage() {
   const t = useT()
+  const navigate = useNavigate()
   const { section } = useParams()
   const [language, setLanguageState] = useState<Language>(getLanguage())
   const [startPage, setStartPageState] = useState<StartPage>(getStartPage())
@@ -84,9 +81,13 @@ export function SettingsPage() {
   const [trimSilenceGap, setTrimSilenceGapState] = useState<number>(getTrimSilenceGap())
   const [themeMode, setThemeModeState] = useState<Theme>(getTheme())
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(getColorTheme())
-  const [bgPattern, setBgPatternState] = useState<BgPattern>(getBgPattern())
-  const [bgGround, setBgGroundState] = useState<BgGround>(getBgGround())
   const [bgTint, setBgTintState] = useState<BgTint>(getBgTint())
+  /* Which background is selected is a setting; what it is *called* is not — the
+     name lives with the background in IndexedDB, so the row reads it once and
+     says "none" until it arrives. The id is read at mount because that is when
+     it can change: choosing a background remounts this page on the way back. */
+  const [bgPatternId] = useState<string>(getBgPattern)
+  const [bgPatternName, setBgPatternName] = useState<string | null>(null)
 
   /* setLanguage fires lingodrill:languagechange, which is what re-renders every
      useT consumer — including this page, so the labels switch under the cursor
@@ -119,20 +120,22 @@ export function SettingsPage() {
     setColorThemeState(v)
     setColorTheme(v)
   }
-  const onBgPatternChange = (v: BgPattern) => {
-    setBgPatternState(v)
-    setBgPattern(v)
-  }
-  const onBgGroundChange = (v: BgGround) => {
-    setBgGroundState(v)
-    setBgGround(v)
-  }
   const onBgTintChange = (v: BgTint) => {
     setBgTintState(v)
     setBgTint(v)
   }
 
+  useEffect(() => {
+    if (section !== "appearance" || bgPatternId === BG_PATTERN_NONE) return
+    let cancelled = false
+    void new IndexedDBBackgroundStorage().get(bgPatternId).then(bg => {
+      if (!cancelled) setBgPatternName(bg?.name ?? null)
+    })
+    return () => { cancelled = true }
+  }, [section, bgPatternId])
+
   const trimGapIsDefault = trimSilenceGap === DEFAULT_TRIM_SILENCE_GAP
+  const tintIsDefault = bgTint === DEFAULT_BG_TINT
 
   /* A stale bookmark or a typed URL must not land on a blank page: anything
      that is not one of the three sections is sent to the first one. */
@@ -254,35 +257,35 @@ export function SettingsPage() {
                 <span className="settings-row__label">{t("settings.bgTint")}</span>
                 <span className="settings-row__hint">{t("settings.bgTint.hint")}</span>
               </div>
-              <div className="settings-row__control">
-                <div className="settings-swatches">
-                  <label className={`settings-swatch${bgTint === DEFAULT_BG_TINT ? " settings-swatch--active" : ""}`}>
-                    <input
-                      type="radio"
-                      name="lingodrill-bg-tint"
-                      value={DEFAULT_BG_TINT}
-                      checked={bgTint === DEFAULT_BG_TINT}
-                      onChange={() => onBgTintChange(DEFAULT_BG_TINT)}
-                    />
-                    <span className="settings-swatch__dot settings-swatch__dot--tint-default" />
-                    {t("settings.bgTint.default")}
-                  </label>
-                  {/* The colour input is hidden like the radios are — the chip is
-                      the control, and clicking it opens the platform picker. The
-                      dot shows the ground the pick actually produced once it has
-                      been normalised, which is rarely the raw colour chosen. */}
-                  <label className={`settings-swatch${bgTint === DEFAULT_BG_TINT ? "" : " settings-swatch--active"}`}>
-                    <input
-                      type="color"
-                      value={bgTint === DEFAULT_BG_TINT ? DEFAULT_TINT_COLOR : bgTint}
-                      onChange={e => onBgTintChange(e.target.value)}
-                    />
-                    <span
-                      className={`settings-swatch__dot settings-swatch__dot--tint-${bgTint === DEFAULT_BG_TINT ? "pick" : "custom"}`}
-                    />
-                    {t("settings.bgTint.custom")}
-                  </label>
-                </div>
+              <div className="settings-row__control settings-slider-row">
+                {/* The colour input is hidden the way the radios elsewhere are —
+                    the chip is the control, and clicking it opens the platform
+                    picker. The dot shows the ground the pick actually produced
+                    once normalised, which is rarely the raw colour chosen. */}
+                <label className={`settings-swatch${tintIsDefault ? "" : " settings-swatch--active"}`}>
+                  <input
+                    type="color"
+                    value={tintIsDefault ? DEFAULT_TINT_COLOR : bgTint}
+                    onChange={e => onBgTintChange(e.target.value)}
+                  />
+                  <span
+                    className={`settings-swatch__dot settings-swatch__dot--tint-${tintIsDefault ? "pick" : "custom"}`}
+                  />
+                  {t("settings.bgTint.custom")}
+                </label>
+                {/* Going back to the theme's own colour is an undo, not a third
+                    colour to choose between — so it is the same reset icon the
+                    sliders use, disabled while there is nothing to undo. */}
+                <button
+                  type="button"
+                  className="settings-reset"
+                  onClick={() => onBgTintChange(DEFAULT_BG_TINT)}
+                  disabled={tintIsDefault}
+                  title={t("settings.bgTint.default")}
+                  aria-label={t("settings.bgTint.default")}
+                >
+                  <ResetIcon />
+                </button>
               </div>
             </div>
   
@@ -291,47 +294,22 @@ export function SettingsPage() {
                 <span className="settings-row__label">{t("settings.bgPattern")}</span>
                 <span className="settings-row__hint">{t("settings.bgPattern.hint")}</span>
               </div>
-              <div className="settings-row__control">
-                <div className="settings-swatches">
-                  {AVAILABLE_BG_PATTERNS.map(opt => (
-                    <label
-                      key={opt}
-                      className={`settings-swatch${bgPattern === opt ? " settings-swatch--active" : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="lingodrill-bg-pattern"
-                        value={opt}
-                        checked={bgPattern === opt}
-                        onChange={() => onBgPatternChange(opt)}
-                      />
-                      <span className={`settings-swatch__dot settings-swatch__dot--pattern-${opt}`} />
-                      {t(`settings.bgPattern.${opt}`)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-  
-            <div className="settings-row">
-              <div className="settings-row__text">
-                <span className="settings-row__label">{t("settings.bgGround")}</span>
-                <span className="settings-row__hint">{t("settings.bgGround.hint")}</span>
-              </div>
-              <div className="settings-row__control">
-                <div className="settings-seg" role="group" aria-label={t("settings.bgGround")}>
-                  {(["plain", "gradient"] as BgGround[]).map(opt => (
-                    <button
-                      key={opt}
-                      type="button"
-                      className={`settings-seg__btn${bgGround === opt ? " settings-seg__btn--active" : ""}`}
-                      onClick={() => onBgGroundChange(opt)}
-                      aria-pressed={bgGround === opt}
-                    >
-                      {t(`settings.bgGround.${opt}`)}
-                    </button>
-                  ))}
-                </div>
+              {/* Which backgrounds exist is the user's business now, so this row
+                  no longer lists them — it says which one is on and opens the
+                  page where they are made, chosen and thrown away. */}
+              <div className="settings-row__control settings-slider-row">
+                <span className="settings-value settings-value--wide">
+                  {bgPatternId !== BG_PATTERN_NONE && bgPatternName
+                    ? t("settings.bgPattern.current", { name: bgPatternName })
+                    : t("settings.bgPattern.none")}
+                </span>
+                <button
+                  type="button"
+                  className="settings-seg__btn settings-seg__btn--standalone"
+                  onClick={() => navigate("/settings/appearance/backgrounds")}
+                >
+                  {t("settings.bgPattern.select")}
+                </button>
               </div>
             </div>
 

@@ -10,12 +10,14 @@ export const SETTINGS_SECTIONS: SettingsSection[] = ["general", "appearance", "p
 export const DEFAULT_SETTINGS_SECTION: SettingsSection = "general"
 export const isSettingsSection = (v: string | undefined): v is SettingsSection =>
   SETTINGS_SECTIONS.includes(v as SettingsSection)
-/* Motif tiled behind the page. Each value needs a matching rule in index.css;
+/* Which background is tiled behind the page: `BG_PATTERN_NONE`, or the id of a
+   background — the one the app ships with, or one the user built out of their
+   own SVG files on the Backgrounds page. It is a free id rather than a closed
+   union because the user makes the options; see utils/backgroundPattern.ts for
+   what an id resolves to and utils/backgroundRuntime.ts for how it reaches CSS.
    "none" is the default so nobody's app changes appearance under them. */
-export type BgPattern = "none" | "leaves"
-/* The ground the pattern sits on: the theme's flat page colour, or a soft
-   gradient mixed from the theme's own primary and accent. */
-export type BgGround = "plain" | "gradient"
+export type BgPattern = string
+export const BG_PATTERN_NONE = "none"
 /* Colour mixed into the page ground: "default" leaves the theme's own colour
    alone, anything else is a `#rrggbb` the user picked.
 
@@ -34,7 +36,6 @@ const KEY_LANGUAGE = "lingodrill.language"
 const KEY_THEME = "lingodrill.theme"
 const KEY_COLOR_THEME = "lingodrill.colorTheme"
 const KEY_BG_PATTERN = "lingodrill.bgPattern"
-const KEY_BG_GROUND = "lingodrill.bgGround"
 const KEY_BG_TINT = "lingodrill.bgTint"
 const KEY_ONBOARDING_SEEN = "lingodrill.onboardingSeen"
 
@@ -57,12 +58,7 @@ export const DEFAULT_LANGUAGE: Language = "en"
 export const AVAILABLE_LANGUAGES: Language[] = ["en", "ru"]
 export const DEFAULT_THEME: Theme = "light"
 export const DEFAULT_COLOR_THEME: ColorTheme = "normal"
-export const DEFAULT_BG_PATTERN: BgPattern = "none"
-export const DEFAULT_BG_GROUND: BgGround = "plain"
-/* Patterns offered in Settings. As with languages, this is what the UI reads:
-   a stored motif that has since been withdrawn falls back to the default
-   rather than leaving the page with a mask that resolves to nothing. */
-export const AVAILABLE_BG_PATTERNS: BgPattern[] = ["none", "leaves"]
+export const DEFAULT_BG_PATTERN: BgPattern = BG_PATTERN_NONE
 export const DEFAULT_BG_TINT: BgTint = "default"
 /* Where the colour picker opens before anything has been chosen — the sage the
    old fixed palette led with. */
@@ -266,36 +262,16 @@ export function applyColorTheme(v: ColorTheme = getColorTheme()): void {
   document.documentElement.setAttribute("data-color-theme", v)
 }
 
+/* No validation against a list of known ids — the backgrounds live in
+   IndexedDB, which cannot be read from here. An id that no longer resolves is
+   caught where it is resolved (utils/backgroundRuntime.ts), which falls back to
+   no pattern rather than leaving the page wearing a mask that is not there. */
 export function getBgPattern(): BgPattern {
-  const v = localStorage.getItem(KEY_BG_PATTERN)
-  if (AVAILABLE_BG_PATTERNS.includes(v as BgPattern)) return v as BgPattern
-  return DEFAULT_BG_PATTERN
+  return localStorage.getItem(KEY_BG_PATTERN) || DEFAULT_BG_PATTERN
 }
 
 export function setBgPattern(v: BgPattern): void {
   localStorage.setItem(KEY_BG_PATTERN, v)
-  applyBgPattern(v)
-}
-
-export function applyBgPattern(v: BgPattern = getBgPattern()): void {
-  document.documentElement.setAttribute("data-bg-pattern", v)
-}
-
-export function getBgGround(): BgGround {
-  const v = localStorage.getItem(KEY_BG_GROUND)
-  if (v === "plain" || v === "gradient") return v
-  return DEFAULT_BG_GROUND
-}
-
-export function setBgGround(v: BgGround): void {
-  localStorage.setItem(KEY_BG_GROUND, v)
-  applyBgGround(v)
-}
-
-/* Always stamped, never absent: the neon dark theme keys its ambient halos off
-   `[data-bg-ground="plain"]`, so an unstamped document would lose them. */
-export function applyBgGround(v: BgGround = getBgGround()): void {
-  document.documentElement.setAttribute("data-bg-ground", v)
 }
 
 export function getBgTint(): BgTint {

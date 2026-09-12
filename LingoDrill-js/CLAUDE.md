@@ -65,15 +65,27 @@ Two fragments may bind overlapping ranges, and then no re-basing can keep both o
 
 ### Background pattern
 
-The page ground is painted by `html` alone — `background-color: var(--color-bg-page)` plus `--bg-ground-image` (`none`, or a gradient mixed from the theme's own primary and accent when `data-bg-ground="gradient"`). The pattern is `html::before` at `z-index: -1`: one black stroke-only SVG tile used as a `mask-image` and tinted with `--color-text`, so a single tile serves all six theme x colour-theme combinations. That z-index puts it after the ground and before every in-flow background, and since cards, rows and modals are opaque, the pattern only shows in the margins.
+The page ground is painted by `html` alone — `background-color: var(--color-bg-page)` plus `--bg-ground-image`. The pattern is `html::before` at `z-index: -1`: one black SVG tile used as a `mask-image` and tinted with `--bg-pattern-color` (defaulting to `--color-text`), so a single tile serves all six theme x colour-theme combinations. That z-index puts it after the ground and before every in-flow background, and since cards, rows and modals are opaque, the pattern only shows in the margins.
 
-The consequence to remember: **nothing may paint an opaque background on `html` or `body`** — that is what hides the layer. The neon dark theme's ambient halos are therefore `--bg-ground-image` under `[data-bg-ground="plain"]`, not a `body` background.
+The consequence to remember: **nothing may paint an opaque background on `html` or `body`** — that is what hides the layer. The neon dark theme's ambient halos are therefore `--bg-ground-image`, not a `body` background.
 
 The ground colour is `--bg-ground-color`: the chosen `--bg-tint` mixed into `--color-bg-page` at `--bg-tint-strength` (14% light, 16% dark). One hex therefore covers both themes — the same green is pale sage over near-white and deep forest over near-black. Note that `--color-bg-page` itself is never redefined: filled buttons use it as their *text* colour, so tinting it would tint the type inside them.
 
 `BgTint` is the user's own colour, picked with a native colour input in Settings — there is no palette of named tints. What the user does not get to set is how far it carries: `normalizeBgTint()` in `src/utils/settings.ts` keeps the hue but pulls saturation and lightness into the band the mix strength was tuned for (a colour picked as grey stays grey), and the normalised value is what gets stored. Because it is a free colour rather than one of a fixed set, it reaches CSS as a `--bg-tint` custom property set on `<html>` by `applyBgTint()`, not as a `data-` attribute; removing it lets the `:root` default stand and the ground goes back to the theme's own.
 
-All three settings live in `src/utils/settings.ts` (`BgPattern`, `BgGround`, `BgTint`) beside theme and colour theme, and are applied to `<html>` at boot from `App.tsx`. Adding a motif is a `--bg-pattern-<name>` URL and a `[data-bg-pattern="<name>"]::before` rule in `index.css`, plus the name in `AVAILABLE_BG_PATTERNS` and two i18n keys.
+Both settings live in `src/utils/settings.ts` (`BgPattern`, `BgTint`) beside theme and colour theme, and are applied to `<html>` at boot from `App.tsx`.
+
+### Backgrounds
+
+A background is not a motif baked into the CSS any more — it is a `BackgroundDef`: a set of the user's own SVG drawings plus a stroke colour, stored in the `backgrounds` object store. `BgPattern` therefore holds `"none"` or a background id, and the built-in "Leaves" is a constant (`BUILTIN_BACKGROUND`) rather than a row, so an untouched install reads an empty store and still has a background. Re-colouring the built-in writes a row under its own id, and `IndexedDBBackgroundStorage.getAll()` lets only that row's `stroke` shadow the constant — the drawings always come from the code.
+
+`src/utils/backgroundPattern.ts` builds the tile. `PATTERN_LINES` holds six curves in a 210 x 297 space that are never drawn; each drawing is stamped along one at a fixed spacing, rotated to stand perpendicular to the curve (alternating sides), scaled so its viewBox height lands at `SHAPE_HEIGHT_PX` = 40px. Measuring the curves needs `getPointAtLength`, so it happens inside a throwaway hidden `<svg>`; the drawings are emitted once into `<defs>` and stamped with `<use>`, which keeps a fifty-leaf tile about the size of one. `mask-size` must be the tile's real pixel size (`PATTERN_SCALE` x the space above, 420 x 594) or the 40px stops being 40px.
+
+`parseSvgShape()` is what an uploaded file goes through, once, at upload: a whitelist of shape tags and geometry attributes, everything else dropped. Nothing that reaches storage can carry a script, a style or an external reference — which matters, because the result is inlined into a document the page then loads.
+
+`src/utils/backgroundRuntime.ts` connects the two. Building a tile means reading IndexedDB, which cannot happen before the first paint, so the finished tile is cached in localStorage and re-applied synchronously at boot (`applyBgPatternFromCache`) with `refreshBgPattern()` correcting it afterwards. Anything that changes a background's drawings or colour must go back through `applyBackground()`/`clearBgPattern()` so the cache does not outlive what it was built from.
+
+The Backgrounds page (`/settings/appearance/backgrounds`) is where they are made, chosen and deleted. Selecting a background is the same act as opening it for editing — there is no second selection state, so what is being changed is always what the page behind it is wearing.
 
 ### Dual audio engine
 
@@ -94,9 +106,9 @@ The audio file library is managed by `useAudioLibrary` (`src/app/hooks/useAudioL
 
 ### Persistence (IndexedDB)
 
-Database: `"language-trainer"` (current version: 4), opened in `src/infrastructure/indexeddb/db.ts`.
+Database: `"language-trainer"` (current version: 8), opened in `src/infrastructure/indexeddb/db.ts`.
 
-Object stores: `audioMeta`, `audioBlobs`, `subtitleFiles`, `fragments`, `sequences`, `waveformCache`.
+Object stores: `audioMeta`, `audioBlobs`, `subtitleFiles`, `vocabularyFiles`, `fragments`, `sequences`, `waveformCache`, `backgrounds`.
 
 Each domain concept has its own storage class in `src/infrastructure/indexeddb/`.
 

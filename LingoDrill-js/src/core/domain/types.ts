@@ -112,3 +112,34 @@ export interface Fragment {
   repeat: number
   enabled: boolean
 }
+
+/**
+ * One drawing inside a background, reduced to what the pattern builder needs:
+ * the box the artwork was drawn in and the markup that fills it. An uploaded
+ * SVG becomes this at upload time (see `parseSvgShape`), so nothing downstream
+ * ever has to re-read an editor's file — and nothing that has been stored can
+ * carry a script, a stylesheet or an external reference into the page.
+ */
+export interface BackgroundShape {
+  id: string
+  /** The file it came from, shown in the background's file list. */
+  name: string
+  /** `[minX, minY, width, height]` of the source SVG. */
+  viewBox: [number, number, number, number]
+  /** The shape markup, without the surrounding `<svg>`. */
+  content: string
+}
+
+/**
+ * A background: a set of drawings, repeated along the invisible lines of
+ * `PATTERN_LINES` and tinted with one colour. `id === BUILTIN_BACKGROUND_ID`
+ * marks the one the app ships with, which may be re-coloured but not deleted.
+ */
+export interface BackgroundDef {
+  id: string
+  name: string
+  shapes: BackgroundShape[]
+  /** `"default"` — the theme's own text colour — or a `#rrggbb`. */
+  stroke: string
+  createdAt: number
+}
